@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>سانیکو — داشبورد مدیریتی</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#f6f7f9;--panel:#fff;--ink:#15181d;--muted:#6a7280;--line:#e3e6ea;
+  --accent:#0f5c4a;--accent2:#1f7a63;--warn:#a8511f;--danger:#9e2b2b;--ok:#2f6f4f;--neutral:#8a9099;
+  --shadow:0 1px 2px rgba(16,20,26,.05),0 4px 16px rgba(16,20,26,.05);
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1116;--panel:#161a21;--ink:#e8eaed;--muted:#9aa2ad;--line:#262c35;
+  --accent:#4fd1ab;--accent2:#2f9e80;--warn:#e0954f;--danger:#e0736e;--ok:#63c396;--neutral:#737b86;
+  --shadow:none;}}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.65;
+  font-family:'Vazirmatn',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:18px 16px 56px}
+.hide{display:none!important}
+
+/* login */
+.login{min-height:70vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.loginbox{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);
+  border-radius:16px;padding:26px 22px;box-shadow:var(--shadow)}
+.loginbox h1{font-size:1.15rem;margin:0 0 4px}
+.loginbox p.s{color:var(--muted);font-size:.82rem;margin:0 0 20px}
+label{display:block;font-size:.78rem;color:var(--muted);margin:12px 0 5px}
+input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;
+  background:var(--bg);color:var(--ink);font-family:inherit;font-size:.92rem}
+input:focus{outline:2px solid var(--accent2);outline-offset:1px}
+button{font-family:inherit;cursor:pointer;border-radius:10px;border:1px solid transparent}
+.btn{width:100%;padding:11px;background:var(--accent);color:#fff;font-weight:500;
+  font-size:.92rem;margin-top:18px}
+.btn:disabled{opacity:.55;cursor:default}
+.link{background:none;border:none;color:var(--muted);font-size:.78rem;padding:10px 0 0;
+  width:100%;text-align:center;text-decoration:underline}
+.msg{margin-top:14px;font-size:.82rem;padding:9px 11px;border-radius:9px;display:none}
+.msg.err{display:block;color:var(--danger);background:color-mix(in srgb,var(--danger) 10%,transparent)}
+.msg.ok{display:block;color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+
+/* app */
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.top h1{font-size:1.2rem;margin:0 0 3px}
+.top .s{color:var(--muted);font-size:.78rem;margin:0}
+.who{font-size:.74rem;color:var(--muted);text-align:left}
+.out{background:var(--panel);border:1px solid var(--line);color:var(--muted);
+  font-size:.74rem;padding:5px 11px;margin-top:5px}
+h2{font-size:.95rem;margin:28px 0 11px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+h2 .n{font-size:.73rem;color:var(--muted);font-weight:400}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;box-shadow:var(--shadow)}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:720px){.kpis{grid-template-columns:repeat(3,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 14px;box-shadow:var(--shadow)}
+.kpi .l{font-size:.73rem;color:var(--muted);margin-bottom:5px;line-height:1.35}
+.kpi .v{font-size:1.16rem;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .u{font-size:.68rem;color:var(--muted);font-weight:400;margin-right:3px}
+.kpi.pos .v{color:var(--ok)}.kpi.neg .v{color:var(--danger)}.kpi.wv .v{color:var(--warn)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:420px}
+th{text-align:right;font-weight:500;color:var(--muted);font-size:.73rem;padding:7px 8px;
+  border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:left;direction:ltr}
+.pill{display:inline-block;font-size:.67rem;padding:2px 8px;border-radius:999px;
+  border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.p1{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 35%,transparent)}
+.p2{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
+.p3{color:var(--neutral)}
+.bar{height:9px;border-radius:5px;background:var(--accent);display:block}
+.bar.t{background:var(--neutral)}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.row .nm{flex:0 0 42%;font-size:.79rem}
+.row .tr{flex:1;background:color-mix(in srgb,var(--line) 60%,transparent);border-radius:5px}
+.row .vl{flex:0 0 68px;text-align:left;font-size:.76rem;color:var(--muted);
+  font-variant-numeric:tabular-nums;direction:ltr}
+.spin{color:var(--muted);font-size:.84rem;padding:26px 0;text-align:center}
+.banner{border-radius:12px;padding:12px 14px;font-size:.82rem;margin-bottom:16px;
+  border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);
+  background:color-mix(in srgb,var(--warn) 9%,transparent);color:var(--ink)}
+footer{margin-top:32px;padding-top:15px;border-top:1px solid var(--line);color:var(--muted);font-size:.75rem}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login" class="login">
+  <div class="loginbox">
+    <h1>داشبورد مدیریتی سانیکو</h1>
+    <p class="s">برای ورود، ایمیل و رمز عبور خود را وارد کنید.</p>
+    <label for="em">ایمیل</label>
+    <input id="em" type="email" autocomplete="username" dir="ltr">
+    <label for="pw">رمز عبور</label>
+    <input id="pw" type="password" autocomplete="current-password" dir="ltr">
+    <button id="go" class="btn">ورود</button>
+    <button id="reset" class="link">رمز عبور را فراموش کرده‌ام</button>
+    <div id="lmsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- shown when the user arrives from an invitation or reset link -->
+<div id="setpw" class="login hide">
+  <div class="loginbox">
+    <h1>تعیین رمز عبور</h1>
+    <p class="s" id="pwwho">برای حساب شما یک رمز عبور انتخاب کنید.</p>
+    <label for="np">رمز عبور جدید</label>
+    <input id="np" type="password" autocomplete="new-password" dir="ltr">
+    <label for="np2">تکرار رمز عبور</label>
+    <input id="np2" type="password" autocomplete="new-password" dir="ltr">
+    <button id="savepw" class="btn">ذخیره و ورود</button>
+    <div id="pmsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app" class="wrap hide">
+  <div class="top">
+    <div>
+      <h1>داشبورد مالی پروژه کارخانه</h1>
+      <p class="s" id="meta">در حال بارگذاری…</p>
+    </div>
+    <div class="who">
+      <div id="uinfo"></div>
+      <button id="logout" class="out">خروج</button>
+    </div>
+  </div>
+
+  <div id="alert" class="banner hide"></div>
+  <div id="body"><div class="spin">در حال خواندن داده‌ها…</div></div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+/* ===================================================================
+   CONFIGURATION — fill these two in before uploading.
+   The anon key is public by design: it grants nothing on its own.
+   Every row the user sees is decided by Row Level Security.
+   =================================================================== */
+var SUPABASE_URL = "https://zlzjzzqrkbsqornnimlx.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
+
+var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+var $ = function (id) { return document.getElementById(id); };
+
+/* ---------- formatting ---------- */
+function bn(n) {                       // rial -> billions, 1 decimal
+  if (n === null || n === undefined) return "—";
+  return (Number(n) / 1e9).toLocaleString("en-US", { maximumFractionDigits: 1 });
+}
+function esc(s) {
+  return String(s === null || s === undefined ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+function prioClass(p) {
+  if (!p) return "p3";
+  if (p.indexOf("۱") === 0 || p.indexOf("1") === 0) return "p1";
+  if (p.indexOf("۲") === 0 || p.indexOf("2") === 0) return "p2";
+  return "p3";
+}
+
+/* ---------- auth ---------- */
+function msg(t, kind) { var m = $("lmsg"); m.textContent = t; m.className = "msg " + kind; }
+
+$("go").addEventListener("click", async function () {
+  var btn = $("go"); btn.disabled = true; btn.textContent = "در حال ورود…";
+  var r = await db.auth.signInWithPassword({
+    email: $("em").value.trim(), password: $("pw").value
+  });
+  btn.disabled = false; btn.textContent = "ورود";
+  if (r.error) { msg("ایمیل یا رمز عبور درست نیست.", "err"); return; }
+  start();
+});
+$("pw").addEventListener("keydown", function (e) { if (e.key === "Enter") $("go").click(); });
+
+$("reset").addEventListener("click", async function () {
+  var em = $("em").value.trim();
+  if (!em) { msg("اول ایمیل خود را وارد کنید.", "err"); return; }
+  var r = await db.auth.resetPasswordForEmail(em, { redirectTo: window.location.href });
+  msg(r.error ? "ارسال ایمیل ناموفق بود." : "لینک بازنشانی رمز برایتان ایمیل شد.",
+      r.error ? "err" : "ok");
+});
+
+$("logout").addEventListener("click", async function () {
+  await db.auth.signOut();
+  $("app").classList.add("hide");
+  $("login").classList.remove("hide");
+});
+
+/* ---------- set password (invitation / reset links) ---------- */
+function arrivedFromEmailLink() {
+  var h = window.location.hash || "";
+  return h.indexOf("type=invite") > -1 || h.indexOf("type=recovery") > -1 ||
+         h.indexOf("type=signup") > -1;
+}
+
+function showSetPassword(session) {
+  $("login").classList.add("hide");
+  $("app").classList.add("hide");
+  $("setpw").classList.remove("hide");
+  if (session && session.user) $("pwwho").textContent = session.user.email;
+}
+
+$("savepw").addEventListener("click", async function () {
+  var a = $("np").value, b = $("np2").value;
+  var m = $("pmsg");
+  if (a.length < 8) { m.textContent = "رمز باید حداقل ۸ کاراکتر باشد."; m.className = "msg err"; return; }
+  if (a !== b)      { m.textContent = "دو رمز یکسان نیستند."; m.className = "msg err"; return; }
+
+  var btn = $("savepw"); btn.disabled = true; btn.textContent = "در حال ذخیره…";
+  var r = await db.auth.updateUser({ password: a });
+  btn.disabled = false; btn.textContent = "ذخیره و ورود";
+  if (r.error) { m.textContent = "ذخیره نشد: " + r.error.message; m.className = "msg err"; return; }
+
+  history.replaceState(null, "", window.location.pathname);
+  $("setpw").classList.add("hide");
+  start();
+});
+
+/* ---------- boot ---------- */
+async function start() {
+  var s = await db.auth.getSession();
+  if (!s.data.session) {
+    $("login").classList.remove("hide"); $("app").classList.add("hide"); return;
+  }
+  // a fresh session that came from an email link has no usable password yet
+  if (arrivedFromEmailLink()) { showSetPassword(s.data.session); return; }
+  $("login").classList.add("hide");
+  $("setpw").classList.add("hide");
+  $("app").classList.remove("hide");
+  await render(s.data.session);
+}
+
+async function render(session) {
+  var prof = await db.from("profiles").select("full_name,email,role").eq("id", session.user.id).single();
+  var role = prof.data ? prof.data.role : "viewer";
+  $("uinfo").textContent = (prof.data && prof.data.full_name ? prof.data.full_name : session.user.email)
+                         + " · " + (role === "admin" ? "مدیر" : "مشاهده‌گر");
+
+  var q = await Promise.all([
+    db.from("v_kpi_core").select("*").single(),
+    db.from("v_kpi_cash").select("*").single(),
+    db.from("v_monthly_outlook").select("*").order("month_code"),
+    db.from("v_spend_by_category").select("*").order("total_rial", { ascending: false }),
+    db.from("v_open_commitments").select("*").order("due_day_code", { nullsFirst: false }),
+    db.from("v_open_inflows").select("*").order("expected_day_code"),
+    db.from("v_assumptions_current").select("*"),
+    db.from("v_sync_health").select("*").limit(1)
+  ]);
+
+  var core = q[0].data || {};
+  var cash = q[1].data;                       // null for viewer: RLS blocks it
+  var out  = q[2].data || [];
+  var spend= q[3].data || [];
+  var cmts = q[4].data || [];
+  var infs = q[5].data || [];
+  var asm  = q[6].data || [];
+  var sync = (q[7].data || [])[0];
+
+  var cashTotal = cash ? Number(cash.cash_total) : null;
+  var canSeeCash = cashTotal !== null && cashTotal > 0;
+  var gap = canSeeCash
+    ? cashTotal + Number(core.inflow_certain) - Number(core.firm_open) - Number(core.soft_open)
+    : null;
+
+  $("meta").textContent = core.txn_count + " تراکنش · " + core.open_commitment_count +
+    " تعهد باز" + (sync ? " · آخرین همگام‌سازی: " +
+      new Date(sync.started_at).toLocaleDateString("fa-IR") : "");
+
+  /* assumption that still needs a decision */
+  var pending = asm.filter(function (a) { return a.needs_decision; });
+  if (pending.length && role === "admin") {
+    $("alert").classList.remove("hide");
+    $("alert").innerHTML = "<strong>فرض تعیین‌نشده:</strong> " +
+      pending.map(function (a) { return esc(a.label); }).join("، ") +
+      " — تا تعیین نشود، هشدار مربوطه فعال نمی‌شود.";
+  }
+
+  var h = "";
+
+  /* ---- KPI cards ---- */
+  h += '<section class="kpis">';
+  if (canSeeCash) h += kpi("موجودی نقدی بانک‌ها", bn(cashTotal), "");
+  h += kpi("هزینه واقعی پروژه تا کنون", bn(core.project_cost), "");
+  h += kpi("تعهد قطعی باز", bn(core.firm_open), "wv");
+  h += kpi("تعهد برنامه‌ریزی‌شده و احتمالی", bn(core.soft_open), "");
+  h += kpi("ورودی قطعی برنامه‌ریزی‌شده", bn(core.inflow_certain), "");
+  h += kpi("تعهد قطعی سه ماه آینده", bn(core.due_next_3m), "neg");
+  if (gap !== null) h += kpi("کسری تأمین مالی", (gap < 0 ? "−" : "+") + bn(Math.abs(gap)),
+                             gap < 0 ? "neg" : "pos");
+  h += "</section>";
+
+  /* ---- running cash outlook (admin only: needs the opening balance) ---- */
+  if (canSeeCash) {
+    h += '<h2>موجودی پیش‌بینی‌شده پایان ماه <span class="n">سناریوی قطعی — میلیارد ریال</span></h2>';
+    h += '<div class="card scroll"><table><thead><tr><th>ماه</th><th>ورودی قطعی</th>' +
+         '<th>تعهد قطعی</th><th>موجودی پایان</th></tr></thead><tbody>';
+    var bal = cashTotal;
+    for (var i = 0; i < out.length && i < 9; i++) {
+      bal += Number(out[i].inflow_certain) - Number(out[i].firm_due);
+      h += "<tr><td>" + esc(out[i].month_name) + "</td>" +
+           '<td class="num">' + bn(out[i].inflow_certain) + "</td>" +
+           '<td class="num">' + bn(out[i].firm_due) + "</td>" +
+           '<td class="num"' + (bal < 0 ? ' style="color:var(--danger);font-weight:700"' : "") +
+           ">" + bn(bal) + "</td></tr>";
+    }
+    h += "</tbody></table></div>";
+  }
+
+  /* ---- spend by category ---- */
+  var max = spend.length ? Number(spend[0].total_rial) : 1;
+  h += '<h2>مخارج به تفکیک دسته <span class="n">میلیارد ریال</span></h2><div class="card">';
+  spend.forEach(function (s) {
+    var w = Math.max(1, Math.round(Number(s.total_rial) / max * 100));
+    h += '<div class="row"><span class="nm">' + esc(s.category) + "</span>" +
+         '<span class="tr"><span class="bar' + (s.is_transfer ? " t" : "") +
+         '" style="width:' + w + '%"></span></span>' +
+         '<span class="vl">' + bn(s.total_rial) + "</span></div>";
+  });
+  h += "</div>";
+
+  /* ---- open commitments ---- */
+  h += '<h2>تعهدات باز <span class="n">' + cmts.length + " مورد</span></h2>";
+  h += '<div class="card scroll"><table><thead><tr><th>شرح</th><th>سررسید</th>' +
+       "<th>اولویت</th><th>مانده</th></tr></thead><tbody>";
+  cmts.forEach(function (c) {
+    h += "<tr><td>" + esc(c.description) +
+         (c.counterparty ? '<br><span class="pill">' + esc(c.counterparty) + "</span>" : "") +
+         '</td><td class="num">' + esc(c.due_jalali || "—") + "</td>" +
+         '<td><span class="pill ' + prioClass(c.priority) + '">' +
+         esc((c.priority || "—").replace(/ - .*/, "")) + "</span></td>" +
+         '<td class="num">' + bn(c.remaining_rial) + "</td></tr>";
+  });
+  h += "</tbody></table></div>";
+
+  /* ---- planned inflows ---- */
+  h += '<h2>ورودی‌های برنامه‌ریزی‌شده</h2>';
+  h += '<div class="card scroll"><table><thead><tr><th>شرح</th><th>طرف حساب</th>' +
+       "<th>تاریخ</th><th>مبلغ</th></tr></thead><tbody>";
+  infs.forEach(function (i) {
+    h += "<tr><td>" + esc(i.description) + "</td><td>" + esc(i.counterparty || "—") +
+         '</td><td class="num">' + esc(i.expected_jalali || "—") +
+         '</td><td class="num">' + bn(i.amount_rial) + "</td></tr>";
+  });
+  h += "</tbody></table></div>";
+
+  /* ---- assumptions ---- */
+  h += '<h2>مفروضات جاری</h2><div class="card scroll"><table><thead><tr>' +
+       "<th>فرض</th><th>مقدار</th><th>از تاریخ</th></tr></thead><tbody>";
+  asm.forEach(function (a) {
+    var v = a.value_text !== null && a.value_text !== undefined ? a.value_text
+          : (a.value_num === null ? "تعیین نشده"
+             : (Number(a.value_num) >= 1e9 ? bn(a.value_num) + " میلیارد" : a.value_num));
+    h += "<tr><td>" + esc(a.label) + '</td><td class="num">' + esc(v) +
+         " " + esc(a.unit === "ریال" || a.unit === "ریال در ماه" ? "" : a.unit) +
+         '</td><td class="num">' + esc(a.effective_from) + "</td></tr>";
+  });
+  h += "</tbody></table></div>";
+
+  $("body").innerHTML = h;
+
+  $("foot").innerHTML =
+    "اعداد زنده از دیتابیس خوانده می‌شوند. دسترسی هر کاربر در سطح دیتابیس کنترل می‌شود، نه در این صفحه." +
+    (canSeeCash ? "" : "<br>موجودی بانک‌ها برای نقش شما قابل نمایش نیست.");
+}
+
+function kpi(label, value, cls) {
+  return '<div class="kpi ' + cls + '"><div class="l">' + label +
+         '</div><div class="v">' + value + '<span class="u">میلیارد ریال</span></div></div>';
+}
+
+db.auth.onAuthStateChange(function (e, session) {
+  if (e === "PASSWORD_RECOVERY") { showSetPassword(session); return; }
+  if (e === "SIGNED_IN") start();
+});
+start();
+</script>
+</body>
+</html>
