@@ -21,12 +21,12 @@
   --accent:#4fd1ab;--accent2:#2f9e80;--warn:#e0954f;--danger:#e0736e;--ok:#63c396;--neutral:#737b86;
   --shadow:none;}}
 *,*::before,*::after{box-sizing:inherit}
-body{margin:0;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.65;
+body{margin:0;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.6;
   font-family:'Vazirmatn',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1080px;margin:0 auto;padding:18px 16px 56px}
+.wrap{max-width:1080px;margin:0 auto;padding:16px 16px 60px}
 .hide{display:none!important}
+button{font-family:inherit;cursor:pointer;border-radius:10px;border:1px solid transparent}
 
-/* login */
 .login{min-height:70vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
 .loginbox{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line);
   border-radius:16px;padding:26px 22px;box-shadow:var(--shadow)}
@@ -36,352 +36,334 @@ label{display:block;font-size:.78rem;color:var(--muted);margin:12px 0 5px}
 input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;
   background:var(--bg);color:var(--ink);font-family:inherit;font-size:.92rem}
 input:focus{outline:2px solid var(--accent2);outline-offset:1px}
-button{font-family:inherit;cursor:pointer;border-radius:10px;border:1px solid transparent}
-.btn{width:100%;padding:11px;background:var(--accent);color:#fff;font-weight:500;
-  font-size:.92rem;margin-top:18px}
+.btn{width:100%;padding:11px;background:var(--accent);color:#fff;font-weight:500;font-size:.92rem;margin-top:18px}
 .btn:disabled{opacity:.55;cursor:default}
-.link{background:none;border:none;color:var(--muted);font-size:.78rem;padding:10px 0 0;
-  width:100%;text-align:center;text-decoration:underline}
+.link{background:none;border:none;color:var(--muted);font-size:.78rem;padding:10px 0 0;width:100%;text-decoration:underline}
 .msg{margin-top:14px;font-size:.82rem;padding:9px 11px;border-radius:9px;display:none}
 .msg.err{display:block;color:var(--danger);background:color-mix(in srgb,var(--danger) 10%,transparent)}
 .msg.ok{display:block;color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
 
-/* app */
-.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px;flex-wrap:wrap}
-.top h1{font-size:1.2rem;margin:0 0 3px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px;flex-wrap:wrap}
+.top h1{font-size:1.18rem;margin:0 0 2px}
 .top .s{color:var(--muted);font-size:.78rem;margin:0}
-.who{font-size:.74rem;color:var(--muted);text-align:left}
-.out{background:var(--panel);border:1px solid var(--line);color:var(--muted);
-  font-size:.74rem;padding:5px 11px;margin-top:5px}
-h2{font-size:.95rem;margin:28px 0 11px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
-h2 .n{font-size:.73rem;color:var(--muted);font-weight:400}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;box-shadow:var(--shadow)}
+.who{font-size:.72rem;color:var(--muted);text-align:left;display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+.mini{background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:.72rem;padding:4px 10px}
+.fresh{font-size:.73rem;color:var(--muted);border:1px solid var(--line);background:var(--panel);
+  border-radius:999px;padding:4px 12px;display:inline-block;margin:10px 0 2px}
+.fresh.stale{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+.crumb{display:flex;gap:7px;align-items:center;font-size:.8rem;margin:12px 0 2px}
+.crumb button{background:none;border:none;color:var(--accent2);font-size:.8rem;padding:0;text-decoration:underline}
+
+h2{font-size:.93rem;margin:26px 0 10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
 .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 @media(min-width:720px){.kpis{grid-template-columns:repeat(3,1fr)}}
-.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 14px;box-shadow:var(--shadow)}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 14px;
+  box-shadow:var(--shadow);text-align:right;width:100%;display:block;color:inherit}
 .kpi .l{font-size:.73rem;color:var(--muted);margin-bottom:5px;line-height:1.35}
 .kpi .v{font-size:1.16rem;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.kpi .u{font-size:.68rem;color:var(--muted);font-weight:400;margin-right:3px}
-.kpi.pos .v{color:var(--ok)}.kpi.neg .v{color:var(--danger)}.kpi.wv .v{color:var(--warn)}
+.kpi .u{font-size:.67rem;color:var(--muted);font-weight:400;margin-right:3px}
+.kpi .go{font-size:.68rem;color:var(--accent2);margin-top:4px}
+.kpi.pos .v{color:var(--ok)}.kpi.neg .v{color:var(--danger)}.kpi.warn .v{color:var(--warn)}
+
+.row{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.row .nm{flex:0 0 40%;font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .tr{flex:1;background:color-mix(in srgb,var(--line) 60%,transparent);border-radius:5px;height:9px}
+.row .bar{height:9px;border-radius:5px;background:var(--accent);display:block}
+.row .bar.t{background:var(--neutral)}
+.row .vl{flex:0 0 62px;text-align:left;font-size:.75rem;color:var(--muted);
+  font-variant-numeric:tabular-nums;direction:ltr}
+
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:420px}
-th{text-align:right;font-weight:500;color:var(--muted);font-size:.73rem;padding:7px 8px;
+table{width:100%;border-collapse:collapse;font-size:.81rem;min-width:400px}
+th{text-align:right;font-weight:500;color:var(--muted);font-size:.72rem;padding:7px 8px;
   border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 tr:last-child td{border-bottom:none}
 td.num{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:left;direction:ltr}
+td.neg{color:var(--danger);font-weight:700}
 .pill{display:inline-block;font-size:.67rem;padding:2px 8px;border-radius:999px;
   border:1px solid var(--line);color:var(--muted);white-space:nowrap}
 .p1{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 35%,transparent)}
 .p2{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
-.p3{color:var(--neutral)}
-.bar{height:9px;border-radius:5px;background:var(--accent);display:block}
-.bar.t{background:var(--neutral)}
-.row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
-.row .nm{flex:0 0 42%;font-size:.79rem}
-.row .tr{flex:1;background:color-mix(in srgb,var(--line) 60%,transparent);border-radius:5px}
-.row .vl{flex:0 0 68px;text-align:left;font-size:.76rem;color:var(--muted);
-  font-variant-numeric:tabular-nums;direction:ltr}
+.srch{margin-bottom:12px}
 .spin{color:var(--muted);font-size:.84rem;padding:26px 0;text-align:center}
-.banner{border-radius:12px;padding:12px 14px;font-size:.82rem;margin-bottom:16px;
-  border:1px solid color-mix(in srgb,var(--warn) 35%,transparent);
-  background:color-mix(in srgb,var(--warn) 9%,transparent);color:var(--ink)}
-footer{margin-top:32px;padding-top:15px;border-top:1px solid var(--line);color:var(--muted);font-size:.75rem}
+footer{margin-top:30px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:.74rem}
 </style>
 </head>
 <body>
 
-<!-- ===================== LOGIN ===================== -->
 <div id="login" class="login">
   <div class="loginbox">
     <h1>داشبورد مدیریتی سانیکو</h1>
     <p class="s">برای ورود، ایمیل و رمز عبور خود را وارد کنید.</p>
-    <label for="em">ایمیل</label>
-    <input id="em" type="email" autocomplete="username" dir="ltr">
-    <label for="pw">رمز عبور</label>
-    <input id="pw" type="password" autocomplete="current-password" dir="ltr">
+    <label for="em">ایمیل</label><input id="em" type="email" autocomplete="username" dir="ltr">
+    <label for="pw">رمز عبور</label><input id="pw" type="password" autocomplete="current-password" dir="ltr">
     <button id="go" class="btn">ورود</button>
     <button id="reset" class="link">رمز عبور را فراموش کرده‌ام</button>
     <div id="lmsg" class="msg"></div>
   </div>
 </div>
 
-<!-- shown when the user arrives from an invitation or reset link -->
 <div id="setpw" class="login hide">
   <div class="loginbox">
     <h1>تعیین رمز عبور</h1>
-    <p class="s" id="pwwho">برای حساب شما یک رمز عبور انتخاب کنید.</p>
-    <label for="np">رمز عبور جدید</label>
-    <input id="np" type="password" autocomplete="new-password" dir="ltr">
-    <label for="np2">تکرار رمز عبور</label>
-    <input id="np2" type="password" autocomplete="new-password" dir="ltr">
-    <button id="savepw" class="btn">ذخیره و ورود</button>
+    <p class="s" id="pwwho">یک رمز عبور جدید انتخاب کنید.</p>
+    <label for="np">رمز جدید</label><input id="np" type="password" autocomplete="new-password" dir="ltr">
+    <label for="np2">تکرار رمز</label><input id="np2" type="password" autocomplete="new-password" dir="ltr">
+    <button id="savepw" class="btn">ذخیره</button>
+    <button id="cancelpw" class="link hide">انصراف</button>
     <div id="pmsg" class="msg"></div>
   </div>
 </div>
 
-<!-- ===================== APP ===================== -->
 <div id="app" class="wrap hide">
   <div class="top">
-    <div>
-      <h1>داشبورد مالی پروژه کارخانه</h1>
-      <p class="s" id="meta">در حال بارگذاری…</p>
-    </div>
+    <div><h1 id="ptitle">—</h1><p class="s" id="psub"></p></div>
     <div class="who">
       <div id="uinfo"></div>
-      <button id="logout" class="out">خروج</button>
+      <div><button id="chpw" class="mini">تغییر رمز</button> <button id="logout" class="mini">خروج</button></div>
     </div>
   </div>
-
-  <div id="alert" class="banner hide"></div>
-  <div id="body"><div class="spin">در حال خواندن داده‌ها…</div></div>
-
-  <footer id="foot"></footer>
+  <div id="crumb" class="crumb hide"><button id="back">← بازگشت به صفحه اصلی</button></div>
+  <div id="fresh"></div>
+  <div id="body"><div class="spin">در حال بارگذاری…</div></div>
+  <footer>چیدمان این داشبورد در دیتابیس تعریف شده است. افزودن یا جابجایی شاخص‌ها نیازی به تغییر این صفحه ندارد.</footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
-/* ===================================================================
-   CONFIGURATION — fill these two in before uploading.
-   The anon key is public by design: it grants nothing on its own.
-   Every row the user sees is decided by Row Level Security.
-   =================================================================== */
 var SUPABASE_URL = "https://zlzjzzqrkbsqornnimlx.supabase.co";
 var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
-
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function (id) { return document.getElementById(id); };
 
-/* ---------- formatting ---------- */
-function bn(n) {                       // rial -> billions, 1 decimal
-  if (n === null || n === undefined) return "—";
-  return (Number(n) / 1e9).toLocaleString("en-US", { maximumFractionDigits: 1 });
-}
-function esc(s) {
-  return String(s === null || s === undefined ? "" : s)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-function prioClass(p) {
-  if (!p) return "p3";
-  if (p.indexOf("۱") === 0 || p.indexOf("1") === 0) return "p1";
-  if (p.indexOf("۲") === 0 || p.indexOf("2") === 0) return "p2";
-  return "p3";
-}
+var STATE = { role:"viewer", pages:[], widgets:[], cash:null, health:{}, page:"home" };
+var CORE = null;
 
-/* ---------- auth ---------- */
-function msg(t, kind) { var m = $("lmsg"); m.textContent = t; m.className = "msg " + kind; }
+function bn(n){ if(n===null||n===undefined||n==="") return "—";
+  return (Number(n)/1e9).toLocaleString("en-US",{maximumFractionDigits:1}); }
+function esc(s){ return String(s===null||s===undefined?"":s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function prioCls(p){ if(!p) return ""; var c=String(p).trim().charAt(0);
+  return (c==="\u06F1"||c==="1")?"p1":((c==="\u06F2"||c==="2")?"p2":""); }
 
-$("go").addEventListener("click", async function () {
-  var btn = $("go"); btn.disabled = true; btn.textContent = "در حال ورود…";
-  var r = await db.auth.signInWithPassword({
-    email: $("em").value.trim(), password: $("pw").value
-  });
-  btn.disabled = false; btn.textContent = "ورود";
-  if (r.error) { msg("ایمیل یا رمز عبور درست نیست.", "err"); return; }
+function msg(t,k){ var m=$("lmsg"); m.textContent=t; m.className="msg "+k; }
+
+$("go").addEventListener("click", async function(){
+  var b=$("go"); b.disabled=true; b.textContent="در حال ورود…";
+  var r=await db.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});
+  b.disabled=false; b.textContent="ورود";
+  if(r.error){ msg("ایمیل یا رمز عبور درست نیست.","err"); return; }
   start();
 });
-$("pw").addEventListener("keydown", function (e) { if (e.key === "Enter") $("go").click(); });
+$("pw").addEventListener("keydown",function(e){ if(e.key==="Enter") $("go").click(); });
 
-$("reset").addEventListener("click", async function () {
-  var em = $("em").value.trim();
-  if (!em) { msg("اول ایمیل خود را وارد کنید.", "err"); return; }
-  var r = await db.auth.resetPasswordForEmail(em, { redirectTo: window.location.href });
-  msg(r.error ? "ارسال ایمیل ناموفق بود." : "لینک بازنشانی رمز برایتان ایمیل شد.",
-      r.error ? "err" : "ok");
+$("reset").addEventListener("click", async function(){
+  var em=$("em").value.trim();
+  if(!em){ msg("اول ایمیل خود را وارد کنید.","err"); return; }
+  var r=await db.auth.resetPasswordForEmail(em,{redirectTo:location.href});
+  msg(r.error?"ارسال ایمیل ناموفق بود.":"لینک بازنشانی رمز ایمیل شد.", r.error?"err":"ok");
 });
+$("logout").addEventListener("click", async function(){ await db.auth.signOut(); location.reload(); });
 
-$("logout").addEventListener("click", async function () {
-  await db.auth.signOut();
-  $("app").classList.add("hide");
-  $("login").classList.remove("hide");
-});
+function fromEmailLink(){ var h=location.hash||"";
+  return h.indexOf("type=invite")>-1||h.indexOf("type=recovery")>-1||h.indexOf("type=signup")>-1; }
 
-/* ---------- set password (invitation / reset links) ---------- */
-function arrivedFromEmailLink() {
-  var h = window.location.hash || "";
-  return h.indexOf("type=invite") > -1 || h.indexOf("type=recovery") > -1 ||
-         h.indexOf("type=signup") > -1;
-}
-
-function showSetPassword(session) {
-  $("login").classList.add("hide");
-  $("app").classList.add("hide");
+function showSetPw(session,cancellable){
+  $("login").classList.add("hide"); $("app").classList.add("hide");
   $("setpw").classList.remove("hide");
-  if (session && session.user) $("pwwho").textContent = session.user.email;
+  $("cancelpw").classList.toggle("hide",!cancellable);
+  if(session&&session.user) $("pwwho").textContent=session.user.email;
 }
-
-$("savepw").addEventListener("click", async function () {
-  var a = $("np").value, b = $("np2").value;
-  var m = $("pmsg");
-  if (a.length < 8) { m.textContent = "رمز باید حداقل ۸ کاراکتر باشد."; m.className = "msg err"; return; }
-  if (a !== b)      { m.textContent = "دو رمز یکسان نیستند."; m.className = "msg err"; return; }
-
-  var btn = $("savepw"); btn.disabled = true; btn.textContent = "در حال ذخیره…";
-  var r = await db.auth.updateUser({ password: a });
-  btn.disabled = false; btn.textContent = "ذخیره و ورود";
-  if (r.error) { m.textContent = "ذخیره نشد: " + r.error.message; m.className = "msg err"; return; }
-
-  history.replaceState(null, "", window.location.pathname);
-  $("setpw").classList.add("hide");
-  start();
+$("chpw").addEventListener("click", async function(){
+  var s=await db.auth.getSession(); showSetPw(s.data.session,true);
+});
+$("cancelpw").addEventListener("click", function(){
+  $("setpw").classList.add("hide"); $("app").classList.remove("hide");
+});
+$("savepw").addEventListener("click", async function(){
+  var a=$("np").value, b2=$("np2").value, m=$("pmsg");
+  if(a.length<8){ m.textContent="رمز باید حداقل ۸ کاراکتر باشد."; m.className="msg err"; return; }
+  if(a!==b2){ m.textContent="دو رمز یکسان نیستند."; m.className="msg err"; return; }
+  var btn=$("savepw"); btn.disabled=true; btn.textContent="در حال ذخیره…";
+  var r=await db.auth.updateUser({password:a});
+  btn.disabled=false; btn.textContent="ذخیره";
+  if(r.error){ m.textContent="ذخیره نشد: "+r.error.message; m.className="msg err"; return; }
+  history.replaceState(null,"",location.pathname);
+  $("np").value=""; $("np2").value=""; m.className="msg";
+  $("setpw").classList.add("hide"); start();
 });
 
-/* ---------- boot ---------- */
-async function start() {
-  var s = await db.auth.getSession();
-  if (!s.data.session) {
-    $("login").classList.remove("hide"); $("app").classList.add("hide"); return;
-  }
-  // a fresh session that came from an email link has no usable password yet
-  if (arrivedFromEmailLink()) { showSetPassword(s.data.session); return; }
-  $("login").classList.add("hide");
-  $("setpw").classList.add("hide");
+async function start(){
+  var s=await db.auth.getSession();
+  if(!s.data.session){ $("login").classList.remove("hide"); $("app").classList.add("hide"); return; }
+  if(fromEmailLink()){ showSetPw(s.data.session,false); return; }
+  $("login").classList.add("hide"); $("setpw").classList.add("hide");
   $("app").classList.remove("hide");
-  await render(s.data.session);
+  await boot(s.data.session);
 }
 
-async function render(session) {
-  var prof = await db.from("profiles").select("full_name,email,role").eq("id", session.user.id).single();
-  var role = prof.data ? prof.data.role : "viewer";
-  $("uinfo").textContent = (prof.data && prof.data.full_name ? prof.data.full_name : session.user.email)
-                         + " · " + (role === "admin" ? "مدیر" : "مشاهده‌گر");
-
-  var q = await Promise.all([
-    db.from("v_kpi_core").select("*").single(),
-    db.from("v_kpi_cash").select("*").single(),
-    db.from("v_monthly_outlook").select("*").order("month_code"),
-    db.from("v_spend_by_category").select("*").order("total_rial", { ascending: false }),
-    db.from("v_open_commitments").select("*").order("due_day_code", { nullsFirst: false }),
-    db.from("v_open_inflows").select("*").order("expected_day_code"),
-    db.from("v_assumptions_current").select("*"),
-    db.from("v_sync_health").select("*").limit(1)
+async function boot(session){
+  var q=await Promise.all([
+    db.from("profiles").select("full_name,email,role").eq("id",session.user.id).single(),
+    db.from("dash_pages").select("*").eq("is_active",true).order("sort_order"),
+    db.from("dash_widgets").select("*").eq("is_active",true).order("sort_order"),
+    db.from("v_kpi_cash").select("cash_total").single(),
+    db.from("v_data_health").select("*").single(),
+    db.from("v_kpi_core").select("*").single()
   ]);
-
-  var core = q[0].data || {};
-  var cash = q[1].data;                       // null for viewer: RLS blocks it
-  var out  = q[2].data || [];
-  var spend= q[3].data || [];
-  var cmts = q[4].data || [];
-  var infs = q[5].data || [];
-  var asm  = q[6].data || [];
-  var sync = (q[7].data || [])[0];
-
-  var cashTotal = cash ? Number(cash.cash_total) : null;
-  var canSeeCash = cashTotal !== null && cashTotal > 0;
-  var gap = canSeeCash
-    ? cashTotal + Number(core.inflow_certain) - Number(core.firm_open) - Number(core.soft_open)
-    : null;
-
-  $("meta").textContent = core.txn_count + " تراکنش · " + core.open_commitment_count +
-    " تعهد باز" + (sync ? " · آخرین همگام‌سازی: " +
-      new Date(sync.started_at).toLocaleDateString("fa-IR") : "");
-
-  /* assumption that still needs a decision */
-  var pending = asm.filter(function (a) { return a.needs_decision; });
-  if (pending.length && role === "admin") {
-    $("alert").classList.remove("hide");
-    $("alert").innerHTML = "<strong>فرض تعیین‌نشده:</strong> " +
-      pending.map(function (a) { return esc(a.label); }).join("، ") +
-      " — تا تعیین نشود، هشدار مربوطه فعال نمی‌شود.";
-  }
-
-  var h = "";
-
-  /* ---- KPI cards ---- */
-  h += '<section class="kpis">';
-  if (canSeeCash) h += kpi("موجودی نقدی بانک‌ها", bn(cashTotal), "");
-  h += kpi("هزینه واقعی پروژه تا کنون", bn(core.project_cost), "");
-  h += kpi("تعهد قطعی باز", bn(core.firm_open), "wv");
-  h += kpi("تعهد برنامه‌ریزی‌شده و احتمالی", bn(core.soft_open), "");
-  h += kpi("ورودی قطعی برنامه‌ریزی‌شده", bn(core.inflow_certain), "");
-  h += kpi("تعهد قطعی سه ماه آینده", bn(core.due_next_3m), "neg");
-  if (gap !== null) h += kpi("کسری تأمین مالی", (gap < 0 ? "−" : "+") + bn(Math.abs(gap)),
-                             gap < 0 ? "neg" : "pos");
-  h += "</section>";
-
-  /* ---- running cash outlook (admin only: needs the opening balance) ---- */
-  if (canSeeCash) {
-    h += '<h2>موجودی پیش‌بینی‌شده پایان ماه <span class="n">سناریوی قطعی — میلیارد ریال</span></h2>';
-    h += '<div class="card scroll"><table><thead><tr><th>ماه</th><th>ورودی قطعی</th>' +
-         '<th>تعهد قطعی</th><th>موجودی پایان</th></tr></thead><tbody>';
-    var bal = cashTotal;
-    for (var i = 0; i < out.length && i < 9; i++) {
-      bal += Number(out[i].inflow_certain) - Number(out[i].firm_due);
-      h += "<tr><td>" + esc(out[i].month_name) + "</td>" +
-           '<td class="num">' + bn(out[i].inflow_certain) + "</td>" +
-           '<td class="num">' + bn(out[i].firm_due) + "</td>" +
-           '<td class="num"' + (bal < 0 ? ' style="color:var(--danger);font-weight:700"' : "") +
-           ">" + bn(bal) + "</td></tr>";
-    }
-    h += "</tbody></table></div>";
-  }
-
-  /* ---- spend by category ---- */
-  var max = spend.length ? Number(spend[0].total_rial) : 1;
-  h += '<h2>مخارج به تفکیک دسته <span class="n">میلیارد ریال</span></h2><div class="card">';
-  spend.forEach(function (s) {
-    var w = Math.max(1, Math.round(Number(s.total_rial) / max * 100));
-    h += '<div class="row"><span class="nm">' + esc(s.category) + "</span>" +
-         '<span class="tr"><span class="bar' + (s.is_transfer ? " t" : "") +
-         '" style="width:' + w + '%"></span></span>' +
-         '<span class="vl">' + bn(s.total_rial) + "</span></div>";
-  });
-  h += "</div>";
-
-  /* ---- open commitments ---- */
-  h += '<h2>تعهدات باز <span class="n">' + cmts.length + " مورد</span></h2>";
-  h += '<div class="card scroll"><table><thead><tr><th>شرح</th><th>سررسید</th>' +
-       "<th>اولویت</th><th>مانده</th></tr></thead><tbody>";
-  cmts.forEach(function (c) {
-    h += "<tr><td>" + esc(c.description) +
-         (c.counterparty ? '<br><span class="pill">' + esc(c.counterparty) + "</span>" : "") +
-         '</td><td class="num">' + esc(c.due_jalali || "—") + "</td>" +
-         '<td><span class="pill ' + prioClass(c.priority) + '">' +
-         esc((c.priority || "—").replace(/ - .*/, "")) + "</span></td>" +
-         '<td class="num">' + bn(c.remaining_rial) + "</td></tr>";
-  });
-  h += "</tbody></table></div>";
-
-  /* ---- planned inflows ---- */
-  h += '<h2>ورودی‌های برنامه‌ریزی‌شده</h2>';
-  h += '<div class="card scroll"><table><thead><tr><th>شرح</th><th>طرف حساب</th>' +
-       "<th>تاریخ</th><th>مبلغ</th></tr></thead><tbody>";
-  infs.forEach(function (i) {
-    h += "<tr><td>" + esc(i.description) + "</td><td>" + esc(i.counterparty || "—") +
-         '</td><td class="num">' + esc(i.expected_jalali || "—") +
-         '</td><td class="num">' + bn(i.amount_rial) + "</td></tr>";
-  });
-  h += "</tbody></table></div>";
-
-  /* ---- assumptions ---- */
-  h += '<h2>مفروضات جاری</h2><div class="card scroll"><table><thead><tr>' +
-       "<th>فرض</th><th>مقدار</th><th>از تاریخ</th></tr></thead><tbody>";
-  asm.forEach(function (a) {
-    var v = a.value_text !== null && a.value_text !== undefined ? a.value_text
-          : (a.value_num === null ? "تعیین نشده"
-             : (Number(a.value_num) >= 1e9 ? bn(a.value_num) + " میلیارد" : a.value_num));
-    h += "<tr><td>" + esc(a.label) + '</td><td class="num">' + esc(v) +
-         " " + esc(a.unit === "ریال" || a.unit === "ریال در ماه" ? "" : a.unit) +
-         '</td><td class="num">' + esc(a.effective_from) + "</td></tr>";
-  });
-  h += "</tbody></table></div>";
-
-  $("body").innerHTML = h;
-
-  $("foot").innerHTML =
-    "اعداد زنده از دیتابیس خوانده می‌شوند. دسترسی هر کاربر در سطح دیتابیس کنترل می‌شود، نه در این صفحه." +
-    (canSeeCash ? "" : "<br>موجودی بانک‌ها برای نقش شما قابل نمایش نیست.");
+  var prof=q[0].data||{};
+  STATE.role   = prof.role||"viewer";
+  STATE.pages  = q[1].data||[];
+  STATE.widgets= q[2].data||[];
+  STATE.cash   = q[3].data? Number(q[3].data.cash_total) : null;
+  STATE.health = q[4].data||{};
+  CORE         = q[5].data||{};
+  $("uinfo").textContent=(prof.full_name||session.user.email)+" · "+(STATE.role==="admin"?"مدیر":"مشاهده‌گر");
+  freshness();
+  go("home");
 }
 
-function kpi(label, value, cls) {
-  return '<div class="kpi ' + cls + '"><div class="l">' + label +
-         '</div><div class="v">' + value + '<span class="u">میلیارد ریال</span></div></div>';
+function freshness(){
+  var d=STATE.health.last_data_change||STATE.health.last_sync;
+  if(!d){ $("fresh").innerHTML=""; return; }
+  var days=Math.floor((Date.now()-new Date(d).getTime())/86400000);
+  var txt="داده تا "+new Date(d).toLocaleDateString("fa-IR")+" — "+(days<=0?"امروز":days+" روز پیش");
+  $("fresh").innerHTML='<span class="fresh'+(days>14?" stale":"")+'">'+esc(txt)+"</span>";
 }
 
-db.auth.onAuthStateChange(function (e, session) {
-  if (e === "PASSWORD_RECOVERY") { showSetPassword(session); return; }
-  if (e === "SIGNED_IN") start();
+function page(k){ return STATE.pages.filter(function(p){return p.key===k;})[0]; }
+
+async function go(key){
+  STATE.page=key;
+  var p=page(key)||{title:key};
+  $("ptitle").textContent=p.title;
+  $("psub").textContent=p.subtitle||"";
+  $("crumb").classList.toggle("hide", key==="home");
+  $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
+  window.scrollTo(0,0);
+
+  var ws=STATE.widgets.filter(function(w){
+    return w.page_key===key && (!w.admin_only || STATE.role==="admin");
+  });
+  var parts=await Promise.all(ws.map(renderWidget));
+  var h=parts.join("");
+
+  if(key==="home"){
+    var subs=STATE.pages.filter(function(x){return x.parent_key==="home";});
+    h+='<h2>بخش‌ها</h2><div class="kpis">';
+    subs.forEach(function(s){
+      h+='<button class="kpi" data-go="'+esc(s.key)+'">'+
+         '<div class="l">'+esc(s.subtitle||"")+'</div>'+
+         '<div class="v" style="font-size:.95rem">'+esc(s.title)+'</div>'+
+         '<div class="go">باز کردن ←</div></button>';
+    });
+    h+="</div>";
+  }
+  $("body").innerHTML=h;
+  Array.prototype.forEach.call($("body").querySelectorAll("[data-go]"),function(el){
+    el.addEventListener("click",function(){ go(el.getAttribute("data-go")); });
+  });
+  var si=$("srch"); if(si) si.addEventListener("input",filterRows);
+}
+$("back").addEventListener("click",function(){ go("home"); });
+
+function applyOrder(q,cfg){
+  if(cfg.order){
+    var p=String(cfg.order).split(".");
+    q=q.order(p[0],{ascending:p[1]!=="desc",nullsFirst:false});
+  }
+  if(cfg.limit) q=q.limit(cfg.limit);
+  return q;
+}
+
+async function renderWidget(w){
+  var cfg=w.cfg||{};
+  if(w.kind==="kpi") return kpiWidget(w,cfg);
+  var r=await applyOrder(db.from(w.source).select("*"),cfg);
+  var rows=r.data||[];
+  if(!rows.length) return "";
+  if(w.kind==="bars")  return barsWidget(w,cfg,rows);
+  if(w.kind==="table") return tableWidget(w,cfg,rows);
+  return "";
+}
+
+function kpiWidget(w,cfg){
+  var ctx={}; for(var k in CORE) ctx[k]=CORE[k];
+  ctx.cash = (STATE.cash===null?0:STATE.cash);
+  var val;
+  if(cfg.expr){
+    val=0; var sign=1;
+    String(cfg.expr).split(/\s+/).forEach(function(tok){
+      if(tok==="+") sign=1;
+      else if(tok==="-") sign=-1;
+      else if(tok) val += sign*Number(ctx[tok]||0);
+    });
+  } else {
+    val = (w.source==="v_kpi_cash") ? STATE.cash : ctx[cfg.field];
+  }
+  if(val===null||val===undefined) return "";
+  var tone=cfg.tone||"";
+  if(tone==="signed") tone = (val<0?"neg":"pos");
+  var shown=(cfg.tone==="signed"?(val<0?"−":"+"):"")+bn(Math.abs(val));
+  var tag=cfg.link?' data-go="'+esc(cfg.link)+'"':"";
+  return '<div class="kpis" style="margin-bottom:10px"><button class="kpi '+tone+'"'+tag+'>'+
+    '<div class="l">'+esc(w.title)+'</div>'+
+    '<div class="v">'+shown+'<span class="u">'+esc(cfg.unit||"")+'</span></div>'+
+    (cfg.link?'<div class="go">مشاهده جزئیات ←</div>':"")+'</button></div>';
+}
+
+function barsWidget(w,cfg,rows){
+  var max=0;
+  rows.forEach(function(r){ max=Math.max(max,Math.abs(Number(r[cfg.value]||0))); });
+  if(!max) max=1;
+  var h='<h2>'+esc(w.title)+'</h2><div class="card">';
+  rows.forEach(function(r){
+    var v=Number(r[cfg.value]||0);
+    var pct=Math.max(1,Math.round(Math.abs(v)/max*100));
+    var flag=cfg.flag&&r[cfg.flag];
+    h+='<div class="row"><span class="nm">'+esc(r[cfg.label])+'</span>'+
+       '<span class="tr"><span class="bar'+(flag?" t":"")+'" style="width:'+pct+'%"></span></span>'+
+       '<span class="vl">'+bn(v)+'</span></div>';
+  });
+  return h+"</div>";
+}
+
+function tableWidget(w,cfg,rows){
+  var cols=cfg.columns||[];
+  var h='<h2>'+esc(w.title)+'</h2>';
+  if(cfg.search) h+='<input id="srch" class="srch" placeholder="جست‌وجو در شرح، دسته یا طرف حساب…">';
+  h+='<div class="card scroll"><table><thead><tr>';
+  cols.forEach(function(c){ h+="<th>"+esc(c.t)+"</th>"; });
+  h+='</tr></thead><tbody'+(cfg.search?' id="rowsbody"':"")+">";
+  var bal = (cfg.running==="cash") ? (STATE.cash||0) : null;
+  rows.forEach(function(r){
+    if(bal!==null) bal += Number(r.inflow_certain||0) - Number(r.firm_due||0);
+    var key=((r.description||"")+" "+(r.category||"")+" "+(r.counterparty||"")).toLowerCase();
+    h+='<tr data-k="'+esc(key)+'">';
+    cols.forEach(function(c){
+      var v = (c.k==="__balance") ? bal : r[c.k];
+      if(c.n) h+='<td class="num'+(Number(v)<0?" neg":"")+'">'+bn(v)+"</td>";
+      else if(c.pill) h+='<td><span class="pill '+prioCls(v)+'">'+
+                        esc(String(v||"—").replace(/\s*-\s*.*/,""))+"</span></td>";
+      else h+="<td>"+esc((v===null||v===undefined||v==="")?"—":v)+"</td>";
+    });
+    h+="</tr>";
+  });
+  return h+"</tbody></table></div>";
+}
+
+function filterRows(){
+  var q=$("srch").value.trim().toLowerCase();
+  Array.prototype.forEach.call(document.querySelectorAll("#rowsbody tr"),function(tr){
+    tr.style.display = (!q || tr.getAttribute("data-k").indexOf(q)>-1) ? "" : "none";
+  });
+}
+
+db.auth.onAuthStateChange(function(e,s){
+  if(e==="PASSWORD_RECOVERY"){ showSetPw(s,false); return; }
+  if(e==="SIGNED_IN") start();
 });
 start();
 </script>
