@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>سانیکو — داشبورد مدیریتی</title>
+<title>سایا نیک — داشبورد مدیریتی</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,7 +16,7 @@
   --line:#e8ebef; --soft:#f6f7f9;
   --mint:#00c48c; --mint-d:#00a877; --indigo:#4338ca; --violet:#8b7cf6;
   --sky:#5aa9f7; --amber:#f5a524; --rose:#e5484d;
-  --panel:#14171c; --panel-ink:#f2f4f7; --panel-line:#262b33;
+  --panel:#15323a; --panel-ink:#e9f5f1; --panel-line:#23454e;
   --r:20px; --sh:0 1px 2px rgba(17,20,24,.04), 0 8px 24px rgba(17,20,24,.06);
 }
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -24,7 +24,7 @@
   --line:#242931; --soft:#1a1e24;
   --mint:#2ee6a8; --mint-d:#16c791; --indigo:#8b84ff; --violet:#a99dff;
   --sky:#6fb6ff; --amber:#f7b955; --rose:#ff7b7b;
-  --panel:#1a1e24; --panel-ink:#eef1f5; --panel-line:#2b313a;
+  --panel:#12272e; --panel-ink:#e4f1ec; --panel-line:#1e3b44;
   --sh:none;
 }}
 :root[data-theme="dark"]{
@@ -32,7 +32,7 @@
   --line:#242931; --soft:#1a1e24;
   --mint:#2ee6a8; --mint-d:#16c791; --indigo:#8b84ff; --violet:#a99dff;
   --sky:#6fb6ff; --amber:#f7b955; --rose:#ff7b7b;
-  --panel:#1a1e24; --panel-ink:#eef1f5; --panel-line:#2b313a; --sh:none;
+  --panel:#12272e; --panel-ink:#e4f1ec; --panel-line:#1e3b44; --sh:none;
 }
 *,*::before,*::after{box-sizing:inherit}
 html,body{margin:0;padding:0}
@@ -49,7 +49,7 @@ button{cursor:pointer;border:0;background:none;color:inherit}
   border-radius:24px;padding:30px 26px;box-shadow:var(--sh)}
 .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
 .logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--mint),var(--mint-d));
-  display:grid;place-items:center;color:#fff;font-weight:800;font-size:.95rem}
+  display:grid;place-items:center;color:#fff;font-weight:800;font-size:.78rem;letter-spacing:-.02em}
 .authbox h1{font-size:1.1rem;margin:0;font-weight:700}
 .authbox .sub{color:var(--muted);font-size:.82rem;margin:0 0 20px}
 label{display:block;font-size:.78rem;color:var(--ink2);margin:14px 0 6px;font-weight:500}
@@ -86,7 +86,7 @@ input:focus{outline:2px solid var(--mint);outline-offset:1px}
 .bar .search input:focus{outline:none}
 .iconbtn{width:38px;height:38px;border-radius:12px;background:var(--soft);display:grid;
   place-items:center;flex:0 0 38px;color:var(--ink2)}
-.iconbtn.dark{background:var(--panel);color:#fff}
+.iconbtn.dark{background:var(--panel);color:var(--panel-ink)}
 .avatar{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--violet),var(--indigo));
   color:#fff;display:grid;place-items:center;font-weight:700;font-size:.8rem;flex:0 0 38px}
 
@@ -161,6 +161,19 @@ td.neg{color:var(--rose)}
 .pill.p3{background:color-mix(in srgb,var(--mint) 16%,transparent);color:var(--mint-d)}
 
 .spin{color:var(--muted);font-size:.85rem;padding:50px 0;text-align:center}
+.more{font-size:.72rem;color:var(--mint-d);background:var(--soft);border-radius:999px;
+  padding:5px 12px;font-weight:600;white-space:nowrap}
+.ptn{display:block;width:100%;text-align:right;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r);padding:18px;box-shadow:var(--sh)}
+.ptn .nm{font-size:.92rem;font-weight:700;margin-bottom:2px}
+.ptn .sh{font-size:.73rem;color:var(--muted);margin-bottom:14px}
+.ptn .big{font-size:1.5rem;font-weight:800;letter-spacing:-.03em}
+.ptn .meter{height:10px;border-radius:8px;background:var(--soft);margin:12px 0 10px;overflow:hidden}
+.ptn .meter i{display:block;height:10px;border-radius:8px;background:var(--mint)}
+.ptn .meter i.low{background:var(--amber)}
+.ptn .meter i.bad{background:var(--rose)}
+.ptn .legs{display:flex;justify-content:space-between;font-size:.74rem;color:var(--muted)}
+.ptn .legs b{display:block;color:var(--ink);font-size:.85rem;font-weight:700;margin-top:2px}
 .srch{margin-bottom:14px}
 
 /* ---------- mobile ---------- */
@@ -184,8 +197,8 @@ td.neg{color:var(--rose)}
 <!-- ================= AUTH ================= -->
 <div id="auth" class="auth">
   <div class="authbox">
-    <div class="brand"><div class="logo">S</div>
-      <div><h1>داشبورد مدیریتی سانیکو</h1>
+    <div class="brand"><div class="logo">سن</div>
+      <div><h1>داشبورد مدیریتی سایا نیک</h1>
         <p class="sub" style="margin:0">کنترل مالی پروژه کارخانه</p></div></div>
     <label for="em">ایمیل</label><input id="em" type="email" autocomplete="username" dir="ltr">
     <label for="pw">رمز عبور</label><input id="pw" type="password" autocomplete="current-password" dir="ltr">
@@ -197,7 +210,7 @@ td.neg{color:var(--rose)}
 
 <div id="setpw" class="auth hide">
   <div class="authbox">
-    <div class="brand"><div class="logo">S</div><h1>تعیین رمز عبور</h1></div>
+    <div class="brand"><div class="logo">سن</div><h1>تعیین رمز عبور</h1></div>
     <p class="sub" id="pwwho"></p>
     <label for="np">رمز جدید</label><input id="np" type="password" autocomplete="new-password" dir="ltr">
     <label for="np2">تکرار رمز</label><input id="np2" type="password" autocomplete="new-password" dir="ltr">
@@ -210,7 +223,7 @@ td.neg{color:var(--rose)}
 <!-- ================= APP ================= -->
 <div id="app" class="shell hide">
   <aside id="side" class="side">
-    <div class="brand"><div class="logo">S</div><h1>سانیکو</h1></div>
+    <div class="brand"><div class="logo">سن</div><h1>سایا نیک</h1></div>
     <div id="navs"></div>
     <div class="foot">
       <button class="nav" id="chpw">تغییر رمز عبور</button>
@@ -383,7 +396,23 @@ async function go(key){
   var h = (key==="home") ? await home() : await sub(key);
   $("body").innerHTML=h;
   bindGo($("body"));
+  bindDrill($("body"));
   var si=$("srch"); if(si) si.addEventListener("input",filterRows);
+}
+
+function bindDrill(root){
+  Array.prototype.forEach.call(root.querySelectorAll("[data-full]"),function(el){
+    el.addEventListener("click",function(ev){
+      ev.stopPropagation();
+      var p=el.getAttribute("data-full").split("|");
+      fullList(p[0],p[1],p[2],p[3]);
+    });
+  });
+  Array.prototype.forEach.call(root.querySelectorAll("[data-detail]"),function(el){
+    el.addEventListener("click",function(){
+      partnerDetail(el.getAttribute("data-detail").split("|")[1]);
+    });
+  });
 }
 
 async function home(){
@@ -393,6 +422,8 @@ async function home(){
   var h='<div class="grid g3" style="margin-bottom:14px">';
   h+=ws.map(kpiCard).join("");
   h+="</div>";
+
+  h+=await partnerCards();
 
   h+='<div class="grid g2" style="margin-bottom:14px">';
   h+=healthCard();
@@ -404,6 +435,66 @@ async function home(){
   h+=await spendCard();
   h+="</div>";
   return h;
+}
+
+async function partnerCards(){
+  var r=await db.from("v_partner_contributions").select("*").order("share_pct",{ascending:false});
+  var rows=r.data||[]; if(!rows.length) return "";
+  var h='<h2 style="font-size:.95rem;margin:4px 0 10px;font-weight:700">آورده شرکا</h2>'+
+        '<div class="grid g2" style="margin-bottom:14px">';
+  rows.forEach(function(x){
+    var pg=Math.max(0,Math.min(100,Number(x.progress_pct)));
+    var cls = pg>=70 ? "" : (pg>=40 ? "low" : "bad");
+    h+='<button class="ptn" data-detail="partner|'+esc(x.subcategory_name)+'">'+
+      '<div class="nm">'+esc(x.partner_label)+'</div>'+
+      '<div class="sh">سهم '+fa(Number(x.share_pct))+'٪ از سرمایه مصوب</div>'+
+      '<div class="big">'+bn(x.paid_rial)+'<span class="unit" style="font-size:.7rem;color:var(--muted);'+
+      'font-weight:500;margin-right:5px">از '+bn(x.target_rial)+' میلیارد ریال</span></div>'+
+      '<div class="meter"><i class="'+cls+'" style="width:'+pg+'%"></i></div>'+
+      '<div class="legs"><span>آورده تا کنون<b>'+fa(pg)+'٪</b></span>'+
+      '<span style="text-align:left">مانده تعهد<b>'+bn(x.remaining_rial)+'</b></span></div>'+
+      '</button>';
+  });
+  return h+'</div>';
+}
+
+/* a bar chart only has room for a few rows; this opens the whole list */
+async function fullList(src,label,value,title){
+  $("ptl").textContent=title; $("psb").textContent="فهرست کامل";
+  $("crumb").classList.remove("hide");
+  $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
+  window.scrollTo(0,0);
+  var r=await db.from(src).select("*").order(value,{ascending:false});
+  var rows=r.data||[];
+  var tot=rows.reduce(function(a,x){return a+Number(x[value]||0);},0)||1;
+  var h='<div class="card"><div class="chead"><div><h3>'+esc(title)+'</h3>'+
+    '<p class="hint">'+fa(rows.length)+' ردیف · جمع '+bn(tot)+' میلیارد ریال</p></div></div>'+
+    '<div class="scroll"><table><thead><tr><th>عنوان</th><th>مبلغ</th><th>سهم</th></tr></thead><tbody>';
+  rows.forEach(function(x){
+    var v=Number(x[value]||0);
+    h+='<tr><td>'+esc(x[label])+'</td><td class="num">'+bn(v)+'</td>'+
+       '<td class="num">'+fa(Math.round(v/tot*1000)/10)+'٪</td></tr>';
+  });
+  $("body").innerHTML=h+'</tbody></table></div></div>';
+}
+
+async function partnerDetail(sub){
+  $("ptl").textContent="جزئیات آورده"; $("psb").textContent=sub;
+  $("crumb").classList.remove("hide");
+  $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
+  window.scrollTo(0,0);
+  var r=await db.from("v_partner_detail").select("*").eq("partner",sub)
+          .order("total_rial",{ascending:false});
+  var rows=r.data||[];
+  var tot=rows.reduce(function(a,x){return a+Number(x.total_rial||0);},0);
+  var h='<div class="card"><div class="chead"><div><h3>'+esc(sub)+'</h3>'+
+    '<p class="hint">'+fa(rows.length)+' واریز · جمع '+bn(tot)+' میلیارد ریال</p></div></div>'+
+    '<div class="scroll"><table><thead><tr><th>شرح</th><th>دوره</th><th>مبلغ</th></tr></thead><tbody>';
+  rows.forEach(function(x){
+    h+='<tr><td>'+esc(x.description)+'</td><td>'+esc(x.period)+'</td>'+
+       '<td class="num">'+bn(x.total_rial)+'</td></tr>';
+  });
+  $("body").innerHTML=h+'</tbody></table></div></div>';
 }
 
 function kpiCard(w){
@@ -466,7 +557,7 @@ function healthCard(){
   var sc=Number(S.health.score||0);
   var tag = sc>=75?["عالی","var(--mint)"] : sc>=55?["قابل قبول","var(--amber)"] : ["نیازمند توجه","var(--rose)"];
   return '<div class="card"><div class="chead"><div>'+
-    '<h3>سلامت مالی</h3><p class="hint">میانگین وزنی چهار نسبت زیر</p></div>'+
+    '<h3>وضعیت مالی پروژه</h3><p class="hint">میانگین وزنی چهار نسبت زیر</p></div>'+
     '<span class="pill" style="background:color-mix(in srgb,'+tag[1]+' 16%,transparent);color:'+tag[1]+'">'+
     tag[0]+'</span></div>'+ring()+'</div>';
 }
@@ -520,8 +611,9 @@ async function spendCard(){
   var rows=r.data||[]; if(!rows.length) return "";
   var max=Number(rows[0].total_rial)||1;
   var h='<div class="card"><div class="chead"><div><h3>مخارج به تفکیک دسته</h3>'+
-    '<p class="hint">میلیارد ریال — خاکستری یعنی جابجایی داخلی</p></div>'+
-    '<button class="pill" data-go="spend">همه ←</button></div>';
+    '<p class="hint">میلیارد ریال — بدون قرض بین‌شرکتی و کالای بازرگانی</p></div>'+
+    '<button class="more" data-full="v_spend_by_category|category|total_rial|مخارج به تفکیک دسته">'+
+    'مشاهده کامل ←</button></div>';
   rows.forEach(function(x){
     var w=Math.max(2,Math.round(Number(x.total_rial)/max*100));
     h+='<div class="brow"><span class="nm">'+esc(x.category)+'</span>'+
@@ -544,7 +636,7 @@ async function widget(w){
   var q=db.from(w.source).select("*");
   if(c.order){ var p=String(c.order).split(".");
     q=q.order(p[0],{ascending:p[1]!=="desc",nullsFirst:false}); }
-  if(c.limit) q=q.limit(c.limit);
+  if(c.limit) q=q.limit(c.limit); else q=q.limit(10);
   var r=await q; var rows=r.data||[];
   if(!rows.length) return "";
   return w.kind==="bars" ? bars(w,c,rows) : table(w,c,rows);
@@ -553,7 +645,10 @@ async function widget(w){
 function bars(w,c,rows){
   var max=0; rows.forEach(function(r){ max=Math.max(max,Math.abs(Number(r[c.value]||0))); });
   if(!max) max=1;
-  var h='<div class="card" style="margin-bottom:14px"><h3>'+esc(w.title)+'</h3><p class="hint"></p>';
+  var more='<button class="more" data-full="'+esc(w.source)+'|'+esc(c.label)+'|'+
+           esc(c.value)+'|'+esc(w.title)+'">مشاهده کامل ←</button>';
+  var h='<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>'+
+        esc(w.title)+'</h3></div>'+more+'</div>';
   rows.forEach(function(r){
     var v=Number(r[c.value]||0), pw=Math.max(2,Math.round(Math.abs(v)/max*100));
     h+='<div class="brow"><span class="nm">'+esc(r[c.label])+'</span>'+
