@@ -294,7 +294,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۷";
+var BUILD = "۸";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home" };
 
@@ -562,7 +562,8 @@ function kpiCard(w){
   } else { val = (w.source==="v_kpi_cash") ? S.cash : ctx[c.field]; }
   if(val===null||val===undefined) return "";
 
-  var cls = c.tone==="signed" ? (val<0?"down":"up") : (c.tone==="neg"?"down":(c.tone==="warn"?"warnc":""));
+  var cls = c.tone==="signed" ? (val<0?"neg":"pos")
+          : (c.tone==="neg" ? "neg" : (c.tone==="warn" ? "warn" : ""));
   var shown=(c.tone==="signed"?(val<0?"−":"+"):"")+bn(Math.abs(val));
 
   var delta={tag:"",note:"&nbsp;"};
@@ -585,9 +586,14 @@ function kpiCard(w){
     delta.note='موجودی + ورودی قطعی − تعهدات';
   }
   return '<button class="kpi '+cls+'" data-go="'+esc(c.link||"home")+'">'+
-    '<div class="top"><span class="lab">'+esc(w.title)+'</span><span class="chev">‹</span></div>'+
-    '<div class="val">'+shown+'<span class="unit">'+esc(c.unit||"")+'</span></div>'+
-    delta+"</button>";
+    '<div class="bd">'+
+      '<div class="hd"><span class="lab">'+esc(w.title)+'</span>'+
+      '<span class="chip">'+esc(c.icon||"◆")+'</span></div>'+
+      '<div class="val">'+shown+'<span class="unit">'+esc(c.unit||"")+'</span>'+delta.tag+'</div>'+
+    '</div>'+
+    '<div class="ft"><span>'+delta.note+'</span>'+
+      (c.link?'<span class="go">جزئیات ←</span>':'<span></span>')+'</div>'+
+    '</button>';
 }
 
 function ring(){
