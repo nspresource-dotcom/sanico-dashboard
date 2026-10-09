@@ -212,6 +212,17 @@ td.neg{color:var(--rose)}
 .crumb{display:flex;gap:7px;align-items:center;font-size:.81rem;margin:0 0 14px}
 .crumb button{color:var(--deep);font-size:.81rem;font-weight:700}
 .spin{color:var(--muted);font-size:.85rem;padding:52px 0;text-align:center}
+.sub-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.sub-nav button{background:var(--card);border:1px solid var(--line);border-radius:999px;
+  padding:9px 16px;font-size:.82rem;font-weight:600;color:var(--ink2)}
+.sub-nav button.on{background:var(--deep);color:#fff;border-color:var(--deep)}
+.fs tr.sec td{background:var(--mint-s);font-weight:800;color:var(--deep);font-size:.82rem}
+.fs tr.tot td{border-top:2px solid var(--line);font-weight:800;color:var(--ink)}
+.fs tr.sub td:first-child{padding-right:26px;color:var(--muted)}
+.gap{background:var(--amber-s);color:var(--amber);border-radius:12px;padding:12px 14px;
+  font-size:.82rem;margin-bottom:14px;line-height:1.7}
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--r);
+  padding:30px 20px;text-align:center;color:var(--muted);font-size:.85rem;line-height:1.8}
 .chat{display:flex;flex-direction:column;gap:12px;min-height:50vh}
 .bub{max-width:88%;padding:13px 15px;border-radius:16px;font-size:.86rem;line-height:1.75;
   white-space:pre-wrap;word-break:break-word}
@@ -334,7 +345,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۱۲";
+var BUILD = "۱۳";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home" };
 
@@ -446,8 +457,10 @@ async function boot(ses){
     $("promoVal").textContent=bn(S.cash)+" میلیارد ریال";
   } else { $("promoVal").textContent="—"; $("promoSub").textContent="برای نقش شما قابل نمایش نیست"; }
 
-  var icons={home:"⌂",cash:"◎",commitments:"◆",spend:"▤",funding:"↗",health:"✚",rows:"≡"};
-  $("navs").innerHTML=S.pages.map(function(pg){
+  var icons={home:"⌂",cash:"◎",commitments:"◆",spend:"▤",funding:"↗",health:"✚",rows:"≡",statements:"▦",agent:"✦"};
+  $("navs").innerHTML=S.pages.filter(function(pg){
+    return !pg.parent_key || pg.parent_key==="home";
+  }).map(function(pg){
     return '<button class="nav" data-go="'+esc(pg.key)+'">'+
            '<span class="ic">'+(icons[pg.key]||"•")+'</span>'+esc(pg.title)+"</button>";
   }).join("");
@@ -483,7 +496,14 @@ async function go(key){
   $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
   window.scrollTo(0,0);
 
-  var h = (key==="home") ? await home() : (key==="agent" ? await agentPage() : await sub(key));
+  var h;
+  if(key==="home")            h = await home();
+  else if(key==="agent")      h = await agentPage();
+  else if(key==="statements") h = await statementsPage();
+  else if(key==="cashflow")   h = await cashflowPage();
+  else if(key==="income")     h = await incomePage();
+  else if(key==="balance")    h = await balancePage();
+  else                        h = await sub(key);
   $("body").innerHTML=h;
   bindGo($("body"));
   bindDrill($("body"));
@@ -809,6 +829,213 @@ $("q").addEventListener("keydown",async function(e){
   var si=$("srch"); if(si){ si.value=$("q").value; filterRows(); }
 });
 
+
+
+/* ===================== صورت‌های مالی ===================== */
+function subNav(active){
+  var kids = S.pages.filter(function(p){ return p.parent_key==="statements"; })
+                    .sort(function(a,b){ return a.sort_order-b.sort_order; });
+  return '<div class="sub-nav">'+kids.map(function(k){
+    return '<button data-go="'+esc(k.key)+'"'+(k.key===active?' class="on"':'')+'>'+
+           esc(k.title)+'</button>';
+  }).join("")+'</div>';
+}
+
+/* صفحه مادر: فقط معرفی و مسیر */
+async function statementsPage(){
+  var kids = S.pages.filter(function(p){ return p.parent_key==="statements"; })
+                    .sort(function(a,b){ return a.sort_order-b.sort_order; });
+  var h='<div class="grid g3">';
+  kids.forEach(function(k){
+    h+='<button class="kpi" data-go="'+esc(k.key)+'"><div class="bd">'+
+       '<div class="hd"><span class="lab">'+esc(k.subtitle||"")+'</span>'+
+       '<span class="chip">▤</span></div>'+
+       '<div class="val" style="font-size:1.05rem">'+esc(k.title)+'</div></div>'+
+       '<div class="ft"><span></span><span class="go">باز کردن ←</span></div></button>';
+  });
+  return h+'</div>';
+}
+
+/* ---------- ۱. جریان وجوه نقد ---------- */
+async function cashflowPage(){
+  var q = await Promise.all([
+    db.from("v_cashflow_statement").select("*"),
+    db.from("v_cashflow_summary").select("*").order("sort_order"),
+    db.from("v_kpi_cash").select("cash_total").single()
+  ]);
+  var rows=q[0].data||[], sum=q[1].data||[], cash=q[2].data?Number(q[2].data.cash_total):null;
+  if(!rows.length) return subNav("cashflow")+'<div class="empty">داده‌ای برای نمایش نیست.</div>';
+
+  // جمع هر قلم در همه دوره‌ها
+  var byLine={};
+  rows.forEach(function(r){
+    var k=r.section+"|"+r.line_item;
+    if(!byLine[k]) byLine[k]={sec:r.section,lab:r.section_label,so:r.sort_order,
+                              item:r.line_item,v:0,n:0};
+    byLine[k].v+=Number(r.net_rial); byLine[k].n+=Number(r.line_count);
+  });
+  var items=Object.keys(byLine).map(function(k){return byLine[k];});
+  var order={operating:1,investing:2,financing:3};
+  items.sort(function(a,b){ return (order[a.sec]-order[b.sec]) || (a.so-b.so); });
+
+  var net=sum.reduce(function(a,x){ return a+Number(x.net_rial); },0);
+
+  var h=subNav("cashflow");
+  h+='<div class="grid g3" style="margin-bottom:14px">';
+  sum.forEach(function(x){
+    var v=Number(x.net_rial);
+    h+='<div class="kpi '+(v<0?"neg":"pos")+'"><div class="bd">'+
+       '<div class="hd"><span class="lab">'+esc(x.section_label)+'</span>'+
+       '<span class="chip">'+(v<0?"↓":"↑")+'</span></div>'+
+       '<div class="val">'+(v<0?"−":"+")+bn(Math.abs(v))+
+       '<span class="unit">میلیارد ریال</span></div></div>'+
+       '<div class="ft"><span>خالص دوره‌های ثبت‌شده</span><span></span></div></div>';
+  });
+  h+='</div>';
+
+  h+='<div class="card"><div class="chead"><div><h3>صورت جریان وجوه نقد</h3>'+
+     '<p class="hint">همه دوره‌ها، تجمعی — میلیارد ریال</p></div></div>'+
+     '<div class="scroll"><table class="fs"><thead><tr><th>شرح</th><th>تعداد قلم</th>'+
+     '<th>خالص</th></tr></thead><tbody>';
+
+  var cur=null;
+  items.forEach(function(it){
+    if(it.sec!==cur){
+      cur=it.sec;
+      var secTot=sum.filter(function(x){return x.section===it.sec;})[0];
+      h+='<tr class="sec"><td>'+esc(it.lab)+'</td><td></td><td class="num">'+
+         (secTot?bn(secTot.net_rial):"—")+'</td></tr>';
+    }
+    h+='<tr class="sub"><td>'+esc(it.item)+'</td><td class="num">'+fa(it.n)+'</td>'+
+       '<td class="num'+(it.v<0?" neg":"")+'">'+bn(it.v)+'</td></tr>';
+  });
+
+  h+='<tr class="tot"><td>خالص تغییر وجه نقد</td><td></td>'+
+     '<td class="num'+(net<0?" neg":"")+'">'+bn(net)+'</td></tr>';
+  if(cash!==null){
+    h+='<tr class="tot"><td>موجودی نقدی فعلی</td><td></td><td class="num">'+bn(cash)+'</td></tr>';
+  }
+  h+='</tbody></table></div></div>';
+
+  h+='<p class="hint" style="margin-top:12px">هر قلم با علامت خودش آمده: ورودی مثبت، خروجی منفی. '+
+     'قرض بین‌شرکتی در بخش تأمین مالی است و چون رفت و برگشت شده، خالصش نزدیک صفر است.</p>';
+  return h;
+}
+
+/* ---------- ۲. سود و زیان ---------- */
+async function incomePage(){
+  var q = await Promise.all([
+    db.from("v_income_summary").select("*").order("sort_order"),
+    db.from("v_income_statement").select("*"),
+    db.from("v_capitalized_spend").select("*").order("amount_rial",{ascending:false})
+  ]);
+  var sum=q[0].data||[], det=q[1].data||[], cap=q[2].data||[];
+  var h=subNav("income");
+
+  var rev=(sum.filter(function(x){return x.line==="revenue";})[0]||{}).amount_rial||0;
+  var net=(sum.filter(function(x){return x.line==="net";})[0]||{}).amount_rial||0;
+
+  h+='<div class="gap">این صورت فقط فعالیت بازرگانی را نشان می‌دهد. '+
+     'مخارج ساخت کارخانه عمداً وارد نشده‌اند — آنها بهای تمام‌شده دارایی‌اند، نه هزینه دوره. '+
+     'تا شروع تولید، سود و زیان تصویر کاملی از پروژه نمی‌دهد.</div>';
+
+  h+='<div class="grid g3" style="margin-bottom:14px">'+
+     '<div class="kpi"><div class="bd"><div class="hd"><span class="lab">درآمد فروش</span>'+
+     '<span class="chip">↑</span></div><div class="val">'+bn(rev)+
+     '<span class="unit">میلیارد ریال</span></div></div>'+
+     '<div class="ft"><span>فروش تیتان و باریت</span><span></span></div></div>'+
+     '<div class="kpi '+(Number(net)<0?"neg":"pos")+'"><div class="bd">'+
+     '<div class="hd"><span class="lab">سود (زیان) خالص</span><span class="chip">≡</span></div>'+
+     '<div class="val">'+(Number(net)<0?"−":"+")+bn(Math.abs(net))+
+     '<span class="unit">میلیارد ریال</span></div></div>'+
+     '<div class="ft"><span>بدون احتساب مخارج سرمایه‌ای</span><span></span></div></div>'+
+     '<div class="kpi"><div class="bd"><div class="hd">'+
+     '<span class="lab">مخارج سرمایه‌ای (خارج از این صورت)</span><span class="chip">▣</span></div>'+
+     '<div class="val">'+bn(cap.reduce(function(a,x){return a+Number(x.amount_rial);},0))+
+     '<span class="unit">میلیارد ریال</span></div></div>'+
+     '<div class="ft"><span>به دارایی منتقل می‌شود</span><span></span></div></div>'+
+     '</div>';
+
+  h+='<div class="card"><div class="chead"><div><h3>صورت سود و زیان</h3>'+
+     '<p class="hint">تجمعی — میلیارد ریال</p></div></div>'+
+     '<div class="scroll"><table class="fs"><thead><tr><th>شرح</th><th>مبلغ</th></tr></thead><tbody>';
+
+  sum.forEach(function(x){
+    if(x.line==="capitalized") return;
+    var isTot = (x.line==="gross"||x.line==="net");
+    h+='<tr class="'+(isTot?"tot":"")+'"><td>'+esc(x.line_label)+'</td>'+
+       '<td class="num'+(Number(x.amount_rial)<0?" neg":"")+'">'+bn(x.amount_rial)+'</td></tr>';
+    if(!isTot){
+      det.filter(function(d){return d.line===x.line;})
+         .sort(function(a,b){return Math.abs(b.amount_rial)-Math.abs(a.amount_rial);})
+         .slice(0,8).forEach(function(d){
+        h+='<tr class="sub"><td>'+esc(d.detail)+'</td>'+
+           '<td class="num">'+bn(d.amount_rial)+'</td></tr>';
+      });
+    }
+  });
+  h+='</tbody></table></div></div>';
+
+  if(cap.length){
+    h+='<div class="card" style="margin-top:14px"><div class="chead"><div>'+
+       '<h3>مخارج سرمایه‌ای</h3><p class="hint">در سود و زیان نمی‌آید؛ به دارایی ثابت منتقل می‌شود</p>'+
+       '</div></div><div class="scroll"><table><tbody>';
+    cap.forEach(function(c){
+      h+='<tr><td>'+esc(c.category)+'</td><td class="num">'+bn(c.amount_rial)+'</td></tr>';
+    });
+    h+='</tbody></table></div></div>';
+  }
+  return h;
+}
+
+/* ---------- ۳. ترازنامه ---------- */
+async function balancePage(){
+  var q = await Promise.all([
+    db.from("v_balance_sheet_latest").select("*").order("side").order("sort_order"),
+    db.from("v_balance_sheet_check").select("*")
+  ]);
+  var rows=q[0].data||[], chk=(q[1].data||[])[0];
+  var h=subNav("balance");
+
+  if(!rows.length){
+    h+='<div class="empty">هنوز ترازنامه‌ای وارد نشده است.<br><br>'+
+       'ترازنامه برخلاف دو صورت دیگر محاسبه نمی‌شود — از نرم‌افزار حسابداری وارد می‌شود.<br>'+
+       'فایل اکسل ترازنامه را در گفتگو بفرستید تا وارد شود.</div>';
+    h+='<div class="card" style="margin-top:14px"><h3>چرا محاسبه نمی‌شود</h3>'+
+       '<p class="hint">سیستم فعلی فقط جریان نقد را ثبت می‌کند. ترازنامه به اقلامی نیاز دارد '+
+       'که در هیچ تراکنشی دیده نمی‌شوند: موجودی کالای نفروخته، حساب‌های پرداختنی، '+
+       'پیش‌پرداخت‌ها، ارزش افزوده قابل استرداد و استهلاک. اینها را حسابدار در پایان '+
+       'دوره تعدیل می‌کند.</p></div>';
+    return h;
+  }
+
+  if(chk && Math.abs(Number(chk.gap))>1000){
+    h+='<div class="gap">تراز نیست: اختلاف '+bn(Math.abs(chk.gap))+
+       ' میلیارد ریال بین دارایی و مجموع بدهی و سرمایه.</div>';
+  }
+
+  var asOf = rows[0].as_of_label;
+  h+='<div class="card"><div class="chead"><div><h3>ترازنامه</h3>'+
+     '<p class="hint">'+esc(asOf)+' · منبع: '+esc(rows[0].source)+' — میلیارد ریال</p>'+
+     '</div></div><div class="scroll"><table class="fs"><thead><tr>'+
+     '<th>شرح</th><th>مبلغ</th></tr></thead><tbody>';
+
+  ["asset","liability","equity"].forEach(function(side){
+    var sr=rows.filter(function(r){return r.side===side;});
+    if(!sr.length) return;
+    var tot=sr.reduce(function(a,x){return a+Number(x.amount_rial);},0);
+    h+='<tr class="sec"><td>'+esc(sr[0].side_label)+'</td><td class="num">'+bn(tot)+'</td></tr>';
+    var grp=null;
+    sr.forEach(function(r){
+      if(r.group_name!==grp){ grp=r.group_name;
+        h+='<tr><td><b>'+esc(grp)+'</b></td><td></td></tr>'; }
+      h+='<tr class="sub"><td>'+esc(r.line_item)+'</td>'+
+         '<td class="num">'+bn(r.amount_rial)+'</td></tr>';
+    });
+  });
+  h+='</tbody></table></div></div>';
+  return h;
+}
 
 /* ===================== صفحه ایجنت ===================== */
 var CHAT = [];              // تاریخچه گفتگو در همین نشست
