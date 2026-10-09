@@ -334,7 +334,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۱۱";
+var BUILD = "۱۲";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home" };
 
@@ -932,28 +932,47 @@ function go_reload(){ go("agent"); }
 async function answer(q){
   chatPush("user", q);
   var thinking = chatPush("ai", "در حال بررسی داده‌ها…");
+  var send=$("send"); if(send) send.disabled=true;
 
-  try {
-    if(!AI.ready){
-      thinking.textContent =
-        "برای پاسخ تحلیلی باز، هنوز به یک مدل زبانی وصل نشده‌ام.\n\n" +
-        "آنچه همین حالا می‌توانم بدهم، داده خام مرتبط با سؤال شماست. " +
-        "برای تحلیل، یا کلید مدل را وصل کنید، یا همان سؤال را در گفتگوی کلاد بپرسید.";
-      var keys = guessSources(q);
-      if(keys.length){
-        var data = await grab(keys);
-        var d = document.createElement("div");
-        d.className="bub ai";
-        d.innerHTML = "<b>داده مرتبط:</b><br>" + keys.map(function(k){
-          return "• "+esc(SOURCES[k].t);
-        }).join("<br>") + renderData(data);
-        $("chatbox").appendChild(d);
-        d.scrollIntoView({block:"end",behavior:"smooth"});
+  try{
+    var ses = await db.auth.getSession();
+    var jwt = ses.data.session ? ses.data.session.access_token : null;
+    if(!jwt){ thinking.textContent="نشست شما منقضی شده. دوباره وارد شوید."; return; }
+
+    var r = await fetch(SUPABASE_URL + "/functions/v1/ask", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json",
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": "Bearer " + jwt },
+      body: JSON.stringify({ question:q, history: CHAT.slice(-6) })
+    });
+
+    var txt = await r.text();
+    var j; try{ j=JSON.parse(txt); }catch(e){ j=null; }
+
+    if(!r.ok || !j || !j.ok){
+      var m = (j && j.message) ? j.message : ("خطای "+r.status);
+      if(r.status===404){
+        m = "تابع تحلیلگر هنوز روی Supabase منتشر نشده است.";
       }
+      thinking.textContent = m;
       return;
     }
-  } catch(e){
-    thinking.textContent = "خطا: "+e.message;
+
+    thinking.textContent = j.answer || "پاسخی دریافت نشد.";
+    CHAT[CHAT.length-1].text = thinking.textContent;
+
+    if(j.sources && j.sources.length){
+      var s2=document.createElement("div");
+      s2.className="bub sys";
+      s2.textContent="بر پایه: "+j.sources.join(" · ");
+      $("chatbox").appendChild(s2);
+      s2.scrollIntoView({block:"end",behavior:"smooth"});
+    }
+  }catch(err){
+    thinking.textContent = "ارتباط برقرار نشد: "+String(err).slice(0,200);
+  }finally{
+    if(send) send.disabled=false;
   }
 }
 
