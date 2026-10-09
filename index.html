@@ -212,6 +212,33 @@ td.neg{color:var(--rose)}
 .crumb{display:flex;gap:7px;align-items:center;font-size:.81rem;margin:0 0 14px}
 .crumb button{color:var(--deep);font-size:.81rem;font-weight:700}
 .spin{color:var(--muted);font-size:.85rem;padding:52px 0;text-align:center}
+.chat{display:flex;flex-direction:column;gap:12px;min-height:50vh}
+.bub{max-width:88%;padding:13px 15px;border-radius:16px;font-size:.86rem;line-height:1.75;
+  white-space:pre-wrap;word-break:break-word}
+.bub.me{align-self:flex-start;background:var(--deep);color:#fff;border-bottom-left-radius:5px}
+.bub.ai{align-self:flex-end;background:var(--card);border:1px solid var(--line);
+  border-bottom-right-radius:5px}
+.bub.sys{align-self:center;background:var(--amber-s);color:var(--amber);font-size:.79rem;
+  text-align:center;max-width:100%}
+.bub table{min-width:0;font-size:.79rem;margin-top:8px}
+.bub td,.bub th{padding:6px 8px}
+.ask{position:sticky;bottom:0;background:var(--canvas);padding:12px 0 4px;
+  display:flex;gap:9px;align-items:flex-end}
+.ask textarea{flex:1;resize:none;min-height:46px;max-height:130px;padding:12px 14px;
+  border:1px solid var(--line);border-radius:16px;background:var(--card);
+  color:var(--ink);font-size:.88rem;line-height:1.6}
+.ask button{background:var(--deep);color:#fff;border-radius:50%;width:46px;height:46px;
+  flex:0 0 46px;font-size:1.05rem;display:grid;place-items:center}
+.ask button:disabled{opacity:.45}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chip-q{background:var(--mint-s);color:var(--deep);border-radius:999px;padding:7px 14px;
+  font-size:.78rem;font-weight:600}
+.act{background:var(--card);border:1px solid var(--amber);border-radius:14px;padding:14px;
+  margin-top:10px}
+.act p{margin:0 0 12px;font-size:.84rem;line-height:1.7}
+.act .row2{display:flex;gap:9px}
+.act .ok{background:var(--deep);color:#fff;border-radius:10px;padding:9px 18px;font-weight:700;font-size:.8rem}
+.act .no{background:var(--grey-s);color:var(--ink2);border-radius:10px;padding:9px 18px;font-size:.8rem}
 .strip{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:12px 16px;
   padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));
   display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -307,7 +334,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۱۰";
+var BUILD = "۱۱";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home" };
 
@@ -456,10 +483,11 @@ async function go(key){
   $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
   window.scrollTo(0,0);
 
-  var h = (key==="home") ? await home() : await sub(key);
+  var h = (key==="home") ? await home() : (key==="agent" ? await agentPage() : await sub(key));
   $("body").innerHTML=h;
   bindGo($("body"));
   bindDrill($("body"));
+  if(key==="agent") bindAgent();
   var si=$("srch"); if(si) si.addEventListener("input",filterRows);
 }
 
@@ -780,6 +808,193 @@ $("q").addEventListener("keydown",async function(e){
   await go("rows");
   var si=$("srch"); if(si){ si.value=$("q").value; filterRows(); }
 });
+
+
+/* ===================== صفحه ایجنت ===================== */
+var CHAT = [];              // تاریخچه گفتگو در همین نشست
+var AI   = { url:null, ready:false };
+
+/* ده دسته داده‌ای که ایجنت اجازه خواندنشان را دارد.
+   هیچ SQL آزادی اجرا نمی‌شود — فقط همین‌ها. */
+var SOURCES = {
+  overview:    { v:'v_kpi_core',              t:'شاخص‌های کلی' },
+  cash:        { v:'v_cash_position',         t:'موجودی حساب‌ها' },
+  insights:    { v:'v_insights',              t:'یافته‌های سیستم' },
+  partners:    { v:'v_partner_contributions', t:'آورده شرکا' },
+  outlook:     { v:'v_monthly_outlook',       t:'پیش‌بینی نقدینگی' },
+  commitments: { v:'v_open_commitments',      t:'تعهدات باز' },
+  aging:       { v:'v_commitment_aging',      t:'سررسیدبندی' },
+  parties:     { v:'v_commitments_by_party',  t:'تعهدات به تفکیک طرف حساب' },
+  spend:       { v:'v_spend_by_category',     t:'مخارج به تفکیک دسته' },
+  subspend:    { v:'v_spend_by_subcategory',  t:'مخارج به تفکیک زیردسته' },
+  funding:     { v:'v_funding_by_source',     t:'ورودی‌ها به تفکیک منبع' },
+  inflows:     { v:'v_open_inflows',          t:'ورودی‌های برنامه‌ریزی‌شده' },
+  periods:     { v:'v_period_totals',         t:'ورودی و خروجی هر دوره' },
+  health:      { v:'v_health_score',          t:'نسبت‌های وضعیت مالی' },
+  rows:        { v:'v_txn_rows',              t:'تراکنش‌ها' },
+  quality:     { v:'v_data_health',           t:'کیفیت و تازگی داده' }
+};
+
+async function grab(keys){
+  var out={};
+  await Promise.all(keys.filter(function(k){return SOURCES[k];}).map(async function(k){
+    var q=db.from(SOURCES[k].v).select('*');
+    if(k==='rows') q=q.order('total_rial',{ascending:false}).limit(120);
+    if(k==='commitments') q=q.order('remaining_rial',{ascending:false}).limit(60);
+    var r=await q;
+    out[k]=r.error?{error:r.error.message}:r.data;
+  }));
+  return out;
+}
+
+function chatPush(role, text){
+  CHAT.push({role:role, text:text});
+  var box=$("chatbox"); if(!box) return;
+  var d=document.createElement("div");
+  d.className="bub "+(role==="user"?"me":(role==="sys"?"sys":"ai"));
+  d.textContent=text;
+  box.appendChild(d);
+  d.scrollIntoView({block:"end",behavior:"smooth"});
+  return d;
+}
+
+async function agentPage(){
+  var may = await db.rpc('agent_may_write');
+  var canWrite = may.data === true;
+
+  var pend = await db.from('v_agent_pending').select('*').order('created_at',{ascending:false});
+  var pendCount = (pend.data||[]).length;
+
+  var h='<div class="card" style="margin-bottom:14px"><div class="chead"><div>'+
+    '<h3>تحلیلگر مالی</h3><p class="hint">سؤال باز بپرسید. پاسخ از همان داده‌ای می‌آید که داشبورد نشان می‌دهد.</p>'+
+    '</div></div>'+
+    '<div class="chips">'+
+      '<button class="chip-q" data-q="وضعیت مالی پروژه را خلاصه کن و مهم‌ترین ریسک را بگو">خلاصه وضعیت</button>'+
+      '<button class="chip-q" data-q="چرا کسری تأمین مالی این‌قدر زیاد است؟ ریشه‌اش را توضیح بده">ریشه کسری</button>'+
+      '<button class="chip-q" data-q="اگر آقای صادقیان آورده‌اش را نیاورد چه اتفاقی می‌افتد؟">سناریوی صادقیان</button>'+
+      '<button class="chip-q" data-q="کدام ماه بیشترین فشار نقدینگی را دارد و چرا؟">تنگ‌ترین ماه</button>'+
+      '<button class="chip-q" data-q="بزرگ‌ترین هزینه‌های پروژه کجا رفته است؟">تحلیل مخارج</button>'+
+    '</div>'+
+    '<div class="chat" id="chatbox"></div>'+
+    '<div class="ask"><textarea id="qbox" rows="1" placeholder="سؤالتان را بنویسید…"></textarea>'+
+    '<button id="send">↑</button></div>'+
+    '</div>';
+
+  if(pendCount){
+    h+='<div class="card" style="border-color:var(--amber)"><h3>تغییرات منتظر تأیید ('+fa(pendCount)+')</h3>';
+    (pend.data||[]).forEach(function(a){
+      h+='<div class="act"><p>'+esc(a.summary)+'</p><div class="row2">'+
+         '<button class="ok" data-approve="'+esc(a.id)+'">تأیید</button>'+
+         '<button class="no" data-reject="'+esc(a.id)+'">رد</button></div></div>';
+    });
+    h+='</div>';
+  }
+
+  if(!canWrite){
+    h+='<p class="hint" style="margin-top:12px">حساب شما فقط اجازه پرسش دارد، نه ثبت تغییر.</p>';
+  }
+  return h;
+}
+
+function bindAgent(){
+  var send=$("send"), box=$("qbox");
+  if(!send) return;
+
+  function go(){
+    var t=(box.value||"").trim();
+    if(!t) return;
+    box.value=""; box.style.height="auto";
+    answer(t);
+  }
+  send.addEventListener("click",go);
+  box.addEventListener("input",function(){
+    box.style.height="auto"; box.style.height=Math.min(box.scrollHeight,130)+"px";
+  });
+  box.addEventListener("keydown",function(e){
+    if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); go(); }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-q]"),function(b){
+    b.addEventListener("click",function(){ answer(b.getAttribute("data-q")); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-approve],[data-reject]"),function(b){
+    b.addEventListener("click",async function(){
+      var id=b.getAttribute("data-approve")||b.getAttribute("data-reject");
+      var ok=!!b.getAttribute("data-approve");
+      b.disabled=true; b.textContent="…";
+      var r=await db.rpc('agent_decide',{p_id:id,p_approve:ok});
+      go_reload();
+    });
+  });
+}
+function go_reload(){ go("agent"); }
+
+/* ---- پاسخ‌دهی ---- */
+async function answer(q){
+  chatPush("user", q);
+  var thinking = chatPush("ai", "در حال بررسی داده‌ها…");
+
+  try {
+    if(!AI.ready){
+      thinking.textContent =
+        "برای پاسخ تحلیلی باز، هنوز به یک مدل زبانی وصل نشده‌ام.\n\n" +
+        "آنچه همین حالا می‌توانم بدهم، داده خام مرتبط با سؤال شماست. " +
+        "برای تحلیل، یا کلید مدل را وصل کنید، یا همان سؤال را در گفتگوی کلاد بپرسید.";
+      var keys = guessSources(q);
+      if(keys.length){
+        var data = await grab(keys);
+        var d = document.createElement("div");
+        d.className="bub ai";
+        d.innerHTML = "<b>داده مرتبط:</b><br>" + keys.map(function(k){
+          return "• "+esc(SOURCES[k].t);
+        }).join("<br>") + renderData(data);
+        $("chatbox").appendChild(d);
+        d.scrollIntoView({block:"end",behavior:"smooth"});
+      }
+      return;
+    }
+  } catch(e){
+    thinking.textContent = "خطا: "+e.message;
+  }
+}
+
+/* کدام منبع داده به این سؤال می‌خورد */
+function guessSources(q){
+  var k=[], t=q;
+  if(/وضعیت|خلاصه|کلی|سلامت/.test(t))              k.push('overview','health','insights');
+  if(/کسری|تأمین|تامین|پول|نقدینگی/.test(t))        k.push('overview','outlook','cash');
+  if(/شریک|شرکا|آورده|صادقیان|پترو|سرمایه/.test(t)) k.push('partners','funding');
+  if(/ماه|پیش.?بینی|آینده|فشار/.test(t))            k.push('outlook','aging');
+  if(/تعهد|بدهی|قرارداد|سررسید/.test(t))            k.push('commitments','aging','parties');
+  if(/هزینه|مخارج|خرج|دسته/.test(t))                k.push('spend','subspend');
+  if(/پیمانکار|طرف حساب/.test(t))                   k.push('parties');
+  if(/تراکنش|جستجو|جست.?وجو/.test(t))               k.push('rows');
+  if(/داده|کیفیت|تازگی/.test(t))                    k.push('quality');
+  if(!k.length) k=['overview','insights'];
+  return k.filter(function(x,i,a){return a.indexOf(x)===i;}).slice(0,4);
+}
+
+function renderData(data){
+  var h="";
+  for(var k in data){
+    var rows=data[k];
+    if(!rows || rows.error || !rows.length) continue;
+    h+='<div style="margin-top:12px"><b>'+esc(SOURCES[k].t)+'</b>';
+    h+='<div class="scroll"><table><tbody>';
+    rows.slice(0,12).forEach(function(r){
+      var cells=Object.keys(r).filter(function(c){
+        return !/^id$|_id$|sort_order|day_code/.test(c);
+      }).slice(0,4);
+      h+='<tr>'+cells.map(function(c){
+        var v=r[c];
+        if(typeof v==='number' && Math.abs(v)>1e6) v=bn(v);
+        else if(typeof v==='number') v=fa(v);
+        return '<td>'+esc(v===null?'—':v)+'</td>';
+      }).join('')+'</tr>';
+    });
+    h+='</tbody></table></div></div>';
+  }
+  return h;
+}
 
 /* ---------- نصب روی صفحه اصلی و به‌روزرسانی خودکار ---------- */
 function strip(msg, btnText, onClick, warn){
