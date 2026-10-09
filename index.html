@@ -84,6 +84,15 @@ input:focus{outline:2px solid var(--mint);outline-offset:1px}
 .nav:hover{background:var(--grey-s)}
 .nav.on{background:var(--deep);color:#fff;font-weight:700}
 .nav .ic{width:19px;height:19px;flex:0 0 19px;display:grid;place-items:center;font-size:.95rem}
+.nav.parent{justify-content:space-between}
+.nav .caret{font-size:.7rem;color:var(--muted);transition:transform .18s}
+.nav.open .caret{transform:rotate(-90deg)}
+.kids{overflow:hidden;max-height:0;transition:max-height .22s ease}
+.kids.open{max-height:260px}
+.kids button{display:block;width:100%;text-align:right;padding:10px 14px 10px 40px;
+  border-radius:12px;font-size:.81rem;color:var(--ink2)}
+.kids button:hover{background:var(--grey-s)}
+.kids button.on{background:var(--mint-s);color:var(--deep);font-weight:700}
 .side .promo{margin-top:auto;background:linear-gradient(160deg,var(--mint-s2),var(--mint-s));
   border-radius:var(--r);padding:16px;margin-bottom:8px}
 .side .promo h4{margin:0 0 5px;font-size:.84rem;font-weight:700;color:var(--deep)}
@@ -345,7 +354,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۱۳";
+var BUILD = "۱۵";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home" };
 
@@ -457,13 +466,35 @@ async function boot(ses){
     $("promoVal").textContent=bn(S.cash)+" میلیارد ریال";
   } else { $("promoVal").textContent="—"; $("promoSub").textContent="برای نقش شما قابل نمایش نیست"; }
 
-  var icons={home:"⌂",cash:"◎",commitments:"◆",spend:"▤",funding:"↗",health:"✚",rows:"≡",statements:"▦",agent:"✦"};
-  $("navs").innerHTML=S.pages.filter(function(pg){
-    return !pg.parent_key || pg.parent_key==="home";
-  }).map(function(pg){
-    return '<button class="nav" data-go="'+esc(pg.key)+'">'+
-           '<span class="ic">'+(icons[pg.key]||"•")+'</span>'+esc(pg.title)+"</button>";
+  var icons={home:"⌂",cash:"◎",commitments:"◆",spend:"▤",funding:"↗",
+             health:"✚",rows:"≡",statements:"▦",agent:"✦"};
+  var tops = S.pages.filter(function(p){ return !p.parent_key || p.parent_key==="home"; })
+                    .sort(function(a,b){ return a.sort_order-b.sort_order; });
+  $("navs").innerHTML = tops.map(function(pg){
+    var kids = S.pages.filter(function(x){ return x.parent_key===pg.key; })
+                      .sort(function(a,b){ return a.sort_order-b.sort_order; });
+    if(!kids.length){
+      return '<button class="nav" data-go="'+esc(pg.key)+'">'+
+             '<span class="ic">'+(icons[pg.key]||"•")+'</span>'+esc(pg.title)+"</button>";
+    }
+    return '<button class="nav parent" data-toggle="'+esc(pg.key)+'">'+
+             '<span style="display:flex;align-items:center;gap:12px">'+
+             '<span class="ic">'+(icons[pg.key]||"•")+'</span>'+esc(pg.title)+'</span>'+
+             '<span class="caret">‹</span></button>'+
+           '<div class="kids" id="kids-'+esc(pg.key)+'">'+
+             kids.map(function(k){
+               return '<button data-go="'+esc(k.key)+'">'+esc(k.title)+"</button>";
+             }).join("")+
+           '</div>';
   }).join("");
+
+  Array.prototype.forEach.call($("navs").querySelectorAll("[data-toggle]"),function(b){
+    b.addEventListener("click",function(){
+      var k=$("kids-"+b.getAttribute("data-toggle"));
+      b.classList.toggle("open"); if(k) k.classList.toggle("open");
+    });
+  });
+
   bindGo($("navs"));
   var hr=new Date().getHours();
   S.greet=(hr<12?"صبح بخیر":(hr<18?"ظهر بخیر":"عصر بخیر"))+"، "+String(nm).split(" ")[0]+"!";
@@ -491,8 +522,15 @@ async function go(key){
   S.page=key;
   var p=pageOf(key)||{title:key};
   $("ptl").textContent=p.title; $("psb").textContent=p.subtitle||"";
-  Array.prototype.forEach.call($("navs").children,function(b){
-    b.classList.toggle("on", b.getAttribute("data-go")===key); });
+  Array.prototype.forEach.call($("navs").querySelectorAll("button"),function(b){
+    b.classList.toggle("on", b.getAttribute("data-go")===key);
+  });
+  var parent = (S.pages.filter(function(p){return p.key===key;})[0]||{}).parent_key;
+  if(parent && parent!=="home"){
+    var pk=$("kids-"+parent); if(pk) pk.classList.add("open");
+    var pb=$("navs").querySelector('[data-toggle="'+parent+'"]');
+    if(pb){ pb.classList.add("open","on"); }
+  }
   $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
   window.scrollTo(0,0);
 
@@ -1010,8 +1048,11 @@ async function balancePage(){
   }
 
   if(chk && Math.abs(Number(chk.gap))>1000){
-    h+='<div class="gap">تراز نیست: اختلاف '+bn(Math.abs(chk.gap))+
-       ' میلیارد ریال بین دارایی و مجموع بدهی و سرمایه.</div>';
+    h+='<div class="gap"><b>تراز نیست — اختلاف '+bn(Math.abs(chk.gap))+' میلیارد ریال.</b><br>'+
+       'این ترازنامه از جریان نقد ساخته شده، نه از دفاتر. اقلامی که در هیچ تراکنشی '+
+       'دیده نمی‌شوند هنوز وارد نشده‌اند: موجودی کالای نفروخته، حساب‌های پرداختنی به '+
+       'پیمانکاران، پیش‌پرداخت‌ها، و استهلاک. اختلاف تقریباً به اندازه همین اقلام است.<br>'+
+       'فایل ترازنامه صدگان را بفرستید تا جایگزین شود.</div>';
   }
 
   var asOf = rows[0].as_of_label;
