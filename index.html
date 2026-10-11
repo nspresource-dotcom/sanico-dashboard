@@ -335,7 +335,7 @@ td.neg{color:var(--rose)}
       <h2 id="ptl">—</h2>
       <div class="sp"></div>
       <div class="search"><span>⌕</span><input id="q" placeholder="جست‌وجو در تراکنش‌ها…"></div>
-      <div class="icons"><button id="theme" class="ib">☾</button></div>
+      <div class="icons"><button id="reload" class="ib" title="به‌روزرسانی داده‌ها">⟳</button><button id="theme" class="ib">☾</button></div>
       <div class="me"><div class="av" id="av">—</div>
         <div><div class="nm" id="meName">—</div><div class="rl" id="meRole">—</div></div></div>
     </div>
@@ -355,9 +355,9 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۱۷";
+var BUILD = "۱۹";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
-          insights:[], periods:[], page:"home" };
+          insights:[], periods:[], page:"home", ready:false, booting:false };
 
 /* ---------- formatting ---------- */
 function fa(n){ return Number(n).toLocaleString("fa-IR"); }
@@ -424,7 +424,8 @@ $("savepw").addEventListener("click",async function(){
   if(r.error){ n.textContent="ذخیره نشد: "+r.error.message; n.className="note err"; return; }
   history.replaceState(null,"",location.pathname);
   $("np").value=""; $("np2").value=""; n.className="note";
-  $("setpw").classList.add("hide"); start();
+  $("setpw").classList.add("hide");
+  if(S.ready){ $("app").classList.remove("hide"); } else { start(); }
 });
 
 /* ---------- sidebar ---------- */
@@ -434,19 +435,42 @@ function openSide(){ $("side").classList.add("open");
 function closeSide(){ $("side").classList.remove("open");
   var s=$("scrim"); if(s) s.remove(); }
 $("burger").addEventListener("click",openSide);
+
+/* به‌روزرسانی دستی داده‌ها — صفحهٔ جاری حفظ می‌شود */
+$("reload").addEventListener("click",async function(){
+  var b=$("reload"); b.disabled=true; b.textContent="…";
+  try{ await start(true); } finally { b.disabled=false; b.textContent="⟳"; }
+});
+
+/* بعد از غیبت طولانی داده‌ها کهنه می‌شود؛ فقط آن وقت دوباره می‌خوانیم */
+var hiddenAt=0;
+document.addEventListener("visibilitychange",function(){
+  if(document.hidden){ hiddenAt=Date.now(); return; }
+  if(S.ready && hiddenAt && Date.now()-hiddenAt > 900000) start(true);
+  hiddenAt=0;
+});
+
 $("brandHome").addEventListener("click",function(){
   if(S.page!=="home") go("home");
   closeSide();
 });
 
 /* ---------- boot ---------- */
-async function start(){
-  var s=await db.auth.getSession();
-  if(!s.data.session){ $("auth").classList.remove("hide"); $("app").classList.add("hide"); return; }
-  if(fromLink()){ showSetPw(s.data.session,false); return; }
-  $("auth").classList.add("hide"); $("setpw").classList.add("hide");
-  $("app").classList.remove("hide");
-  await boot(s.data.session);
+async function start(force){
+  /* اگر داشبورد همین حالا بالا و سالم است، دوباره از صفر ساخته نشود */
+  if(S.booting) return;
+  if(S.ready && !force) return;
+  S.booting=true;
+  try{
+    var s=await db.auth.getSession();
+    if(!s.data.session){ S.ready=false;
+      $("auth").classList.remove("hide"); $("app").classList.add("hide"); return; }
+    if(fromLink()){ showSetPw(s.data.session,false); return; }
+    $("auth").classList.add("hide"); $("setpw").classList.add("hide");
+    $("app").classList.remove("hide");
+    await boot(s.data.session);
+    S.ready=true;
+  } finally { S.booting=false; }
 }
 
 async function boot(ses){
@@ -707,7 +731,9 @@ function kpiCard(w){
     delta.tag='<span class="tag warn">قطعی نشده</span>';
     delta.note='علامت‌خورده «محتمل» در شیت';
   } else if(c.expr){
-    delta.note='موجودی + ورودی قطعی − تعهدات';
+    /* ترکیب عدد را نشان می‌دهیم تا معلوم باشد موجودی بانک در آن هست */
+    delta.note='موجودی '+bn(ctx.cash)+' + ورودی قطعی '+bn(ctx.inflow_certain)+
+               ' − تعهدات '+bn(Number(ctx.firm_open||0)+Number(ctx.soft_open||0));
   }
   return '<button class="kpi '+cls+'" data-go="'+esc(c.link||"home")+'">'+
     '<div class="bd">'+
@@ -1359,7 +1385,9 @@ window.addEventListener("online", function(){
 
 db.auth.onAuthStateChange(function(e,s){
   if(e==="PASSWORD_RECOVERY"){ showSetPw(s,false); return; }
-  if(e==="SIGNED_IN") start();
+  /* سوپابیس هنگام برگشت به تب هم SIGNED_IN می‌فرستد؛ اگر داشبورد بالاست دست به آن نمی‌زنیم */
+  if(e==="SIGNED_IN" && !S.ready && !S.booting) start();
+  if(e==="SIGNED_OUT") S.ready=false;
 });
 start();
 </script>
