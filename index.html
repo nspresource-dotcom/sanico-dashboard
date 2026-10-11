@@ -222,6 +222,53 @@ td.neg{color:var(--rose)}
   margin:0 0 18px 8px}
 .stamp b{width:7px;height:7px;border-radius:50%;background:var(--mint)}
 .stamp.stale b{background:var(--amber)}
+/* ---------- دانشنامه ---------- */
+@keyframes kbUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.kb-card,.kb-hero,.kb-body{animation:none!important}}
+.kb-hero{background:linear-gradient(135deg,var(--deep),#2a6d58);color:#fff;border-radius:20px;
+  padding:24px 26px;margin-bottom:18px;animation:kbUp .34s cubic-bezier(.22,1,.36,1) both;
+  position:relative;overflow:hidden}
+.kb-hero::after{content:"";position:absolute;left:-40px;top:-40px;width:180px;height:180px;
+  border-radius:50%;background:rgba(255,255,255,.07)}
+.kb-hero .ico{font-size:1.7rem;opacity:.9;margin-bottom:8px;display:block}
+.kb-hero h3{font-size:1.3rem;font-weight:800;margin-bottom:5px}
+.kb-hero p{font-size:.85rem;opacity:.82;max-width:52ch;line-height:1.75}
+.kb-hero .meta{margin-top:13px;display:flex;gap:9px;flex-wrap:wrap;font-size:.72rem}
+.kb-hero .meta span{background:rgba(255,255,255,.14);padding:4px 11px;border-radius:999px}
+.kb-grid{display:grid;gap:13px}
+.kb-card{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:17px 19px;
+  text-align:right;width:100%;cursor:pointer;display:block;
+  animation:kbUp .4s cubic-bezier(.22,1,.36,1) both;
+  transition:transform .18s cubic-bezier(.22,1,.36,1),box-shadow .18s,border-color .18s}
+.kb-card:hover{transform:translateY(-3px);border-color:var(--mint);
+  box-shadow:0 10px 26px -14px rgba(27,77,62,.42)}
+.kb-card:active{transform:translateY(-1px)}
+.kb-card .top{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+.kb-card h4{font-size:.98rem;font-weight:800;line-height:1.5;flex:1;min-width:60%}
+.kb-card p{font-size:.82rem;color:var(--muted);line-height:1.85}
+.kb-card .foot{margin-top:11px;padding-top:10px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:10px;font-size:.72rem;color:var(--ink2);flex-wrap:wrap}
+.kb-tag{padding:3px 10px;border-radius:999px;font-size:.68rem;font-weight:800;white-space:nowrap}
+.kb-tag.k-نرخ{background:var(--amber-s);color:var(--amber)}
+.kb-tag.k-بخشنامه{background:rgba(27,77,62,.11);color:var(--deep)}
+.kb-tag.k-خبر{background:var(--grey-s);color:var(--muted)}
+.kb-tag.k-مقاله{background:var(--mint-s);color:var(--deep)}
+.kb-pin{color:var(--amber);font-size:.8rem}
+.kb-body{animation:kbUp .3s cubic-bezier(.22,1,.36,1) both;line-height:2.05;font-size:.9rem}
+.kb-body h5{font-size:.95rem;font-weight:800;margin:18px 0 7px}
+.kb-body p{margin-bottom:12px}
+.kb-body ul{margin:0 18px 13px 0;padding:0}
+.kb-body li{margin-bottom:7px;list-style:disc}
+.kb-body table{width:100%;border-collapse:collapse;margin:6px 0 15px;font-size:.84rem}
+.kb-body th{background:var(--grey-s);font-weight:800;padding:9px 11px;text-align:right;
+  border-bottom:1px solid var(--line)}
+.kb-body td{padding:9px 11px;border-bottom:1px solid var(--line)}
+.kb-body b{font-weight:800;color:var(--ink)}
+.kb-src{margin-top:18px;padding:13px 15px;background:var(--grey-s);border-radius:13px;
+  font-size:.76rem;color:var(--ink2);line-height:1.95}
+.kb-src a{color:var(--deep);font-weight:700;word-break:break-all}
+.kb-stale{background:var(--amber-s);color:var(--amber);padding:11px 15px;border-radius:13px;
+  font-size:.79rem;margin-bottom:15px;font-weight:600}
 .crumb{display:flex;gap:7px;align-items:center;font-size:.81rem;margin:0 0 14px}
 .crumb button{color:var(--deep);font-size:.81rem;font-weight:700}
 .spin{color:var(--muted);font-size:.85rem;padding:52px 0;text-align:center}
@@ -274,6 +321,59 @@ td.neg{color:var(--rose)}
 .foot{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
   color:var(--muted);font-size:.74rem;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
+/* ---------- ریل دانشنامه (سمت چپ) ---------- */
+.kbrail{position:fixed;top:0;left:0;height:100dvh;z-index:45;display:flex;align-items:stretch}
+.kbrail-tab{width:46px;flex:0 0 46px;background:var(--rail);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  cursor:pointer;color:var(--ink2);transition:background .16s,color .16s}
+.kbrail-tab:hover{background:var(--mint-s);color:var(--deep)}
+.kbrail-tab .ic{font-size:1.15rem}
+.kbrail-tab .lbl{writing-mode:vertical-rl;transform:rotate(180deg);font-size:.78rem;
+  font-weight:800;letter-spacing:.04em}
+.kbrail.open .kbrail-tab{background:var(--deep);color:#fff;border-right-color:var(--deep)}
+.kbrail-panel{width:0;overflow:hidden;background:var(--card);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+  transition:width .26s cubic-bezier(.22,1,.36,1);box-shadow:6px 0 28px -18px rgba(0,0,0,.4)}
+.kbrail.open .kbrail-panel{width:302px}
+.kbrail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:18px 16px 12px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.kbrail-head h3{font-size:.98rem;font-weight:800;white-space:nowrap}
+.kbrail-q{margin:12px 14px 6px;flex:0 0 auto;width:calc(100% - 28px);padding:9px 13px;
+  border:1px solid var(--line);border-radius:12px;background:var(--canvas);
+  font:inherit;font-size:.8rem;color:var(--ink)}
+.kbrail-body{flex:1;overflow-y:auto;padding:8px 10px 10px;min-width:282px}
+.kbrail-all{flex:0 0 auto;margin:0;padding:14px;border-top:1px solid var(--line);
+  font-size:.79rem;font-weight:700;color:var(--deep);white-space:nowrap;
+  padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+.kbrail-all:hover{background:var(--mint-s)}
+.kbt-topic{width:100%;text-align:right;display:flex;align-items:center;justify-content:space-between;
+  gap:9px;padding:11px 12px;border-radius:12px;font-size:.84rem;font-weight:700;color:var(--ink2);
+  white-space:nowrap;transition:background .15s}
+.kbt-topic:hover{background:var(--grey-s)}
+.kbt-topic .caret{font-size:.68rem;color:var(--muted);transition:transform .18s}
+.kbt-topic.open{color:var(--deep)}
+.kbt-topic.open .caret{transform:rotate(-90deg)}
+.kbt-kids{overflow:hidden;max-height:0;transition:max-height .24s ease}
+.kbt-kids.open{max-height:1400px}
+.kbt-art{display:block;width:100%;text-align:right;padding:9px 14px 9px 10px;border-radius:10px;
+  font-size:.78rem;line-height:1.7;color:var(--ink2);white-space:normal}
+.kbt-art:hover{background:var(--mint-s);color:var(--deep)}
+.kbt-art .kb-tag{margin-left:6px;padding:1px 7px;font-size:.63rem}
+.kbt-empty{padding:10px 14px;font-size:.76rem;color:var(--muted)}
+@media(min-width:861px){
+  .shell{padding-left:46px}
+  #kbfab{display:none}
+}
+@media(max-width:860px){
+  .kbrail{left:0}
+  .kbrail-tab{display:none}
+  .kbrail-panel{position:fixed;left:0;top:0;height:100dvh;
+    padding-top:env(safe-area-inset-top,0px)}
+  .kbrail.open .kbrail-panel{width:290px}
+  #kbfab{position:fixed;left:15px;bottom:calc(15px + env(safe-area-inset-bottom,0px));z-index:44;
+    width:50px;height:50px;border-radius:50%;background:var(--deep);color:#fff;font-size:1.25rem;
+    display:grid;place-items:center;box-shadow:0 8px 22px -8px rgba(27,77,62,.6);border:0;cursor:pointer}
+}
 @media(max-width:860px){
   .shell{display:block}
   .side{position:fixed;inset:0 0 0 auto;width:262px;transform:translateX(100%);
@@ -297,7 +397,8 @@ td.neg{color:var(--rose)}
     <div class="brand"><div class="logo">سن</div>
       <div><h1>داشبورد مدیریتی سایا نیک</h1>
         <p class="sub" style="margin:0">کنترل مالی پروژه کارخانه</p></div></div>
-    <label for="em">ایمیل</label><input id="em" type="email" autocomplete="username" dir="ltr">
+    <label for="em">ایمیل</label><input id="em" type="email" autocomplete="username" dir="ltr"
+      value="sayanikyazd@gmail.com">
     <label for="pw">رمز عبور</label><input id="pw" type="password" autocomplete="current-password" dir="ltr">
     <button id="go" class="btn">ورود</button>
     <button id="forgot" class="btn-ghost">رمز عبور را فراموش کرده‌ام</button>
@@ -349,6 +450,22 @@ td.neg{color:var(--rose)}
     <div class="foot"><span>سایا نیک · داشبورد مدیریتی پروژه کارخانه</span>
       <span>چیدمان شاخص‌ها در دیتابیس تعریف شده است</span></div>
   </main>
+
+  <!-- ریل دانشنامه — سمت چپ، جمع‌شونده -->
+  <aside id="kbrail" class="kbrail">
+    <button id="kbtoggle" class="kbrail-tab" title="دانشنامه">
+      <span class="ic">◈</span><span class="lbl">دانشنامه</span>
+    </button>
+    <div class="kbrail-panel">
+      <div class="kbrail-head">
+        <h3>◈ دانشنامه</h3>
+        <button id="kbclose" class="ib" title="بستن">×</button>
+      </div>
+      <input id="kbrq" class="kbrail-q" placeholder="جست‌وجو در همهٔ مطالب…">
+      <div id="kbtree" class="kbrail-body"><div class="spin">…</div></div>
+      <button id="kbopenall" class="kbrail-all">نمای کامل دانشنامه ←</button>
+    </div>
+  </aside>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -358,9 +475,9 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۲۱";
+var BUILD = "۲۵";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
-          insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"" };
+          insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"" };
 
 /* ---------- formatting ---------- */
 function fa(n){ return Number(n).toLocaleString("fa-IR"); }
@@ -386,11 +503,35 @@ function anote(t,k){ var n=$("anote"); n.textContent=t; n.className="note "+k; }
 
 $("go").addEventListener("click",async function(){
   var b=$("go"); b.disabled=true; b.textContent="در حال ورود…";
-  var r=await db.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});
+  /* ایمیل را کوچک می‌کنیم و فاصله‌های اضافی رمز را می‌گیریم — کیبورد موبایل هر دو را خراب می‌کند */
+  var em=$("em").value.trim().toLowerCase();
+  var pwv=$("pw").value.replace(/^\s+|\s+$/g,"")
+                      .replace(/[‐-―−]/g,"-")   /* خط تیره‌های هوشمند */
+                      .replace(/[‘’]/g,"'").replace(/[“”]/g,'"');
+  var r=await db.auth.signInWithPassword({email:em,password:pwv});
   b.disabled=false; b.textContent="ورود";
-  if(r.error){ anote("ایمیل یا رمز عبور درست نیست.","err"); return; }
+  if(r.error){
+    var m=String(r.error.message||"");
+    anote(/Invalid login/i.test(m)   ? "ایمیل یا رمز عبور درست نیست."
+        : /rate limit|too many/i.test(m) ? "تلاش‌های ورود زیاد بوده؛ چند دقیقه صبر کنید."
+        : /not confirmed/i.test(m)   ? "این ایمیل هنوز تأیید نشده است."
+        : /network|fetch|load failed/i.test(m) ? "به سرور وصل نشد — اینترنت را بررسی کنید."
+        : "ورود ناموفق — "+m, "err");
+    return;
+  }
+  /* ایمیلِ موفق را روی همین دستگاه به یاد می‌سپاریم — فقط ایمیل، هرگز رمز */
+  try{ localStorage.setItem("sayanik_email", em); }catch(e){}
   start();
 });
+
+/* ایمیل پیش‌فرض: آخرین ایمیلی که روی این دستگاه وارد شده */
+(function(){
+  try{
+    var last=localStorage.getItem("sayanik_email");
+    if(last) $("em").value=last;
+  }catch(e){}
+  if($("em").value) setTimeout(function(){ try{ $("pw").focus(); }catch(e){} },120);
+})();
 $("pw").addEventListener("keydown",function(e){ if(e.key==="Enter") $("go").click(); });
 $("forgot").addEventListener("click",async function(){
   var em=$("em").value.trim();
@@ -503,8 +644,15 @@ async function boot(ses){
   } else { $("promoVal").textContent="—"; $("promoSub").textContent="برای نقش شما قابل نمایش نیست"; }
 
   var icons={home:"⌂",cash:"◎",commitments:"◆",spend:"▤",funding:"↗",
-             health:"✚",rows:"≡",statements:"▦",agent:"✦"};
-  var tops = S.pages.filter(function(p){ return !p.parent_key || p.parent_key==="home"; })
+             health:"✚",rows:"≡",statements:"▦",kb:"◈",agent:"✦"};
+  /* تاریخ امروز به شمسی — برای تشخیص مطالب نیازمند بازبینی */
+  try{
+    S.nowJalali = new Date().toLocaleDateString("fa-IR-u-nu-latn",
+      {year:"numeric",month:"2-digit",day:"2-digit"}).replace(/\//g,"/");
+  }catch(e){ S.nowJalali=""; }
+  /* صفحات دانشنامه در ریل سمت چپ هستند، نه در این منو */
+  var tops = S.pages.filter(function(p){
+      return (!p.parent_key || p.parent_key==="home") && p.key.indexOf("kb")!==0; })
                     .sort(function(a,b){ return a.sort_order-b.sort_order; });
   $("navs").innerHTML = tops.map(function(pg){
     var kids = (pg.key==="home") ? [] :
@@ -565,7 +713,10 @@ function stamp(){
 
 function bindGo(root){
   Array.prototype.forEach.call(root.querySelectorAll("[data-go]"),function(el){
-    el.addEventListener("click",function(){ go(el.getAttribute("data-go")); closeSide(); });
+    el.addEventListener("click",function(){
+      go(el.getAttribute("data-go")); closeSide();
+      if(window.innerWidth<=860) kbRailOpen(false);
+    });
   });
 }
 function pageOf(k){ return S.pages.filter(function(p){return p.key===k;})[0]; }
@@ -593,6 +744,8 @@ async function go(key){
 
   var h;
   if(key==="home")            h = await home();
+  else if(key==="kb")         h = await kbIndex();
+  else if(key.indexOf("kb-")===0) h = await kbTopic(key);
   else if(key==="agent")      h = await agentPage();
   else if(key==="statements") h = await statementsPage();
   else if(key==="cashflow")   h = await cashflowPage();
@@ -604,6 +757,13 @@ async function go(key){
   bindDrill($("body"));
   if(key==="agent") bindAgent();
   var si=$("srch"); if(si) si.addEventListener("input",filterRows);
+  var kq=$("kbq");
+  if(kq) kq.addEventListener("input",function(){
+    var v=kq.value.trim().toLowerCase();
+    Array.prototype.forEach.call($("kblist").querySelectorAll("[data-k]"),function(el){
+      el.style.display = (!v || el.getAttribute("data-k").indexOf(v)>-1) ? "" : "none";
+    });
+  });
 }
 
 /* one listener on the container: survives every re-render */
@@ -618,6 +778,10 @@ document.addEventListener("click", function(ev){
   if(rw){ ev.preventDefault(); ev.stopPropagation();
     var q=rw.getAttribute("data-rows").split("|");
     detailList(q[0],q[1],q[2],q[3]); return; }
+  var ar = ev.target.closest && ev.target.closest("[data-art]");
+  if(ar){ ev.preventDefault(); ev.stopPropagation();
+    if(window.innerWidth<=860) kbRailOpen(false);
+    kbArticle(ar.getAttribute("data-art")); return; }
   var ex = ev.target.closest && ev.target.closest("[data-expand]");
   if(ex){ ev.preventDefault(); ev.stopPropagation();
     toggleExpand(ex); return; }
@@ -1032,6 +1196,212 @@ function bars(w,c,rows){
        '<span class="track">'+inner+'</span><span class="vl">'+bn(v)+'</span></div>';
   });
   return h+'</div>';
+}
+
+/* ---------- ریل دانشنامه، سمت چپ ---------- */
+function kbRailOpen(on){
+  var r=$("kbrail");
+  r.classList.toggle("open", on===undefined ? !r.classList.contains("open") : !!on);
+  if(r.classList.contains("open")) kbTree();
+}
+$("kbtoggle").addEventListener("click",function(){ kbRailOpen(); });
+$("kbclose").addEventListener("click",function(){ kbRailOpen(false); });
+$("kbopenall").addEventListener("click",function(){ kbRailOpen(false); go("kb"); });
+
+/* دکمهٔ شناور برای موبایل */
+(function(){
+  var b=document.createElement("button");
+  b.id="kbfab"; b.type="button"; b.textContent="◈"; b.title="دانشنامه";
+  b.addEventListener("click",function(){ kbRailOpen(); });
+  $("app").appendChild(b);   /* داخل اپ، تا در صفحهٔ ورود دیده نشود */
+})();
+
+document.addEventListener("keydown",function(e){
+  if(e.key==="Escape" && $("kbrail").classList.contains("open")) kbRailOpen(false);
+});
+
+var kbTreeLoaded=false;
+async function kbTree(){
+  if(kbTreeLoaded) return;
+  var q=await Promise.all([
+    db.from("kb_topics").select("*").eq("is_active",true).order("sort_order"),
+    db.from("kb_articles").select("id,topic_key,title,kind,pinned,sort_order,summary,tags")
+      .eq("is_active",true).order("pinned",{ascending:false}).order("sort_order")
+  ]);
+  var tops=q[0].data||[], arts=q[1].data||[];
+  if(!tops.length){ $("kbtree").innerHTML='<p class="kbt-empty">سرفصلی ثبت نشده.</p>'; return; }
+  var h="";
+  tops.forEach(function(t){
+    var mine=arts.filter(function(a){ return a.topic_key===t.key; });
+    h+='<button class="kbt-topic" data-kbt="'+esc(t.key)+'">'+
+       '<span>'+esc(t.icon||"◈")+'  '+esc(t.title)+'</span>'+
+       '<span class="caret">‹</span></button>'+
+       '<div class="kbt-kids" id="kbt-'+esc(t.key)+'">';
+    if(!mine.length) h+='<p class="kbt-empty">هنوز مطلبی نیست.</p>';
+    mine.forEach(function(a){
+      var k=((a.title||"")+" "+(a.summary||"")+" "+(a.tags||[]).join(" ")+" "+
+             (t.title||"")).toLowerCase();
+      h+='<button class="kbt-art" data-art="'+esc(a.id)+'" data-kbk="'+esc(k)+'">'+
+         '<span class="kb-tag k-'+esc(a.kind)+'">'+esc(a.kind)+'</span>'+esc(a.title)+'</button>';
+    });
+    h+='<button class="kbt-art" data-go="'+esc(t.key)+'" data-kbk="'+esc((t.title||"").toLowerCase())+
+       '" style="color:var(--deep);font-weight:700">همهٔ مطالب این سرفصل ←</button></div>';
+  });
+  $("kbtree").innerHTML=h;
+  bindGo($("kbtree"));
+  Array.prototype.forEach.call($("kbtree").querySelectorAll("[data-kbt]"),function(b){
+    b.addEventListener("click",function(){
+      var kids=$("kbt-"+b.getAttribute("data-kbt"));
+      b.classList.toggle("open"); if(kids) kids.classList.toggle("open");
+    });
+  });
+  var qi=$("kbrq");
+  qi.addEventListener("input",function(){
+    var v=qi.value.trim().toLowerCase();
+    Array.prototype.forEach.call($("kbtree").querySelectorAll(".kbt-kids"),function(d){
+      d.classList.toggle("open", !!v);
+    });
+    Array.prototype.forEach.call($("kbtree").querySelectorAll("[data-kbk]"),function(el){
+      el.style.display = (!v || el.getAttribute("data-kbk").indexOf(v)>-1) ? "" : "none";
+    });
+    Array.prototype.forEach.call($("kbtree").querySelectorAll("[data-kbt]"),function(b){
+      b.classList.toggle("open", !!v);
+    });
+  });
+  kbTreeLoaded=true;
+}
+
+/* ================= دانشنامه ================= */
+
+/* متن ساده را به HTML تبدیل می‌کند: ** پررنگ **، • فهرست، | جدول | */
+function kbText(src){
+  var lines=String(src||"").split("\n"), out="", list=null, tbl=null;
+  function closeList(){ if(list){ out+="<ul>"+list.join("")+"</ul>"; list=null; } }
+  function closeTbl(){
+    if(tbl){
+      var h="<table><thead><tr>"+tbl[0].map(function(c){return "<th>"+c+"</th>";}).join("")+
+            "</tr></thead><tbody>";
+      for(var i=1;i<tbl.length;i++)
+        h+="<tr>"+tbl[i].map(function(c){return "<td>"+c+"</td>";}).join("")+"</tr>";
+      out+=h+"</tbody></table>"; tbl=null;
+    }
+  }
+  function inline(t){
+    return esc(t).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>");
+  }
+  lines.forEach(function(raw){
+    var t=raw.trim();
+    if(!t){ closeList(); closeTbl(); return; }
+    if(t.charAt(0)==="|" && t.charAt(t.length-1)==="|"){
+      var cells=t.slice(1,-1).split("|").map(function(c){ return inline(c.trim()); });
+      if(cells.join("").replace(/[-\s]/g,"")==="") return;   /* خط جداکنندهٔ جدول */
+      closeList(); if(!tbl) tbl=[]; tbl.push(cells); return;
+    }
+    closeTbl();
+    if(t.charAt(0)==="•"){ if(!list) list=[]; list.push("<li>"+inline(t.slice(1).trim())+"</li>"); return; }
+    closeList();
+    if(/^\*\*[^*]+\*\*$/.test(t)){ out+="<h5>"+inline(t).replace(/<\/?b>/g,"")+"</h5>"; return; }
+    out+="<p>"+inline(t)+"</p>";
+  });
+  closeList(); closeTbl();
+  return out;
+}
+
+function kbBadge(a){
+  return '<span class="kb-tag k-'+esc(a.kind)+'">'+esc(a.kind)+'</span>'+
+         (a.pinned?'<span class="kb-pin" title="مهم">★</span>':"");
+}
+
+/* ارقام فارسی و عربی را به لاتین برمی‌گرداند تا مقایسهٔ تاریخ درست باشد */
+function lat(s){
+  return String(s===null||s===undefined?"":s).replace(/[۰-۹٠-٩]/g,function(d){
+    var i="۰۱۲۳۴۵۶۷۸۹".indexOf(d);
+    if(i<0) i="٠١٢٣٤٥٦٧٨٩".indexOf(d);
+    return i<0 ? d : String(i);
+  });
+}
+
+/* آیا تاریخ بازبینی گذشته است؟ مقایسهٔ YYYY/MM روی ارقام لاتین */
+function kbStale(a){
+  if(!a.review_jalali || !S.nowJalali) return false;
+  return lat(a.review_jalali).slice(0,7) < lat(S.nowJalali).slice(0,7);
+}
+
+async function kbIndex(){
+  var r=await db.from("v_kb_topics").select("*").order("sort_order");
+  var rows=r.data||[];
+  var h='<div class="kb-hero"><span class="ico">◈</span>'+
+    '<h3>دانشنامهٔ مالی سایا نیک</h3>'+
+    '<p>مرجع داخلی تیم مالی: بیمه، حقوق و دستمزد، مالیات و قرارداد. '+
+    'هر مطلب کوتاه است، به مادهٔ قانونی ارجاع می‌دهد و تاریخ اعتبار دارد — '+
+    'چون نرخ‌ها هر سال عوض می‌شوند و مرجع کهنه بدتر از نداشتن مرجع است.</p>'+
+    '<div class="meta"><span>'+fa(rows.length)+' سرفصل</span>'+
+    '<span>'+fa(rows.reduce(function(a,x){return a+Number(x.article_count||0);},0))+' مطلب</span></div></div>';
+  h+='<div class="grid g2">';
+  rows.forEach(function(t,i){
+    h+='<button class="kb-card" data-go="'+esc(t.key)+'" style="animation-delay:'+(i*55)+'ms">'+
+       '<div class="top"><h4>'+esc(t.icon||"◈")+'  '+esc(t.title)+'</h4></div>'+
+       '<p>'+esc(t.subtitle||"")+'</p>'+
+       '<div class="foot"><span>'+fa(t.article_count||0)+' مطلب</span>'+
+       '<span class="go">ورود ←</span></div></button>';
+  });
+  return h+"</div>";
+}
+
+async function kbTopic(key){
+  var q=await Promise.all([
+    db.from("kb_topics").select("*").eq("key",key).single(),
+    db.from("kb_articles").select("*").eq("topic_key",key).eq("is_active",true)
+      .order("pinned",{ascending:false}).order("sort_order")
+  ]);
+  var t=q[0].data||{title:key}, arts=q[1].data||[];
+  var h='<div class="kb-hero"><span class="ico">'+esc(t.icon||"◈")+'</span>'+
+    '<h3>'+esc(t.title)+'</h3><p>'+esc(t.subtitle||"")+'</p>'+
+    '<div class="meta"><span>'+fa(arts.length)+' مطلب</span></div></div>';
+  if(!arts.length){
+    return h+'<div class="card"><p class="hint" style="margin:0">'+
+      'هنوز مطلبی در این سرفصل ثبت نشده. منابع یا کتاب‌هایتان را بفرستید تا تنظیم شود.</p></div>';
+  }
+  h+='<input id="kbq" class="srch" placeholder="جست‌وجو در عنوان، خلاصه و برچسب‌ها…" '+
+     'style="margin-bottom:14px">';
+  h+='<div class="kb-grid" id="kblist">';
+  arts.forEach(function(a,i){
+    var k=((a.title||"")+" "+(a.summary||"")+" "+(a.tags||[]).join(" ")+" "+
+           (a.ref_law||"")).toLowerCase();
+    h+='<button class="kb-card" data-art="'+esc(a.id)+'" data-k="'+esc(k)+'"'+
+       ' style="animation-delay:'+(i*55)+'ms">'+
+       '<div class="top">'+kbBadge(a)+'<h4>'+esc(a.title)+'</h4></div>'+
+       '<p>'+esc(a.summary||"")+'</p>'+
+       '<div class="foot"><span>'+esc(a.ref_law||"—")+'</span>'+
+       '<span>'+(a.effective_jalali?'معتبر از '+esc(a.effective_jalali):"")+
+       (kbStale(a)?' · <b style="color:var(--amber)">نیازمند بازبینی</b>':"")+'</span></div></button>';
+  });
+  return h+"</div>";
+}
+
+async function kbArticle(id){
+  $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
+  window.scrollTo(0,0);
+  var r=await db.from("kb_articles").select("*").eq("id",id).single();
+  var a=r.data;
+  if(!a){ $("body").innerHTML='<div class="card"><p class="hint" style="margin:0">مطلب پیدا نشد.</p></div>'; return; }
+  S.page=a.topic_key; showCrumb(); S.page=a.topic_key;
+  $("ptl").textContent=a.title; $("psb").textContent=a.summary||"";
+  var h='<div class="card"><div class="top" style="display:flex;gap:8px;align-items:center;'+
+    'margin-bottom:14px;flex-wrap:wrap">'+kbBadge(a)+
+    (a.ref_law?'<span class="kb-tag k-بخشنامه">'+esc(a.ref_law)+'</span>':"")+'</div>';
+  if(kbStale(a)) h+='<div class="kb-stale">⚠ تاریخ بازبینی این مطلب ('+esc(a.review_jalali)+
+    ') گذشته است. پیش از تصمیم‌گیری، نرخ‌ها را با آخرین بخشنامه تطبیق دهید.</div>';
+  h+='<div class="kb-body">'+kbText(a.body)+'</div>';
+  h+='<div class="kb-src"><b>منبع و اعتبار</b><br>'+
+     (a.ref_law?'استناد: '+esc(a.ref_law)+'<br>':"")+
+     (a.effective_jalali?'معتبر از: '+esc(a.effective_jalali)+' · ':"")+
+     (a.review_jalali?'بازبینی بعدی: '+esc(a.review_jalali):"")+
+     (a.source_label?'<br>مرجع: '+(a.source_url?
+        '<a href="'+esc(a.source_url)+'" target="_blank" rel="noopener">'+esc(a.source_label)+'</a>':
+        esc(a.source_label)):"")+
+     '</div></div>';
+  $("body").innerHTML=h;
 }
 
 function table(w,c,rows){
