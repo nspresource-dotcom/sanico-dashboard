@@ -77,7 +77,8 @@ input:focus{outline:2px solid var(--mint);outline-offset:1px}
 .side{width:244px;flex:0 0 244px;background:var(--rail);padding:22px 16px;
   display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;
   border-left:1px solid var(--line)}
-.side .brand{margin:0 6px 24px}
+.side .brand{margin:0 6px 24px;width:calc(100% - 12px);background:none;border:0;padding:4px 2px;cursor:pointer;font:inherit;color:inherit;text-align:right;border-radius:12px;transition:background .15s}
+.side .brand:hover{background:rgba(27,77,62,.07)}
 .side .brand h1{font-size:1.02rem;font-weight:800;letter-spacing:-.02em}
 .nav{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;
   color:var(--ink2);font-size:.87rem;width:100%;text-align:right;transition:background .15s,color .15s}
@@ -315,7 +316,7 @@ td.neg{color:var(--rose)}
 
 <div id="app" class="shell hide">
   <aside id="side" class="side">
-    <div class="brand"><div class="logo">سن</div><h1>سایا نیک</h1></div>
+    <button class="brand" id="brandHome" type="button" title="صفحه اصلی"><div class="logo">سن</div><h1>سایا نیک</h1></button>
     <div id="navs"></div>
     <div class="promo">
       <h4>موجودی نقدی</h4>
@@ -354,7 +355,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۱۵";
+var BUILD = "۱۶";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home" };
 
@@ -429,6 +430,10 @@ function openSide(){ $("side").classList.add("open");
 function closeSide(){ $("side").classList.remove("open");
   var s=$("scrim"); if(s) s.remove(); }
 $("burger").addEventListener("click",openSide);
+$("brandHome").addEventListener("click",function(){
+  if(S.page!=="home") go("home");
+  closeSide();
+});
 
 /* ---------- boot ---------- */
 async function start(){
@@ -471,7 +476,8 @@ async function boot(ses){
   var tops = S.pages.filter(function(p){ return !p.parent_key || p.parent_key==="home"; })
                     .sort(function(a,b){ return a.sort_order-b.sort_order; });
   $("navs").innerHTML = tops.map(function(pg){
-    var kids = S.pages.filter(function(x){ return x.parent_key===pg.key; })
+    var kids = (pg.key==="home") ? [] :
+               S.pages.filter(function(x){ return x.parent_key===pg.key; })
                       .sort(function(a,b){ return a.sort_order-b.sort_order; });
     if(!kids.length){
       return '<button class="nav" data-go="'+esc(pg.key)+'">'+
