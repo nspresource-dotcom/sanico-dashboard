@@ -170,6 +170,9 @@ input:focus{outline:2px solid var(--mint);outline-offset:1px}
 .brow .track{flex:1;background:var(--grey-s);border-radius:7px;height:11px;overflow:hidden}
 .brow .fill{height:11px;border-radius:7px;background:var(--mint);display:block}
 .brow .fill.alt{background:var(--muted)}
+.brow .fill i{display:block;height:11px}
+.brow .cnt{display:inline-block;margin-right:6px;padding:1px 7px;border-radius:999px;
+  background:var(--grey-s);color:var(--muted);font-size:.67rem;font-weight:700;vertical-align:middle}
 .brow .vl{flex:0 0 60px;text-align:left;font-size:.77rem;font-weight:700;direction:ltr}
 
 /* ---------- insight panel ---------- */
@@ -355,7 +358,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۲۰";
+var BUILD = "۲۱";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"" };
 
@@ -573,6 +576,7 @@ async function go(key){
   try{ sessionStorage.setItem("sayanik_page",key); }catch(e){}
   try{ localStorage.setItem("sayanik_page",key); }catch(e){}
   try{ history.replaceState(null,"","#"+key); }catch(e){}
+  $("crumb").classList.add("hide");
   var p=pageOf(key)||{title:key};
   $("ptl").textContent=p.title; $("psb").textContent=p.subtitle||"";
   Array.prototype.forEach.call($("navs").querySelectorAll("button"),function(b){
@@ -610,10 +614,119 @@ document.addEventListener("click", function(ev){
   if(f){ ev.preventDefault(); ev.stopPropagation();
     var p=f.getAttribute("data-full").split("|");
     fullList(p[0],p[1],p[2],p[3]); return; }
+  var rw = ev.target.closest && ev.target.closest("[data-rows]");
+  if(rw){ ev.preventDefault(); ev.stopPropagation();
+    var q=rw.getAttribute("data-rows").split("|");
+    detailList(q[0],q[1],q[2],q[3]); return; }
+  var ex = ev.target.closest && ev.target.closest("[data-expand]");
+  if(ex){ ev.preventDefault(); ev.stopPropagation();
+    toggleExpand(ex); return; }
   var d = ev.target.closest && ev.target.closest("[data-detail]");
   if(d){ ev.preventDefault(); ev.stopPropagation();
     partnerDetail(d.getAttribute("data-detail").split("|")[1]); return; }
 });
+
+/* نوار بازگشت — به صفحه‌ای که از آن آمده‌ایم، نه همیشه صفحه اصلی */
+function showCrumb(){
+  var p=pageOf(S.page)||{};
+  $("back").textContent="→ بازگشت به "+(p.title||"صفحه اصلی");
+  $("crumb").classList.remove("hide");
+}
+$("back").addEventListener("click",function(){
+  $("crumb").classList.add("hide");
+  go(S.page||"home");
+});
+
+/* از هر نمودار تجمیعی به ردیف‌های واقعی پشت آن */
+var DRILL = {
+  v_commitments_by_party:    { v:"v_open_commitments", col:"counterparty", kind:"cmt" },
+  v_commitments_by_priority: { v:"v_open_commitments", col:"priority",     kind:"cmt" },
+  v_commitments_by_month:    { v:"v_open_commitments", col:"due_month",    kind:"cmt" },
+  v_spend_by_category:       { v:"v_txn_rows",         col:"category",     kind:"txn" },
+  v_spend_by_subcategory:    { v:"v_txn_rows",         col:"subcategory",  kind:"txn" },
+  v_spend_by_class:          { v:"v_txn_rows",         col:"category_kind",kind:"txn" }
+};
+
+var DCOLS = {
+  cmt:[{k:"description",t:"شرح"},{k:"counterparty",t:"طرف حساب"},{k:"due_jalali",t:"سررسید"},
+       {k:"priority",t:"اولویت",pill:1},{k:"kind_fa",t:"نوع"},
+       {k:"total_rial",t:"کل",n:1},{k:"paid_rial",t:"پرداخت‌شده",n:1},{k:"remaining_rial",t:"مانده",n:1}],
+  txn:[{k:"date_jalali",t:"تاریخ"},{k:"description",t:"شرح"},{k:"category",t:"دسته"},
+       {k:"subcategory",t:"زیردسته"},{k:"counterparty",t:"طرف حساب"},{k:"total_rial",t:"مبلغ",n:1}],
+  inf:[{k:"expected_jalali",t:"تاریخ"},{k:"description",t:"شرح"},{k:"counterparty",t:"طرف حساب"},
+       {k:"probability",t:"احتمال"},{k:"amount_rial",t:"مبلغ",n:1}]
+};
+
+function rowsTable(kind,rows,sumKey){
+  var cols=DCOLS[kind]||DCOLS.cmt;
+  var tot=rows.reduce(function(a,x){ return a+Number(x[sumKey]||0); },0);
+  var h='<div class="scroll"><table><thead><tr>';
+  cols.forEach(function(c){ h+="<th>"+esc(c.t)+"</th>"; });
+  h+='</tr></thead><tbody>';
+  rows.forEach(function(r){
+    h+="<tr>";
+    cols.forEach(function(c){
+      var v=r[c.k];
+      if(c.n) h+='<td class="num'+(Number(v)<0?" neg":"")+'">'+bn(v)+"</td>";
+      else if(c.pill) h+='<td><span class="pill '+prioCls(v)+'">'+
+        esc(String(v||"—").replace(/\s*-\s*.*/,""))+"</span></td>";
+      else h+="<td>"+esc((v===null||v===undefined||v==="")?"—":v)+"</td>";
+    });
+    h+="</tr>";
+  });
+  h+='<tr style="font-weight:800"><td colspan="'+(cols.length-1)+'">جمع '+fa(rows.length)+' ردیف</td>'+
+     '<td class="num">'+bn(tot)+'</td></tr>';
+  return h+"</tbody></table></div>";
+}
+
+/* صفحهٔ کامل ردیف‌های واقعی — با فیلتر اختیاری */
+async function detailList(view,col,val,title){
+  $("ptl").textContent=title; $("psb").textContent="ردیف به ردیف";
+  showCrumb();
+  $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
+  window.scrollTo(0,0);
+  var kind = view==="v_txn_rows" ? "txn" : (view==="v_open_inflows" ? "inf" : "cmt");
+  var sumKey = kind==="cmt" ? "remaining_rial" : (kind==="inf" ? "amount_rial" : "total_rial");
+  var q=db.from(view).select("*");
+  if(col && val) q=q.eq(col,val);
+  q=q.order(kind==="cmt"?"due_day_code":(kind==="inf"?"expected_day_code":"total_rial"),
+            {ascending:kind!=="txn", nullsFirst:false});
+  var r=await q;
+  if(r.error){ $("body").innerHTML='<div class="card"><p class="hint" style="margin:0">'+
+    esc("خواندن داده ممکن نشد: "+r.error.message)+'</p></div>'; return; }
+  var rows=r.data||[];
+  if(!rows.length){ $("body").innerHTML='<div class="card"><p class="hint" style="margin:0">'+
+    'ردیفی برای نمایش نیست.</p></div>'; return; }
+  var tot=rows.reduce(function(a,x){ return a+Number(x[sumKey]||0); },0);
+  $("body").innerHTML='<div class="card"><div class="chead"><div><h3>'+esc(title)+'</h3>'+
+    '<p class="hint">'+fa(rows.length)+' ردیف · جمع '+bn(tot)+' میلیارد ریال</p></div></div>'+
+    rowsTable(kind,rows,sumKey)+'</div>';
+}
+
+async function toggleExpand(btn){
+  var id=btn.getAttribute("data-expand");
+  var box=document.getElementById("exp-"+id);
+  if(!box) return;
+  if(box.getAttribute("data-open")==="1"){
+    box.style.display="none"; box.setAttribute("data-open","0");
+    btn.textContent="＋"; return;
+  }
+  btn.textContent="−"; box.style.display="";
+  box.setAttribute("data-open","1");
+  if(box.getAttribute("data-loaded")==="1") return;
+  box.innerHTML='<div class="spin" style="padding:14px">در حال خواندن…</div>';
+  var view=btn.getAttribute("data-view"), col=btn.getAttribute("data-col"),
+      val=btn.getAttribute("data-val");
+  var kind = view==="v_txn_rows" ? "txn" : "cmt";
+  var sumKey = kind==="cmt" ? "remaining_rial" : "total_rial";
+  var r=await db.from(view).select("*").eq(col,val).limit(200);
+  if(r.error||!(r.data||[]).length){
+    box.innerHTML='<p class="hint" style="margin:8px 2px">ردیف جزئیات پیدا نشد.</p>';
+  } else {
+    box.innerHTML=rowsTable(kind,r.data,sumKey);
+  }
+  box.setAttribute("data-loaded","1");
+}
 
 async function home(){
   var ws=S.widgets.filter(function(w){
@@ -664,7 +777,7 @@ async function partnerCards(){
 /* a bar chart only has room for a few rows; this opens the whole list */
 async function fullList(src,label,value,title){
   $("ptl").textContent=title; $("psb").textContent="فهرست کامل";
-  $("crumb").classList.remove("hide");
+  showCrumb();
   $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
   window.scrollTo(0,0);
   var r=await db.from(src).select("*").order(value,{ascending:false});
@@ -674,20 +787,31 @@ async function fullList(src,label,value,title){
   if(!rows.length){ $("body").innerHTML='<div class="card"><p class="hint" style="margin:0">'+
     'ردیفی برای نمایش نیست.</p></div>'; return; }
   var tot=rows.reduce(function(a,x){return a+Number(x[value]||0);},0)||1;
+  var dr=DRILL[src];
   var h='<div class="card"><div class="chead"><div><h3>'+esc(title)+'</h3>'+
-    '<p class="hint">'+fa(rows.length)+' ردیف · جمع '+bn(tot)+' میلیارد ریال</p></div></div>'+
-    '<div class="scroll"><table><thead><tr><th>عنوان</th><th>مبلغ</th><th>سهم</th></tr></thead><tbody>';
-  rows.forEach(function(x){
-    var v=Number(x[value]||0);
-    h+='<tr><td>'+esc(x[label])+'</td><td class="num">'+bn(v)+'</td>'+
+    '<p class="hint">'+fa(rows.length)+' ردیف · جمع '+bn(tot)+' میلیارد ریال'+
+    (dr?' · روی ＋ بزنید تا ردیف‌های همان گروه باز شود':'')+'</p></div></div>'+
+    '<div class="scroll"><table><thead><tr>'+(dr?'<th></th>':'')+
+    '<th>عنوان</th><th>تعداد</th><th>مبلغ</th><th>سهم</th></tr></thead><tbody>';
+  rows.forEach(function(x,i){
+    var v=Number(x[value]||0), lv=String(x[label]===null||x[label]===undefined?"":x[label]);
+    h+="<tr>";
+    if(dr) h+='<td><button class="more" style="padding:2px 9px" data-expand="'+i+'"'+
+              ' data-view="'+esc(dr.v)+'" data-col="'+esc(dr.col)+'"'+
+              ' data-val="'+esc(lv)+'">＋</button></td>';
+    h+='<td>'+esc(lv||"—")+'</td>'+
+       '<td class="num">'+(x.line_count===undefined?"—":fa(x.line_count))+'</td>'+
+       '<td class="num">'+bn(v)+'</td>'+
        '<td class="num">'+fa(Math.round(v/tot*1000)/10)+'٪</td></tr>';
+    if(dr) h+='<tr><td colspan="5" style="padding:0"><div id="exp-'+i+
+              '" data-open="0" style="display:none"></div></td></tr>';
   });
   $("body").innerHTML=h+'</tbody></table></div></div>';
 }
 
 async function partnerDetail(sub){
   $("ptl").textContent="جزئیات آورده"; $("psb").textContent=sub;
-  $("crumb").classList.remove("hide");
+  showCrumb();
   $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
   window.scrollTo(0,0);
   var r=await db.from("v_partner_detail").select("*").eq("partner",sub)
@@ -739,14 +863,17 @@ function kpiCard(w){
     delta.note='تعهد قطعی '+bn(ctx.firm_open)+' + محتمل '+bn(ctx.soft_open)+
                ' − ورودی قطعی '+bn(ctx.inflow_certain)+' − موجودی '+bn(ctx.cash);
   }
-  return '<button class="kpi '+cls+'" data-go="'+esc(c.link||"home")+'">'+
+  /* اگر کارت ردیف‌های خودش را دارد، مستقیم همان‌ها باز می‌شود */
+  var open = c.rows ? ' data-rows="'+esc(c.rows)+'"'
+                    : ' data-go="'+esc(c.link||"home")+'"';
+  return '<button class="kpi '+cls+'"'+open+'>'+
     '<div class="bd">'+
       '<div class="hd"><span class="lab">'+esc(w.title)+'</span>'+
       '<span class="chip">'+esc(c.icon||"◆")+'</span></div>'+
       '<div class="val">'+shown+'<span class="unit">'+esc(c.unit||"")+'</span>'+delta.tag+'</div>'+
     '</div>'+
     '<div class="ft"><span>'+delta.note+'</span>'+
-      (c.link?'<span class="go">جزئیات ←</span>':'<span></span>')+'</div>'+
+      ((c.link||c.rows)?'<span class="go">جزئیات ←</span>':'<span></span>')+'</div>'+
     '</button>';
 }
 
@@ -863,7 +990,7 @@ async function widget(w){
   var q=db.from(w.source).select("*");
   if(c.order){ var p=String(c.order).split(".");
     q=q.order(p[0],{ascending:p[1]!=="desc",nullsFirst:false}); }
-  if(c.limit) q=q.limit(c.limit); else q=q.limit(10);
+  if(c.limit) q=q.limit(c.limit); else q=q.limit(w.kind==="table"?300:10);
   var r=await q; var rows=r.data||[];
   if(!rows.length) return "";
   return w.kind==="bars" ? bars(w,c,rows) : table(w,c,rows);
@@ -872,15 +999,37 @@ async function widget(w){
 function bars(w,c,rows){
   var max=0; rows.forEach(function(r){ max=Math.max(max,Math.abs(Number(r[c.value]||0))); });
   if(!max) max=1;
+  var tot=rows.reduce(function(a,r){ return a+Number(r[c.value]||0); },0);
+  var two=!!(c.value2 && rows.some(function(r){ return Number(r[c.value2]||0)>0; }));
   var more='<button class="more" data-full="'+esc(w.source)+'|'+esc(c.label)+'|'+
            esc(c.value)+'|'+esc(w.title)+'">مشاهده کامل ←</button>';
   var h='<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>'+
-        esc(w.title)+'</h3></div>'+more+'</div>';
+        esc(w.title)+'</h3><p class="hint">'+fa(rows.length)+' گروه · جمع '+bn(tot)+
+        ' میلیارد ریال</p></div>'+more+'</div>';
+  if(two) h+='<div style="display:flex;gap:14px;margin:0 2px 12px;font-size:.73rem;color:var(--muted)">'+
+    '<span style="display:flex;align-items:center;gap:6px">'+
+      '<i style="width:11px;height:11px;border-radius:3px;background:var(--mint);display:inline-block"></i>'+
+      esc(c.lab1||"قطعی")+'</span>'+
+    '<span style="display:flex;align-items:center;gap:6px">'+
+      '<i style="width:11px;height:11px;border-radius:3px;background:var(--amber);display:inline-block"></i>'+
+      esc(c.lab2||"محتمل")+'</span></div>';
   rows.forEach(function(r){
     var v=Number(r[c.value]||0), pw=Math.max(2,Math.round(Math.abs(v)/max*100));
-    h+='<div class="brow"><span class="nm">'+esc(r[c.label])+'</span>'+
-       '<span class="track"><span class="fill'+(c.flag&&r[c.flag]?" alt":"")+
-       '" style="width:'+pw+'%"></span></span><span class="vl">'+bn(v)+'</span></div>';
+    var cnt=(r.line_count===undefined||r.line_count===null)?"":
+            '<span class="cnt">'+fa(r.line_count)+'</span>';
+    var inner;
+    if(two){
+      var a=Number(r[c.value2]||0), b=Math.max(0,Math.abs(v)-Math.abs(a));
+      var pa=Math.abs(v)?Math.round(Math.abs(a)/Math.abs(v)*100):0;
+      inner='<span class="fill" style="width:'+pw+'%;display:flex">'+
+            '<i style="width:'+(100-pa)+'%;background:var(--mint)"></i>'+
+            '<i style="width:'+pa+'%;background:var(--amber)"></i></span>';
+      void b;
+    } else {
+      inner='<span class="fill'+(c.flag&&r[c.flag]?" alt":"")+'" style="width:'+pw+'%"></span>';
+    }
+    h+='<div class="brow"><span class="nm">'+esc(r[c.label])+cnt+'</span>'+
+       '<span class="track">'+inner+'</span><span class="vl">'+bn(v)+'</span></div>';
   });
   return h+'</div>';
 }
