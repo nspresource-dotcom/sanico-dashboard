@@ -355,7 +355,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۱۶";
+var BUILD = "۱۷";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home" };
 
@@ -395,7 +395,11 @@ $("forgot").addEventListener("click",async function(){
   var r=await db.auth.resetPasswordForEmail(em,{redirectTo:location.href});
   anote(r.error?"ارسال ایمیل ناموفق بود.":"لینک بازنشانی رمز ایمیل شد.", r.error?"err":"ok");
 });
-$("logout").addEventListener("click",async function(){ await db.auth.signOut(); location.reload(); });
+$("logout").addEventListener("click",async function(){
+  try{ sessionStorage.removeItem("sayanik_page"); localStorage.removeItem("sayanik_page"); }catch(e){}
+  try{ history.replaceState(null,"",location.pathname+location.search); }catch(e){}
+  await db.auth.signOut(); location.reload();
+});
 
 function fromLink(){ var h=location.hash||"";
   return h.indexOf("type=invite")>-1||h.indexOf("type=recovery")>-1||h.indexOf("type=signup")>-1; }
@@ -504,7 +508,19 @@ async function boot(ses){
   bindGo($("navs"));
   var hr=new Date().getHours();
   S.greet=(hr<12?"صبح بخیر":(hr<18?"ظهر بخیر":"عصر بخیر"))+"، "+String(nm).split(" ")[0]+"!";
-  stamp(); go("home");
+  stamp(); go(startPage());
+}
+
+/* صفحه‌ای که کاربر آخر بار باز کرده بود — تا با برگشت از تب دیگر به صفحه اصلی نپرد */
+function startPage(){
+  var k="";
+  try{ k=decodeURIComponent((location.hash||"").replace(/^#/,"")); }catch(e){ k=""; }
+  if(k.indexOf("=")>-1||k.indexOf("&")>-1) k="";
+  if(!k){ try{ k=sessionStorage.getItem("sayanik_page")||""; }catch(e){} }
+  if(!k){ try{ k=localStorage.getItem("sayanik_page")||""; }catch(e){} }
+  var ok=false;
+  for(var i=0;i<S.pages.length;i++){ if(S.pages[i].key===k){ ok=true; break; } }
+  return ok ? k : "home";
 }
 
 function stamp(){
@@ -526,6 +542,9 @@ function pageOf(k){ return S.pages.filter(function(p){return p.key===k;})[0]; }
 /* ---------- render ---------- */
 async function go(key){
   S.page=key;
+  try{ sessionStorage.setItem("sayanik_page",key); }catch(e){}
+  try{ localStorage.setItem("sayanik_page",key); }catch(e){}
+  try{ history.replaceState(null,"","#"+key); }catch(e){}
   var p=pageOf(key)||{title:key};
   $("ptl").textContent=p.title; $("psb").textContent=p.subtitle||"";
   Array.prototype.forEach.call($("navs").querySelectorAll("button"),function(b){
