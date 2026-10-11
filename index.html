@@ -355,9 +355,9 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۱۹";
+var BUILD = "۲۰";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
-          insights:[], periods:[], page:"home", ready:false, booting:false };
+          insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"" };
 
 /* ---------- formatting ---------- */
 function fa(n){ return Number(n).toLocaleString("fa-IR"); }
@@ -532,18 +532,21 @@ async function boot(ses){
   bindGo($("navs"));
   var hr=new Date().getHours();
   S.greet=(hr<12?"صبح بخیر":(hr<18?"ظهر بخیر":"عصر بخیر"))+"، "+String(nm).split(" ")[0]+"!";
-  stamp(); go(startPage());
+  var sp = startPage(); stamp(); go(sp);
 }
 
 /* صفحه‌ای که کاربر آخر بار باز کرده بود — تا با برگشت از تب دیگر به صفحه اصلی نپرد */
 function startPage(){
-  var k="";
+  var k="", src="آدرس";
   try{ k=decodeURIComponent((location.hash||"").replace(/^#/,"")); }catch(e){ k=""; }
   if(k.indexOf("=")>-1||k.indexOf("&")>-1) k="";
-  if(!k){ try{ k=sessionStorage.getItem("sayanik_page")||""; }catch(e){} }
-  if(!k){ try{ k=localStorage.getItem("sayanik_page")||""; }catch(e){} }
+  if(!k){ src="حافظهٔ تب"; try{ k=sessionStorage.getItem("sayanik_page")||""; }catch(e){ src="حافظه قفل"; } }
+  if(!k){ src="حافظهٔ دستگاه"; try{ k=localStorage.getItem("sayanik_page")||""; }catch(e){ src="حافظه قفل"; } }
+  if(!k) src="چیزی ذخیره نشده";
   var ok=false;
   for(var i=0;i<S.pages.length;i++){ if(S.pages[i].key===k){ ok=true; break; } }
+  if(k && !ok) src="کلید ناشناس: "+k;
+  S.bootSrc = ok ? src : (k?src:"چیزی ذخیره نشده");
   return ok ? k : "home";
 }
 
@@ -553,7 +556,8 @@ function stamp(){
   var days=Math.floor((Date.now()-new Date(d).getTime())/86400000);
   $("stamp").innerHTML='<span class="stamp'+(days>14?" stale":"")+'"><b></b>داده تا '+
     esc(new Date(d).toLocaleDateString("fa-IR"))+' — '+(days<=0?"امروز":fa(days)+" روز پیش")+'</span>'+
-    '<span class="stamp" style="margin-right:8px">نسخه '+BUILD+'</span>';
+    '<span class="stamp" style="margin-right:8px">نسخه '+BUILD+
+      (S.bootSrc?' · '+esc(S.bootSrc):"")+'</span>';
 }
 
 function bindGo(root){
@@ -731,9 +735,9 @@ function kpiCard(w){
     delta.tag='<span class="tag warn">قطعی نشده</span>';
     delta.note='علامت‌خورده «محتمل» در شیت';
   } else if(c.expr){
-    /* ترکیب عدد را نشان می‌دهیم تا معلوم باشد موجودی بانک در آن هست */
-    delta.note='موجودی '+bn(ctx.cash)+' + ورودی قطعی '+bn(ctx.inflow_certain)+
-               ' − تعهدات '+bn(Number(ctx.firm_open||0)+Number(ctx.soft_open||0));
+    /* هر چهار جزء جدا نوشته می‌شود تا با کارت‌های روی همین صفحه جور دربیاید */
+    delta.note='تعهد قطعی '+bn(ctx.firm_open)+' + محتمل '+bn(ctx.soft_open)+
+               ' − ورودی قطعی '+bn(ctx.inflow_certain)+' − موجودی '+bn(ctx.cash);
   }
   return '<button class="kpi '+cls+'" data-go="'+esc(c.link||"home")+'">'+
     '<div class="bd">'+
