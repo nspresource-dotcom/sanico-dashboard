@@ -493,7 +493,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۲۷";
+var BUILD = "۲۸";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -1243,6 +1243,25 @@ async function presenceBeat(){
   try{
     var r = await db.from("v_presence").select("*");
     if(!r.error){ PRES.rows = r.data || []; renderWho(); }
+  }catch(e){}
+  checkStale();
+}
+
+/* اگر داده روی سرور از زمان باز شدن این صفحه تازه‌تر شده باشد، خبر می‌دهیم —
+   بدون این، دو نفر می‌توانند هم‌زمان دو عدد متفاوت روی صفحه داشته باشند. */
+var staleShown = "";
+async function checkStale(){
+  try{
+    var r = await db.from("v_data_freshness").select("*").maybeSingle();
+    if(r.error || !r.data) return;
+    var srv  = r.data.last_data_change || r.data.last_sync;
+    var mine = (S.fresh && (S.fresh.last_data_change || S.fresh.last_sync)) || null;
+    if(!srv || !mine) return;
+    if(new Date(srv) > new Date(mine) && staleShown !== srv){
+      staleShown = srv;
+      strip("داده‌ها از زمانی که این صفحه باز شده تازه‌تر شده‌اند.", "به‌روزرسانی",
+            function(){ start(true); }, true);
+    }
   }catch(e){}
 }
 
