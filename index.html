@@ -321,6 +321,23 @@ td.neg{color:var(--rose)}
 .foot{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
   color:var(--muted);font-size:.74rem;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
+/* ---------- حاضران در داشبورد ---------- */
+.who{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
+  border-radius:999px;padding:5px 13px 5px 8px;font-size:.76rem;color:var(--muted);
+  cursor:pointer;white-space:nowrap;transition:border-color .15s,color .15s}
+.who:hover{border-color:var(--mint);color:var(--deep)}
+.who.live{border-color:var(--mint);color:var(--deep);font-weight:700}
+.who #whoDots{display:flex;flex-direction:row-reverse}
+.wd{width:23px;height:23px;border-radius:50%;background:var(--deep);color:#fff;
+  display:grid;place-items:center;font-size:.68rem;font-weight:800;font-style:normal;
+  border:2px solid var(--card);margin-left:-7px}
+.wd:first-child{margin-left:0}
+.wd.solo{background:var(--grey-s);color:var(--muted)}
+.wstat{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.wstat.on{background:var(--mint);box-shadow:0 0 0 3px rgba(63,156,124,.2)}
+.wstat.off{background:var(--line)}
+@media(max-width:860px){ .who #whoTxt{display:none} .who{padding:4px 6px} }
+
 /* ---------- ریل دانشنامه (سمت چپ) ---------- */
 .kbrail{position:fixed;top:0;left:0;height:100dvh;z-index:45;display:flex;align-items:stretch}
 .kbrail-tab{width:46px;flex:0 0 46px;background:var(--rail);border-right:1px solid var(--line);
@@ -397,8 +414,7 @@ td.neg{color:var(--rose)}
     <div class="brand"><div class="logo">سن</div>
       <div><h1>داشبورد مدیریتی سایا نیک</h1>
         <p class="sub" style="margin:0">کنترل مالی پروژه کارخانه</p></div></div>
-    <label for="em">ایمیل</label><input id="em" type="email" autocomplete="username" dir="ltr"
-      value="sayanikyazd@gmail.com">
+    <label for="em">ایمیل</label><input id="em" type="email" autocomplete="username" dir="ltr">
     <label for="pw">رمز عبور</label><input id="pw" type="password" autocomplete="current-password" dir="ltr">
     <button id="go" class="btn">ورود</button>
     <button id="forgot" class="btn-ghost">رمز عبور را فراموش کرده‌ام</button>
@@ -439,6 +455,8 @@ td.neg{color:var(--rose)}
       <h2 id="ptl">—</h2>
       <div class="sp"></div>
       <div class="search"><span>⌕</span><input id="q" placeholder="جست‌وجو در تراکنش‌ها…"></div>
+      <button id="who" class="who hide" title="چه کسانی الان در داشبورد هستند">
+        <span id="whoDots"></span><span id="whoTxt">—</span></button>
       <div class="icons"><button id="reload" class="ib" title="به‌روزرسانی داده‌ها">⟳</button><button id="theme" class="ib">☾</button></div>
       <div class="me"><div class="av" id="av">—</div>
         <div><div class="nm" id="meName">—</div><div class="rl" id="meRole">—</div></div></div>
@@ -475,9 +493,9 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۲۵";
+var BUILD = "۲۷";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
-          insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"" };
+          insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
 /* ---------- formatting ---------- */
 function fa(n){ return Number(n).toLocaleString("fa-IR"); }
@@ -524,13 +542,15 @@ $("go").addEventListener("click",async function(){
   start();
 });
 
-/* ایمیل پیش‌فرض: آخرین ایمیلی که روی این دستگاه وارد شده */
+/* کادر ایمیل فقط وقتی از پیش پر می‌شود که روی همین دستگاه قبلاً وارد شده باشند.
+   روی دستگاه تازه خالی می‌ماند — هیچ ایمیلی در خود فایل نوشته نشده است. */
 (function(){
   try{
     var last=localStorage.getItem("sayanik_email");
-    if(last) $("em").value=last;
+    if(last){ $("em").value=last;
+      setTimeout(function(){ try{ $("pw").focus(); }catch(e){} },120); }
+    else { setTimeout(function(){ try{ $("em").focus(); }catch(e){} },120); }
   }catch(e){}
-  if($("em").value) setTimeout(function(){ try{ $("pw").focus(); }catch(e){} },120);
 })();
 $("pw").addEventListener("keydown",function(e){ if(e.key==="Enter") $("go").click(); });
 $("forgot").addEventListener("click",async function(){
@@ -614,17 +634,19 @@ async function start(force){
     $("app").classList.remove("hide");
     await boot(s.data.session);
     S.ready=true;
+    startPresence();
   } finally { S.booting=false; }
 }
 
 async function boot(ses){
   var q=await Promise.all([
-    db.from("profiles").select("full_name,email,role").eq("id",ses.user.id).single(),
+    db.from("profiles").select("full_name,email,role,sees_internals").eq("id",ses.user.id).single(),
     db.from("dash_pages").select("*").eq("is_active",true).order("sort_order"),
     db.from("dash_widgets").select("*").eq("is_active",true).order("sort_order"),
     db.from("v_kpi_core").select("*").single(),
     db.from("v_kpi_cash").select("cash_total").single(),
-    db.from("v_data_health").select("*").single(),
+    db.from("v_data_health").select("*").maybeSingle(),
+    db.from("v_data_freshness").select("*").maybeSingle(),
     db.from("v_health_score").select("*").single(),
     db.from("v_insights").select("*").order("ord"),
     db.from("v_period_totals").select("*").order("sort_order")
@@ -632,10 +654,13 @@ async function boot(ses){
   var p=q[0].data||{};
   S.role=p.role||"viewer"; S.pages=q[1].data||[]; S.widgets=q[2].data||[];
   S.core=q[3].data||{}; S.cash=q[4].data?Number(q[4].data.cash_total):null;
-  S.dataHealth=q[5].data||{}; S.health=q[6].data||{}; S.insights=q[7].data||[];
-  S.periods=q[8].data||[];
+  S.dataHealth=q[5].data||{}; S.fresh=q[6].data||{};
+  S.health=q[7].data||{}; S.insights=q[8].data||[];
+  S.periods=q[9].data||[];
+  S.internals = !!p.sees_internals;
 
   var nm=p.full_name||ses.user.email;
+  S.me=ses.user.id; S.meName=nm;
   $("av").textContent=nm.trim().charAt(0).toUpperCase();
   $("meName").textContent=nm;
   $("meRole").textContent=(S.role==="admin"?"مدیر":"مشاهده‌گر");
@@ -652,6 +677,7 @@ async function boot(ses){
   }catch(e){ S.nowJalali=""; }
   /* صفحات دانشنامه در ریل سمت چپ هستند، نه در این منو */
   var tops = S.pages.filter(function(p){
+      if(INTERNAL[p.key] && !S.internals) return false;
       return (!p.parent_key || p.parent_key==="home") && p.key.indexOf("kb")!==0; })
                     .sort(function(a,b){ return a.sort_order-b.sort_order; });
   $("navs").innerHTML = tops.map(function(pg){
@@ -702,7 +728,8 @@ function startPage(){
 }
 
 function stamp(){
-  var d=S.dataHealth.last_data_change||S.dataHealth.last_sync;
+  var d=(S.fresh&&(S.fresh.last_data_change||S.fresh.last_sync))
+        ||S.dataHealth.last_data_change||S.dataHealth.last_sync;
   if(!d){ $("stamp").innerHTML=""; return; }
   var days=Math.floor((Date.now()-new Date(d).getTime())/86400000);
   $("stamp").innerHTML='<span class="stamp'+(days>14?" stale":"")+'"><b></b>داده تا '+
@@ -722,7 +749,11 @@ function bindGo(root){
 function pageOf(k){ return S.pages.filter(function(p){return p.key===k;})[0]; }
 
 /* ---------- render ---------- */
+/* صفحه‌های داخلی — فقط برای کسانی که در پایگاه داده مجاز شده‌اند */
+var INTERNAL = { health:1, rows:1 };
+
 async function go(key){
+  if(INTERNAL[key] && !S.internals) key="home";
   S.page=key;
   try{ sessionStorage.setItem("sayanik_page",key); }catch(e){}
   try{ localStorage.setItem("sayanik_page",key); }catch(e){}
@@ -1196,6 +1227,67 @@ function bars(w,c,rows){
        '<span class="track">'+inner+'</span><span class="vl">'+bn(v)+'</span></div>';
   });
   return h+'</div>';
+}
+
+/* ---------- چه کسی الان در داشبورد است ---------- */
+var PRES = { timer:null, rows:[] };
+
+async function presenceBeat(){
+  if(!S.me) return;
+  try{
+    await db.from("dash_presence").upsert({
+      user_id: S.me, full_name: S.meName, role: S.role,
+      page_key: S.page, last_seen: new Date().toISOString()
+    }, { onConflict: "user_id" });
+  }catch(e){}
+  try{
+    var r = await db.from("v_presence").select("*");
+    if(!r.error){ PRES.rows = r.data || []; renderWho(); }
+  }catch(e){}
+}
+
+function renderWho(){
+  var others = PRES.rows.filter(function(p){ return p.online && !p.is_me; });
+  $("who").classList.remove("hide");
+  $("whoDots").innerHTML = others.slice(0,4).map(function(p){
+    return '<i class="wd">'+esc(String(p.full_name||"؟").trim().charAt(0))+'</i>';
+  }).join("") || '<i class="wd solo">◦</i>';
+  $("whoTxt").textContent = others.length
+    ? fa(others.length)+" نفر دیگر آنلاین" : "فقط شما";
+  $("who").classList.toggle("live", others.length>0);
+}
+
+function whoPanel(){
+  var h='<div class="card"><div class="chead"><div><h3>حاضران در داشبورد</h3>'+
+    '<p class="hint">«آنلاین» یعنی در دو دقیقهٔ گذشته فعال بوده — فهرست ۱۲ ساعت اخیر</p></div></div>'+
+    '<div class="scroll"><table><thead><tr><th></th><th>نام</th><th>نقش</th>'+
+    '<th>صفحه</th><th>آخرین فعالیت</th></tr></thead><tbody>';
+  if(!PRES.rows.length) h+='<tr><td colspan="5">هنوز کسی ثبت نشده است.</td></tr>';
+  PRES.rows.forEach(function(p){
+    var pg=pageOf(p.page_key);
+    h+='<tr><td><span class="wstat '+(p.online?"on":"off")+'"></span></td>'+
+       '<td>'+esc(p.full_name||"—")+(p.is_me?' <span class="kb-tag k-مقاله">شما</span>':"")+'</td>'+
+       '<td>'+(p.role==="admin"?"مدیر":"مشاهده‌گر")+'</td>'+
+       '<td>'+esc(pg?pg.title:(p.page_key||"—"))+'</td>'+
+       '<td>'+(p.online?"هم‌اکنون":fa(p.mins_ago)+" دقیقه پیش")+'</td></tr>';
+  });
+  return h+'</tbody></table></div></div>';
+}
+
+$("who").addEventListener("click",function(){
+  showCrumb();
+  $("ptl").textContent="حاضران در داشبورد"; $("psb").textContent="";
+  $("body").innerHTML=whoPanel();
+  window.scrollTo(0,0);
+});
+
+function startPresence(){
+  if(PRES.timer) return;
+  presenceBeat();
+  PRES.timer=setInterval(function(){ if(!document.hidden) presenceBeat(); },45000);
+  document.addEventListener("visibilitychange",function(){
+    if(!document.hidden) presenceBeat();
+  });
 }
 
 /* ---------- ریل دانشنامه، سمت چپ ---------- */
