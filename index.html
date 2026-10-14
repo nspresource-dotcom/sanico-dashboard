@@ -173,7 +173,12 @@ input:focus{outline:2px solid var(--mint);outline-offset:1px}
 .brow .fill i{display:block;height:11px}
 .brow .cnt{display:inline-block;margin-right:6px;padding:1px 7px;border-radius:999px;
   background:var(--grey-s);color:var(--muted);font-size:.67rem;font-weight:700;vertical-align:middle}
-.brow .vl{flex:0 0 60px;text-align:left;font-size:.77rem;font-weight:700;direction:ltr}
+.brow .vl{flex:0 0 auto;min-width:60px;text-align:left;font-size:.75rem;font-weight:700;
+  direction:ltr;white-space:nowrap}
+body.rial .brow .nm{flex:0 0 28%}
+body.rial .kpi .val{font-size:1.12rem;letter-spacing:-.02em}
+body.rial .ptn .big{font-size:1.1rem}
+body.rial td.num{font-size:.78rem}
 
 /* ---------- insight panel ---------- */
 .panel{background:var(--deep);color:#eaf6f0;border-radius:var(--r);padding:18px}
@@ -457,7 +462,7 @@ td.neg{color:var(--rose)}
       <div class="search"><span>⌕</span><input id="q" placeholder="جست‌وجو در تراکنش‌ها…"></div>
       <button id="who" class="who hide" title="چه کسانی الان در داشبورد هستند">
         <span id="whoDots"></span><span id="whoTxt">—</span></button>
-      <div class="icons"><button id="reload" class="ib" title="به‌روزرسانی داده‌ها">⟳</button><button id="theme" class="ib">☾</button></div>
+      <div class="icons"><button id="unitBtn" class="ib" title="تغییر واحد عددها">ر</button><button id="reload" class="ib" title="به‌روزرسانی داده‌ها">⟳</button><button id="theme" class="ib">☾</button></div>
       <div class="me"><div class="av" id="av">—</div>
         <div><div class="nm" id="meName">—</div><div class="rl" id="meRole">—</div></div></div>
     </div>
@@ -493,15 +498,26 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۲۹";
+var BUILD = "۳۰";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
 /* ---------- formatting ---------- */
 function fa(n){ return Number(n).toLocaleString("fa-IR"); }
+
+/* واحد نمایش اعداد: ریال کامل یا میلیارد — روی همین دستگاه به خاطر می‌ماند */
+var MONEY = "rial";
+try{ MONEY = localStorage.getItem("sayanik_money") || "rial"; }catch(e){}
+function unitLabel(){ return MONEY==="rial" ? "ریال" : "میلیارد ریال"; }
+
+/* عدد اصلی — از واحد انتخابی پیروی می‌کند */
 function bn(n){ if(n===null||n===undefined||n==="") return "—";
-  var v=Number(n)/1e9;
-  return v.toLocaleString("fa-IR",{maximumFractionDigits:1}); }
+  if(MONEY==="rial") return Math.round(Number(n)).toLocaleString("fa-IR");
+  return (Number(n)/1e9).toLocaleString("fa-IR",{maximumFractionDigits:1}); }
+
+/* عدد فشرده — فقط برای برچسب نمودارها که جا تنگ است؛ همیشه میلیارد */
+function bnS(n){ if(n===null||n===undefined||n==="") return "—";
+  return (Number(n)/1e9).toLocaleString("fa-IR",{maximumFractionDigits:1}); }
 function pct(n){ return n===null||n===undefined?"—":fa(Math.round(n))+"٪"; }
 function esc(s){ return String(s===null||s===undefined?"":s)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
@@ -600,6 +616,22 @@ function closeSide(){ $("side").classList.remove("open");
   var s=$("scrim"); if(s) s.remove(); }
 $("burger").addEventListener("click",openSide);
 
+/* جابجایی واحد: ریال کامل ↔ میلیارد ریال */
+function applyMoneyMode(){
+  document.body.classList.toggle("rial", MONEY==="rial");
+  var b=$("unitBtn");
+  if(b){ b.textContent = MONEY==="rial" ? "ر" : "م";
+         b.title = MONEY==="rial" ? "واحد: ریال — برای میلیارد بزنید"
+                                  : "واحد: میلیارد ریال — برای ریال بزنید"; }
+}
+applyMoneyMode();
+$("unitBtn").addEventListener("click",function(){
+  MONEY = (MONEY==="rial") ? "bn" : "rial";
+  try{ localStorage.setItem("sayanik_money", MONEY); }catch(e){}
+  applyMoneyMode();
+  if(S.ready){ stamp(); go(S.page||"home"); }
+});
+
 /* به‌روزرسانی دستی داده‌ها — صفحهٔ جاری حفظ می‌شود */
 $("reload").addEventListener("click",async function(){
   var b=$("reload"); b.disabled=true; b.textContent="…";
@@ -665,7 +697,7 @@ async function boot(ses){
   $("meName").textContent=nm;
   $("meRole").textContent=(S.role==="admin"?"مدیر":"مشاهده‌گر");
   if(S.cash!==null){
-    $("promoVal").textContent=bn(S.cash)+" میلیارد ریال";
+    $("promoVal").textContent=bn(S.cash)+" "+unitLabel();
   } else { $("promoVal").textContent="—"; $("promoSub").textContent="برای نقش شما قابل نمایش نیست"; }
 
   var icons={home:"⌂",cash:"◎",commitments:"◆",spend:"▤",funding:"↗",
@@ -894,7 +926,7 @@ async function detailList(view,col,val,title){
     'ردیفی برای نمایش نیست.</p></div>'; return; }
   var tot=rows.reduce(function(a,x){ return a+Number(x[sumKey]||0); },0);
   $("body").innerHTML='<div class="card"><div class="chead"><div><h3>'+esc(title)+'</h3>'+
-    '<p class="hint">'+fa(rows.length)+' ردیف · جمع '+bn(tot)+' میلیارد ریال</p></div></div>'+
+    '<p class="hint">'+fa(rows.length)+' ردیف · جمع '+bn(tot)+' '+unitLabel()+'</p></div></div>'+
     rowsTable(kind,rows,sumKey)+'</div>';
 }
 
@@ -960,7 +992,7 @@ async function partnerCards(){
       '<div class="nm">'+esc(x.partner_label)+'</div>'+
       '<div class="sh">سهم '+fa(Number(x.share_pct))+'٪ از سرمایه مصوب</div>'+
       '<div class="big">'+bn(x.paid_rial)+'<span class="unit" style="font-size:.7rem;color:var(--muted);'+
-      'font-weight:500;margin-right:5px">از '+bn(x.target_rial)+' میلیارد ریال</span></div>'+
+      'font-weight:500;margin-right:5px">از '+bn(x.target_rial)+' '+unitLabel()+'</span></div>'+
       '<div class="meter"><i class="'+cls+'" style="width:'+pg+'%"></i></div>'+
       '<div class="legs"><span>آورده تا کنون<b>'+fa(pg)+'٪</b></span>'+
       '<span style="text-align:left">مانده تعهد<b>'+bn(x.remaining_rial)+'</b></span></div>'+
@@ -984,7 +1016,7 @@ async function fullList(src,label,value,title){
   var tot=rows.reduce(function(a,x){return a+Number(x[value]||0);},0)||1;
   var dr=DRILL[src];
   var h='<div class="card"><div class="chead"><div><h3>'+esc(title)+'</h3>'+
-    '<p class="hint">'+fa(rows.length)+' ردیف · جمع '+bn(tot)+' میلیارد ریال'+
+    '<p class="hint">'+fa(rows.length)+' ردیف · جمع '+bn(tot)+' '+unitLabel()+''+
     (dr?' · روی ＋ بزنید تا ردیف‌های همان گروه باز شود':'')+'</p></div></div>'+
     '<div class="scroll"><table><thead><tr>'+(dr?'<th></th>':'')+
     '<th>عنوان</th><th>تعداد</th><th>مبلغ</th><th>سهم</th></tr></thead><tbody>';
@@ -1014,7 +1046,7 @@ async function partnerDetail(sub){
   var rows=r.data||[];
   var tot=rows.reduce(function(a,x){return a+Number(x.total_rial||0);},0);
   var h='<div class="card"><div class="chead"><div><h3>'+esc(sub)+'</h3>'+
-    '<p class="hint">'+fa(rows.length)+' واریز · جمع '+bn(tot)+' میلیارد ریال</p></div></div>'+
+    '<p class="hint">'+fa(rows.length)+' واریز · جمع '+bn(tot)+' '+unitLabel()+'</p></div></div>'+
     '<div class="scroll"><table><thead><tr><th>شرح</th><th>دوره</th><th>مبلغ</th></tr></thead><tbody>';
   rows.forEach(function(x){
     h+='<tr><td>'+esc(x.description)+'</td><td>'+esc(x.period)+'</td>'+
@@ -1065,7 +1097,7 @@ function kpiCard(w){
     '<div class="bd">'+
       '<div class="hd"><span class="lab">'+esc(w.title)+'</span>'+
       '<span class="chip">'+esc(c.icon||"◆")+'</span></div>'+
-      '<div class="val">'+shown+'<span class="unit">'+esc(c.unit||"")+'</span>'+delta.tag+'</div>'+
+      '<div class="val">'+shown+'<span class="unit">'+esc(c.unit?unitLabel():"")+'</span>'+delta.tag+'</div>'+
     '</div>'+
     '<div class="ft"><span>'+delta.note+'</span>'+
       ((c.link||c.rows)?'<span class="go">جزئیات ←</span>':'<span></span>')+'</div>'+
@@ -1146,7 +1178,7 @@ async function outlookCard(){
   pts.forEach(function(v,i){
     s+='<circle cx="'+X(i)+'" cy="'+Y(v)+'" r="4" fill="var(--card)" stroke="var(--mint)" stroke-width="2.5"/>';
     s+='<text x="'+X(i)+'" y="'+(Y(v)-11)+'" text-anchor="middle" font-size="10.5" font-weight="700"'+
-       ' fill="'+(v<0?"var(--rose)":"var(--ink)")+'" font-family="Vazirmatn">'+bn(v*1e9)+'</text>';
+       ' fill="'+(v<0?"var(--rose)":"var(--ink)")+'" font-family="Vazirmatn">'+bnS(v*1e9)+'</text>';
     s+='<text x="'+X(i)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10"'+
        ' fill="var(--muted)" font-family="Vazirmatn">'+esc(labs[i])+'</text>';
   });
@@ -1160,7 +1192,7 @@ async function spendCard(){
   var rows=r.data||[]; if(!rows.length) return "";
   var max=Number(rows[0].total_rial)||1;
   var h='<div class="card"><div class="chead"><div><h3>مخارج به تفکیک دسته</h3>'+
-    '<p class="hint">میلیارد ریال — بدون قرض بین‌شرکتی و کالای بازرگانی</p></div>'+
+    '<p class="hint">'+unitLabel()+' — بدون قرض بین‌شرکتی و کالای بازرگانی</p></div>'+
     '<button class="more" data-full="v_spend_by_category|category|total_rial|مخارج به تفکیک دسته">'+
     'مشاهده کامل ←</button></div>';
   rows.forEach(function(x){
@@ -1200,7 +1232,7 @@ function bars(w,c,rows){
            esc(c.value)+'|'+esc(w.title)+'">مشاهده کامل ←</button>';
   var h='<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>'+
         esc(w.title)+'</h3><p class="hint">'+fa(rows.length)+' گروه · جمع '+bn(tot)+
-        ' میلیارد ریال</p></div>'+more+'</div>';
+        ' '+unitLabel()+'</p></div>'+more+'</div>';
   if(two) h+='<div style="display:flex;gap:14px;margin:0 2px 12px;font-size:.73rem;color:var(--muted)">'+
     '<span style="display:flex;align-items:center;gap:6px">'+
       '<i style="width:11px;height:11px;border-radius:3px;background:var(--mint);display:inline-block"></i>'+
@@ -1611,13 +1643,13 @@ async function cashflowPage(){
        '<div class="hd"><span class="lab">'+esc(x.section_label)+'</span>'+
        '<span class="chip">'+(v<0?"↓":"↑")+'</span></div>'+
        '<div class="val">'+(v<0?"−":"+")+bn(Math.abs(v))+
-       '<span class="unit">میلیارد ریال</span></div></div>'+
+       '<span class="unit">'+unitLabel()+'</span></div></div>'+
        '<div class="ft"><span>خالص دوره‌های ثبت‌شده</span><span></span></div></div>';
   });
   h+='</div>';
 
   h+='<div class="card"><div class="chead"><div><h3>صورت جریان وجوه نقد</h3>'+
-     '<p class="hint">همه دوره‌ها، تجمعی — میلیارد ریال</p></div></div>'+
+     '<p class="hint">همه دوره‌ها، تجمعی — '+unitLabel()+'</p></div></div>'+
      '<div class="scroll"><table class="fs"><thead><tr><th>شرح</th><th>تعداد قلم</th>'+
      '<th>خالص</th></tr></thead><tbody>';
 
@@ -1665,22 +1697,22 @@ async function incomePage(){
   h+='<div class="grid g3" style="margin-bottom:14px">'+
      '<div class="kpi"><div class="bd"><div class="hd"><span class="lab">درآمد فروش</span>'+
      '<span class="chip">↑</span></div><div class="val">'+bn(rev)+
-     '<span class="unit">میلیارد ریال</span></div></div>'+
+     '<span class="unit">'+unitLabel()+'</span></div></div>'+
      '<div class="ft"><span>فروش تیتان و باریت</span><span></span></div></div>'+
      '<div class="kpi '+(Number(net)<0?"neg":"pos")+'"><div class="bd">'+
      '<div class="hd"><span class="lab">سود (زیان) خالص</span><span class="chip">≡</span></div>'+
      '<div class="val">'+(Number(net)<0?"−":"+")+bn(Math.abs(net))+
-     '<span class="unit">میلیارد ریال</span></div></div>'+
+     '<span class="unit">'+unitLabel()+'</span></div></div>'+
      '<div class="ft"><span>بدون احتساب مخارج سرمایه‌ای</span><span></span></div></div>'+
      '<div class="kpi"><div class="bd"><div class="hd">'+
      '<span class="lab">مخارج سرمایه‌ای (خارج از این صورت)</span><span class="chip">▣</span></div>'+
      '<div class="val">'+bn(cap.reduce(function(a,x){return a+Number(x.amount_rial);},0))+
-     '<span class="unit">میلیارد ریال</span></div></div>'+
+     '<span class="unit">'+unitLabel()+'</span></div></div>'+
      '<div class="ft"><span>به دارایی منتقل می‌شود</span><span></span></div></div>'+
      '</div>';
 
   h+='<div class="card"><div class="chead"><div><h3>صورت سود و زیان</h3>'+
-     '<p class="hint">تجمعی — میلیارد ریال</p></div></div>'+
+     '<p class="hint">تجمعی — '+unitLabel()+'</p></div></div>'+
      '<div class="scroll"><table class="fs"><thead><tr><th>شرح</th><th>مبلغ</th></tr></thead><tbody>';
 
   sum.forEach(function(x){
@@ -1733,7 +1765,7 @@ async function balancePage(){
   }
 
   if(chk && Math.abs(Number(chk.gap))>1000){
-    h+='<div class="gap"><b>تراز نیست — اختلاف '+bn(Math.abs(chk.gap))+' میلیارد ریال.</b><br>'+
+    h+='<div class="gap"><b>تراز نیست — اختلاف '+bn(Math.abs(chk.gap))+' '+unitLabel()+'.</b><br>'+
        'این ترازنامه از جریان نقد ساخته شده، نه از دفاتر. اقلامی که در هیچ تراکنشی '+
        'دیده نمی‌شوند هنوز وارد نشده‌اند: موجودی کالای نفروخته، حساب‌های پرداختنی به '+
        'پیمانکاران، پیش‌پرداخت‌ها، و استهلاک. اختلاف تقریباً به اندازه همین اقلام است.<br>'+
@@ -1742,7 +1774,7 @@ async function balancePage(){
 
   var asOf = rows[0].as_of_label;
   h+='<div class="card"><div class="chead"><div><h3>ترازنامه</h3>'+
-     '<p class="hint">'+esc(asOf)+' · منبع: '+esc(rows[0].source)+' — میلیارد ریال</p>'+
+     '<p class="hint">'+esc(asOf)+' · منبع: '+esc(rows[0].source)+' — '+unitLabel()+'</p>'+
      '</div></div><div class="scroll"><table class="fs"><thead><tr>'+
      '<th>شرح</th><th>مبلغ</th></tr></thead><tbody>';
 
