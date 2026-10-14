@@ -211,6 +211,9 @@ body.rial td.num{font-size:.78rem}
 table{width:100%;border-collapse:collapse;font-size:.82rem;min-width:420px}
 th{text-align:right;font-weight:600;color:var(--muted);font-size:.73rem;padding:10px;
   border-bottom:1px solid var(--line);white-space:nowrap}
+th.num{text-align:left;direction:ltr}
+th.mid{text-align:center}
+td.mid{text-align:center}
 td{padding:13px 10px;border-bottom:1px solid var(--line);color:var(--ink2)}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover{background:var(--mint-s)}
@@ -499,7 +502,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۳۱";
+var BUILD = "۳۲";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -889,14 +892,14 @@ function rowsTable(kind,rows,sumKey){
   var cols=DCOLS[kind]||DCOLS.cmt;
   var tot=rows.reduce(function(a,x){ return a+Number(x[sumKey]||0); },0);
   var h='<div class="scroll"><table><thead><tr>';
-  cols.forEach(function(c){ h+="<th>"+esc(c.t)+"</th>"; });
+  cols.forEach(function(c){ h+='<th class="'+(c.n?"num":(c.pill?"mid":""))+'">'+esc(c.t)+"</th>"; });
   h+='</tr></thead><tbody>';
   rows.forEach(function(r){
     h+="<tr>";
     cols.forEach(function(c){
       var v=r[c.k];
       if(c.n) h+='<td class="num'+(Number(v)<0?" neg":"")+'">'+bn(v)+"</td>";
-      else if(c.pill) h+='<td><span class="pill '+prioCls(v)+'">'+
+      else if(c.pill) h+='<td class="mid"><span class="pill '+prioCls(v)+'">'+
         esc(String(v||"—").replace(/\s*-\s*.*/,""))+"</span></td>";
       else h+="<td>"+esc((v===null||v===undefined||v==="")?"—":v)+"</td>";
     });
@@ -1020,7 +1023,8 @@ async function fullList(src,label,value,title){
     '<p class="hint">'+fa(rows.length)+' ردیف · جمع '+bn(tot)+' '+unitLabel()+''+
     (dr?' · روی ＋ بزنید تا ردیف‌های همان گروه باز شود':'')+'</p></div></div>'+
     '<div class="scroll"><table><thead><tr>'+(dr?'<th></th>':'')+
-    '<th>عنوان</th><th>تعداد</th><th>مبلغ</th><th>سهم</th></tr></thead><tbody>';
+    '<th>عنوان</th><th class="num">تعداد</th><th class="num">مبلغ</th>'+
+    '<th class="num">سهم</th></tr></thead><tbody>';
   rows.forEach(function(x,i){
     var v=Number(x[value]||0), lv=String(x[label]===null||x[label]===undefined?"":x[label]);
     h+="<tr>";
@@ -1048,7 +1052,8 @@ async function partnerDetail(sub){
   var tot=rows.reduce(function(a,x){return a+Number(x.total_rial||0);},0);
   var h='<div class="card"><div class="chead"><div><h3>'+esc(sub)+'</h3>'+
     '<p class="hint">'+fa(rows.length)+' واریز · جمع '+bn(tot)+' '+unitLabel()+'</p></div></div>'+
-    '<div class="scroll"><table><thead><tr><th>شرح</th><th>دوره</th><th>مبلغ</th></tr></thead><tbody>';
+    '<div class="scroll"><table><thead><tr><th>شرح</th><th>دوره</th>'+
+    '<th class="num">مبلغ</th></tr></thead><tbody>';
   rows.forEach(function(x){
     h+='<tr><td>'+esc(x.description)+'</td><td>'+esc(x.period)+'</td>'+
        '<td class="num">'+bn(x.total_rial)+'</td></tr>';
@@ -1557,7 +1562,7 @@ function table(w,c,rows){
   var h='<div class="card" style="margin-bottom:14px"><h3>'+esc(w.title)+'</h3><p class="hint"></p>';
   if(c.search) h+='<input id="srch" class="srch" placeholder="جست‌وجو در شرح، دسته یا طرف حساب…">';
   h+='<div class="scroll"><table><thead><tr>';
-  cols.forEach(function(x){ h+="<th>"+esc(x.t)+"</th>"; });
+  cols.forEach(function(x){ h+='<th class="'+(x.n?"num":(x.pill?"mid":""))+'">'+esc(x.t)+"</th>"; });
   h+='</tr></thead><tbody'+(c.search?' id="rowsbody"':"")+">";
   var bal=(c.running==="cash")?(S.cash||0):null;
   rows.forEach(function(r){
@@ -1567,7 +1572,7 @@ function table(w,c,rows){
     cols.forEach(function(x){
       var v=(x.k==="__balance")?bal:r[x.k];
       if(x.n) h+='<td class="num'+(Number(v)<0?" neg":"")+'">'+bn(v)+"</td>";
-      else if(x.pill) h+='<td><span class="pill '+prioCls(v)+'">'+
+      else if(x.pill) h+='<td class="mid"><span class="pill '+prioCls(v)+'">'+
         esc(String(v||"—").replace(/\s*-\s*.*/,""))+"</span></td>";
       else h+="<td>"+esc((v===null||v===undefined||v==="")?"—":v)+"</td>";
     });
@@ -1655,8 +1660,8 @@ async function cashflowPage(){
 
   h+='<div class="card"><div class="chead"><div><h3>صورت جریان وجوه نقد</h3>'+
      '<p class="hint">همه دوره‌ها، تجمعی — '+unitLabel()+'</p></div></div>'+
-     '<div class="scroll"><table class="fs"><thead><tr><th>شرح</th><th>تعداد قلم</th>'+
-     '<th>خالص</th></tr></thead><tbody>';
+     '<div class="scroll"><table class="fs"><thead><tr><th>شرح</th>'+
+     '<th class="num">تعداد قلم</th><th class="num">خالص</th></tr></thead><tbody>';
 
   var cur=null;
   items.forEach(function(it){
@@ -1718,7 +1723,8 @@ async function incomePage(){
 
   h+='<div class="card"><div class="chead"><div><h3>صورت سود و زیان</h3>'+
      '<p class="hint">تجمعی — '+unitLabel()+'</p></div></div>'+
-     '<div class="scroll"><table class="fs"><thead><tr><th>شرح</th><th>مبلغ</th></tr></thead><tbody>';
+     '<div class="scroll"><table class="fs"><thead><tr><th>شرح</th>'+
+     '<th class="num">مبلغ</th></tr></thead><tbody>';
 
   sum.forEach(function(x){
     if(x.line==="capitalized") return;
@@ -1781,7 +1787,7 @@ async function balancePage(){
   h+='<div class="card"><div class="chead"><div><h3>ترازنامه</h3>'+
      '<p class="hint">'+esc(asOf)+' · منبع: '+esc(rows[0].source)+' — '+unitLabel()+'</p>'+
      '</div></div><div class="scroll"><table class="fs"><thead><tr>'+
-     '<th>شرح</th><th>مبلغ</th></tr></thead><tbody>';
+     '<th>شرح</th><th class="num">مبلغ</th></tr></thead><tbody>';
 
   ["asset","liability","equity"].forEach(function(side){
     var sr=rows.filter(function(r){return r.side===side;});
