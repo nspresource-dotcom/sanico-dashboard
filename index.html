@@ -502,9 +502,9 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۳۳";
+var BUILD = "۳۴";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
-          insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false, cashTrend:null };
+          insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
 /* ---------- formatting ---------- */
 function fa(n){ return Number(n).toLocaleString("fa-IR"); }
@@ -685,8 +685,7 @@ async function boot(ses){
     db.from("v_data_freshness").select("*").maybeSingle(),
     db.from("v_health_score").select("*").single(),
     db.from("v_insights").select("*").order("ord"),
-    db.from("v_period_totals").select("*").order("sort_order"),
-    db.from("v_cash_trend").select("*").maybeSingle()
+    db.from("v_period_totals").select("*").order("sort_order")
   ]);
   var p=q[0].data||{};
   S.role=p.role||"viewer"; S.pages=q[1].data||[]; S.widgets=q[2].data||[];
@@ -694,7 +693,6 @@ async function boot(ses){
   S.dataHealth=q[5].data||{}; S.fresh=q[6].data||{};
   S.health=q[7].data||{}; S.insights=q[8].data||[];
   S.periods=q[9].data||[];
-  S.cashTrend=q[10].data||null;
   S.internals = !!p.sees_internals;
 
   var nm=p.full_name||ses.user.email;
@@ -1078,12 +1076,7 @@ function kpiCard(w){
   var shown=(c.tone==="signed"?(val<0?"−":"+"):"")+bn(Math.abs(val));
 
   var delta={tag:"",note:"&nbsp;"};
-  if(w.source==="v_kpi_cash" && S.cashTrend && S.cashTrend.prev_total!==null){
-    /* تغییر خودِ موجودی نسبت به ستون قبلی بانک‌ها — نه جریان نقد یک دورهٔ دیگر */
-    var mv=Number(S.cashTrend.total)-Number(S.cashTrend.prev_total);
-    delta.tag='<span class="tag '+(mv>=0?"up":"down")+'">'+(mv>=0?"▲":"▼")+" "+bn(Math.abs(mv))+'</span>';
-    delta.note='نسبت به '+esc(S.cashTrend.prev_code);
-  } else if(c.field==="firm_open"){
+  if(c.field==="firm_open"){
     delta.note=fa(S.core.open_commitment_count||0)+' تعهد باز';
   } else if(c.field==="due_next_3m"){
     delta.note='مهر تا آذر ۱۴۰۵';
