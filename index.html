@@ -135,6 +135,7 @@ input:focus{outline:2px solid var(--mint);outline-offset:1px}
 .kpi .bd{padding:16px 17px 14px}
 .kpi .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
 .kpi .lab{font-size:.79rem;color:var(--ink2);font-weight:500;line-height:1.45}
+.kpi .hz{color:var(--muted);font-weight:600;font-size:.72rem;white-space:nowrap}
 .kpi .chip{width:36px;height:36px;border-radius:11px;background:var(--mint-s);color:var(--deep);
   display:grid;place-items:center;font-size:.95rem;flex:0 0 36px}
 .kpi .val{font-size:1.5rem;font-weight:800;letter-spacing:-.035em;line-height:1.2;
@@ -498,7 +499,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۳۰";
+var BUILD = "۳۱";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -1095,7 +1096,11 @@ function kpiCard(w){
                     : ' data-go="'+esc(c.link||"home")+'"';
   return '<button class="kpi '+cls+'"'+open+'>'+
     '<div class="bd">'+
-      '<div class="hd"><span class="lab">'+esc(w.title)+'</span>'+
+      '<div class="hd"><span class="lab">'+esc(w.title)+
+        /* افق محاسبه را کنار عنوان می‌نویسیم تا معلوم باشد عدد تا چه ماهی است */
+        ((c.expr && S.core.gap_horizon)
+          ? ' <span class="hz">(تا '+esc(S.core.gap_horizon)+')</span>' : '')+
+      '</span>'+
       '<span class="chip">'+esc(c.icon||"◆")+'</span></div>'+
       '<div class="val">'+shown+'<span class="unit">'+esc(c.unit?unitLabel():"")+'</span>'+delta.tag+'</div>'+
     '</div>'+
