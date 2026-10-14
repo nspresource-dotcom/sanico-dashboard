@@ -343,6 +343,8 @@ td.neg{color:var(--rose)}
 .wd:first-child{margin-left:0}
 .wd.solo{background:var(--grey-s);color:var(--muted)}
 .wstat{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.wmail{font-size:.7rem;color:var(--muted);direction:ltr;text-align:right;margin-top:2px;
+  unicode-bidi:isolate}
 .wstat.on{background:var(--mint);box-shadow:0 0 0 3px rgba(63,156,124,.2)}
 .wstat.off{background:var(--line)}
 @media(max-width:860px){ .who #whoTxt{display:none} .who{padding:4px 6px} }
@@ -502,7 +504,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۳۴";
+var BUILD = "۳۵";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -1323,7 +1325,8 @@ function whoPanel(){
   PRES.rows.forEach(function(p){
     var pg=pageOf(p.page_key);
     h+='<tr><td><span class="wstat '+(p.online?"on":"off")+'"></span></td>'+
-       '<td>'+esc(p.full_name||"—")+(p.is_me?' <span class="kb-tag k-مقاله">شما</span>':"")+'</td>'+
+       '<td>'+esc(p.full_name||"—")+(p.is_me?' <span class="kb-tag k-مقاله">شما</span>':"")+
+         (p.email?'<div class="wmail">'+esc(p.email)+'</div>':"")+'</td>'+
        '<td>'+(p.role==="admin"?"مدیر":"مشاهده‌گر")+'</td>'+
        '<td>'+esc(pg?pg.title:(p.page_key||"—"))+'</td>'+
        '<td>'+(p.online?"هم‌اکنون":fa(p.mins_ago)+" دقیقه پیش")+'</td></tr>';
