@@ -493,7 +493,7 @@ var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۲۸";
+var BUILD = "۲۹";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -880,7 +880,7 @@ async function detailList(view,col,val,title){
   showCrumb();
   $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
   window.scrollTo(0,0);
-  var kind = view==="v_txn_rows" ? "txn" : (view==="v_open_inflows" ? "inf" : "cmt");
+  var kind = view.indexOf("txn_rows")>-1 ? "txn" : (view==="v_open_inflows" ? "inf" : "cmt");
   var sumKey = kind==="cmt" ? "remaining_rial" : (kind==="inf" ? "amount_rial" : "total_rial");
   var q=db.from(view).select("*");
   if(col && val) q=q.eq(col,val);
