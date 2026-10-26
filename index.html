@@ -543,6 +543,26 @@ window.__lib = (function(){
   return race(PRIMARY).catch(function(){ return race(BACKUP); });
 })();
 
+/* ---------- زمان‌سنجی ----------
+   تا الان کندی را از روی لاگ سرور حدس می‌زدیم. این چند خط، زمان واقعی
+   را روی دستگاه خود کاربر ثبت می‌کند و در نوار پایین صفحه نشان می‌دهد. */
+var PERF = { marks:{} };
+function mark(k){ try{ PERF.marks[k]=Math.round(performance.now()); }catch(e){} }
+function perfLine(){
+  try{
+    var m=PERF.marks, nav=(performance.getEntriesByType("navigation")||[])[0]||{};
+    function s(v){ return (v/1000).toFixed(1); }
+    var parts=[];
+    if(nav.responseEnd)             parts.push("صفحه "+s(nav.responseEnd));
+    if(m.lib)                       parts.push("کتابخانه "+s(m.lib));
+    if(m.auth&&m.lib)               parts.push("ورود "+s(m.auth-m.lib));
+    if(m.data&&m.auth)              parts.push("داده "+s(m.data-m.auth));
+    if(m.render&&m.data)            parts.push("رندر "+s(m.render-m.data));
+    if(!m.render) return "";
+    return "بارگذاری "+s(m.render)+"ث — "+parts.join(" · ");
+  }catch(e){ return ""; }
+}
+
 var SUPABASE_URL = "https://zlzjzzqrkbsqornnimlx.supabase.co";
 var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 
@@ -552,12 +572,13 @@ var db = null;
 async function ensureDb(){
   if(db) return db;
   var lib = await window.__lib;
+  mark("lib");
   if(!db) db = lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   return db;
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۳۸";
+var BUILD = "۳۹";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -728,6 +749,7 @@ async function start(force){
   try{
     await ensureDb();
     var s=await db.auth.getSession();
+    mark("auth");
     if(!s.data.session){ S.ready=false;
       $("auth").classList.remove("hide"); $("app").classList.add("hide"); return; }
     if(fromLink()){ showSetPw(s.data.session,false); return; }
@@ -758,6 +780,7 @@ async function boot(ses){
      ولی هر آدرس جداگانه یک preflight و یک درخواست می‌خواست — روی خط
      پرتأخیر همین رفت‌وبرگشت‌ها بیشترِ زمان ورود بودند، نه خود کوئری‌ها. */
   var rp = await db.rpc("dash_bootstrap");
+  mark("data");
   var d  = rp.data;
   if(rp.error || !d) throw new Error(
     "خواندن اطلاعات اولیه ناموفق بود" + (rp.error ? " — " + rp.error.message : ""));
@@ -824,7 +847,9 @@ async function boot(ses){
   bindGo($("navs"));
   var hr=new Date().getHours();
   S.greet=(hr<12?"صبح بخیر":(hr<18?"ظهر بخیر":"عصر بخیر"))+"، "+String(nm).split(" ")[0]+"!";
-  var sp = startPage(); stamp(); go(sp);
+  var sp = startPage(); stamp();
+  await go(sp);
+  mark("render"); stamp();   /* حالا که رندر تمام شد، خط زمان‌سنجی را بنویس */
 }
 
 /* صفحه‌ای که کاربر آخر بار باز کرده بود — تا با برگشت از تب دیگر به صفحه اصلی نپرد */
@@ -850,7 +875,9 @@ function stamp(){
   $("stamp").innerHTML='<span class="stamp'+(days>14?" stale":"")+'"><b></b>داده تا '+
     esc(new Date(d).toLocaleDateString("fa-IR"))+' — '+(days<=0?"امروز":fa(days)+" روز پیش")+'</span>'+
     '<span class="stamp" style="margin-right:8px">نسخه '+BUILD+
-      (S.bootSrc?' · '+esc(S.bootSrc):"")+'</span>';
+      (S.bootSrc?' · '+esc(S.bootSrc):"")+'</span>'+
+    (perfLine()? '<span class="stamp" style="margin-right:8px" title="'+
+      esc(window.__libFrom||"")+'">⏱ '+esc(perfLine())+'</span>' : '');
 }
 
 function bindGo(root){
@@ -1355,29 +1382,26 @@ function bars(w,c,rows){
 /* ---------- چه کسی الان در داشبورد است ---------- */
 var PRES = { timer:null, rows:[] };
 
+/* یک فراخوانی به‌جای سه‌تا: ثبت حضور، فهرست حاضران و تازگی داده با هم.
+   قبلاً سه درخواست پشت‌سرهم بود و هر آدرس تازه یک preflight هم داشت. */
 async function presenceBeat(){
-  if(!S.me) return;
+  if(!S.me || !db) return;
   try{
-    await db.from("dash_presence").upsert({
-      user_id: S.me, full_name: S.meName, role: S.role,
-      page_key: S.page, last_seen: new Date().toISOString()
-    }, { onConflict: "user_id" });
+    var r = await db.rpc("dash_heartbeat", { p_page: S.page });
+    if(r.error || !r.data) return;
+    PRES.rows = r.data.presence || [];
+    renderWho();
+    checkStale(r.data.freshness);
   }catch(e){}
-  try{
-    var r = await db.from("v_presence").select("*");
-    if(!r.error){ PRES.rows = r.data || []; renderWho(); }
-  }catch(e){}
-  checkStale();
 }
 
 /* اگر داده روی سرور از زمان باز شدن این صفحه تازه‌تر شده باشد، خبر می‌دهیم —
    بدون این، دو نفر می‌توانند هم‌زمان دو عدد متفاوت روی صفحه داشته باشند. */
 var staleShown = "";
-async function checkStale(){
+function checkStale(fresh){
   try{
-    var r = await db.from("v_data_freshness").select("*").maybeSingle();
-    if(r.error || !r.data) return;
-    var srv  = r.data.last_data_change || r.data.last_sync;
+    if(!fresh) return;
+    var srv  = fresh.last_data_change || fresh.last_sync;
     var mine = (S.fresh && (S.fresh.last_data_change || S.fresh.last_sync)) || null;
     if(!srv || !mine) return;
     if(new Date(srv) > new Date(mine) && staleShown !== srv){
@@ -1426,7 +1450,9 @@ $("who").addEventListener("click",function(){
 
 function startPresence(){
   if(PRES.timer) return;
-  presenceBeat();
+  /* ضربان اول عمداً با تأخیر: وقتی داشبورد تازه باز شده، پهنای باند و
+     نوبت درخواست‌ها باید صرف خود صفحه شود، نه فهرست حاضران. */
+  setTimeout(presenceBeat, 2500);
   PRES.timer=setInterval(function(){ if(!document.hidden) presenceBeat(); },45000);
   document.addEventListener("visibilitychange",function(){
     if(!document.hidden) presenceBeat();
