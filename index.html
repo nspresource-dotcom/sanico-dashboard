@@ -581,7 +581,7 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۴۲";
+var BUILD = "۴۳";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -2223,25 +2223,44 @@ function faToEn(s){ var fa="۰۱۲۳۴۵۶۷۸۹", o=""; s=String(s);
   for(var i=0;i<s.length;i++){ var k=fa.indexOf(s[i]); o += k>-1 ? String(k) : s[i]; }
   return o; }
 
+async function wipeAndReload(){
+  try{
+    var regs = await navigator.serviceWorker.getRegistrations();
+    for(var i=0;i<regs.length;i++) await regs[i].unregister();
+  }catch(e){}
+  try{
+    var keys = await caches.keys();
+    for(var j=0;j<keys.length;j++) await caches.delete(keys[j]);
+  }catch(e){}
+  location.reload();
+}
+
 async function checkVersion(){
   try{
     var r = await fetch("./version.txt?t="+Date.now(), { cache:"no-store" });
     if(!r.ok) return;
     var live = (await r.text()).trim();
     var mine = faToEn(BUILD).trim();
-    if(!live || live === mine) return;
-    strip("نسخه تازهٔ داشبورد ("+esc(live)+") منتشر شده — شما نسخه "+esc(mine)+" را می‌بینید.",
-      "گرفتن نسخه تازه", async function(){
-        try{
-          var regs = await navigator.serviceWorker.getRegistrations();
-          for(var i=0;i<regs.length;i++) await regs[i].unregister();
-        }catch(e){}
-        try{
-          var keys = await caches.keys();
-          for(var j=0;j<keys.length;j++) await caches.delete(keys[j]);
-        }catch(e){}
-        location.reload();
-      }, true);
+    if(!live || live === mine){
+      try{ sessionStorage.removeItem("sayanik_selfheal"); }catch(e){}
+      return;
+    }
+    /* نسخه قدیمی در حال اجراست. چون همهٔ اعداد در هر بار باز شدن
+       مستقیم از سرور خوانده می‌شوند، گرفتن نسخه تازه هیچ چیزی را از
+       دست نمی‌دهد — پس خودمان انجامش می‌دهیم و منتظر کلیک نمی‌مانیم.
+       نگهبان sessionStorage جلوی هر حلقهٔ احتمالی را می‌گیرد: در هر
+       تب فقط یک بار. */
+    var tried = "";
+    try{ tried = sessionStorage.getItem("sayanik_selfheal") || ""; }catch(e){}
+    if(tried !== live){
+      try{ sessionStorage.setItem("sayanik_selfheal", live); }catch(e){}
+      strip("نسخه تازه ("+esc(live)+") در حال گرفتن است…", null, null, true);
+      await wipeAndReload();
+      return;
+    }
+    /* یک بار خودکار امتحان شد و باز نسخه عوض نشد — حالا دست کاربر */
+    strip("نسخه تازهٔ داشبورد ("+esc(live)+") منتشر شده ولی مرورگر نسخه "+
+          esc(mine)+" را نگه داشته.", "تلاش دوباره", wipeAndReload, true);
   }catch(e){}
 }
 
