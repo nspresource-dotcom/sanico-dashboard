@@ -11,9 +11,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="سایا نیک">
 <link rel="apple-touch-icon" href="./IMG_9351.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- فونت گوگل دیگر جلوی نمایش صفحه را نمی‌گیرد: با media="print" بارگذاری
+     می‌شود و بعد از رسیدن به all تبدیل می‌شود. اگر گوگل کند یا در دسترس
+     نباشد، صفحه بلافاصله با فونت نصب‌شده روی خود دستگاه بالا می‌آید. -->
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root{
   box-sizing:border-box;
@@ -47,7 +50,11 @@
 *,*::before,*::after{box-sizing:inherit}
 html,body{margin:0;padding:0}
 body{background:var(--canvas);color:var(--ink);font-size:15px;line-height:1.6;
-  font-family:'Vazirmatn',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;-webkit-font-smoothing:antialiased}
+  /* فونت‌های نصب‌شده روی خود دستگاه اول امتحان می‌شوند تا متن بدون
+     هیچ درخواست اینترنتی نمایش داده شود؛ نسخه وبی فقط پشتیبان است. */
+  font-family:'Vazirmatn','Vazir','IRANSans','IRANYekan','Sahel',
+              system-ui,-apple-system,'Segoe UI','Noto Naskh Arabic',Tahoma,sans-serif;
+  -webkit-font-smoothing:antialiased}
 button,input{font-family:inherit}
 button{cursor:pointer;border:0;background:none;color:inherit}
 .hide{display:none!important}
@@ -498,14 +505,59 @@ td.neg{color:var(--rose)}
   </aside>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
+/* ---------- بارگذاری کتابخانه سوپابیس ----------
+   قبلاً این فایل با یک <script src> معمولی از jsdelivr گرفته می‌شد. آن حالت
+   دو عیب داشت: تا رسیدن فایل، صفحه ورود نمایش داده نمی‌شد؛ و اگر jsdelivr
+   کند یا در دسترس نبود، ورود عملاً قفل می‌شد (سرویس‌ورکر هم فایل‌های
+   دامنه‌های دیگر را ذخیره نمی‌کند، پس هر بار از نو گرفته می‌شد).
+
+   الان: صفحه فوراً بالا می‌آید و کتابخانه در پس‌زمینه و به‌صورت موازی از
+   دو منبع گرفته می‌شود — هرکدام اول رسید برنده است. منبع اول خودِ دامنه
+   سوپابیس است (همان دامنه‌ای که داشبورد برای داده هم به آن وصل می‌شود، پس
+   اگر اپ کار کند این هم کار می‌کند) و دومی jsdelivr به‌عنوان پشتیبان. */
+window.__lib = (function(){
+  var PRIMARY = [
+    "https://zlzjzzqrkbsqornnimlx.supabase.co/functions/v1/lib/supabase.js",
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"
+  ];
+  var BACKUP = ["https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"];
+
+  function race(list){
+    return new Promise(function(resolve, reject){
+      var left = list.length, won = false;
+      list.forEach(function(src){
+        var s = document.createElement("script");
+        s.src = src; s.async = true;
+        s.onload = function(){
+          if(won) return;
+          if(window.supabase && window.supabase.createClient){
+            won = true; window.__libFrom = src; resolve(window.supabase);
+          } else if(--left === 0){ reject(new Error("no client")); }
+        };
+        s.onerror = function(){ if(!won && --left === 0) reject(new Error("load failed")); };
+        document.head.appendChild(s);
+      });
+    });
+  }
+  return race(PRIMARY).catch(function(){ return race(BACKUP); });
+})();
+
 var SUPABASE_URL = "https://zlzjzzqrkbsqornnimlx.supabase.co";
 var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
-var db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* db تا رسیدن کتابخانه خالی است. هر جایی که کاربر ممکن است قبل از آن
+   دکمه‌ای بزند، اول ensureDb را صدا می‌زند. */
+var db = null;
+async function ensureDb(){
+  if(db) return db;
+  var lib = await window.__lib;
+  if(!db) db = lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return db;
+}
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۳۵";
+var BUILD = "۳۶";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -549,6 +601,13 @@ $("go").addEventListener("click",async function(){
   var pwv=$("pw").value.replace(/^\s+|\s+$/g,"")
                       .replace(/[‐-―−]/g,"-")   /* خط تیره‌های هوشمند */
                       .replace(/[‘’]/g,"'").replace(/[“”]/g,'"');
+  /* اگر کاربر سریع‌تر از شبکه بود، همین‌جا منتظر رسیدن کتابخانه می‌مانیم */
+  try{ await ensureDb(); }
+  catch(e){
+    b.disabled=false; b.textContent="ورود";
+    anote("کتابخانهٔ برنامه بارگذاری نشد — اینترنت را بررسی کنید و صفحه را دوباره باز کنید.","err");
+    return;
+  }
   var r=await db.auth.signInWithPassword({email:em,password:pwv});
   b.disabled=false; b.textContent="ورود";
   if(r.error){
@@ -579,6 +638,8 @@ $("pw").addEventListener("keydown",function(e){ if(e.key==="Enter") $("go").clic
 $("forgot").addEventListener("click",async function(){
   var em=$("em").value.trim();
   if(!em){ anote("اول ایمیل خود را وارد کنید.","err"); return; }
+  try{ await ensureDb(); }
+  catch(e){ anote("به سرور وصل نشد — بعداً دوباره تلاش کنید.","err"); return; }
   var r=await db.auth.resetPasswordForEmail(em,{redirectTo:location.href});
   anote(r.error?"ارسال ایمیل ناموفق بود.":"لینک بازنشانی رمز ایمیل شد.", r.error?"err":"ok");
 });
@@ -665,6 +726,7 @@ async function start(force){
   if(S.ready && !force) return;
   S.booting=true;
   try{
+    await ensureDb();
     var s=await db.auth.getSession();
     if(!s.data.session){ S.ready=false;
       $("auth").classList.remove("hide"); $("app").classList.add("hide"); return; }
@@ -2060,13 +2122,19 @@ window.addEventListener("online", function(){
   var s=document.getElementById("strip"); if(s) s.remove();
 });
 
-db.auth.onAuthStateChange(function(e,s){
-  if(e==="PASSWORD_RECOVERY"){ showSetPw(s,false); return; }
-  /* سوپابیس هنگام برگشت به تب هم SIGNED_IN می‌فرستد؛ اگر داشبورد بالاست دست به آن نمی‌زنیم */
-  if(e==="SIGNED_IN" && !S.ready && !S.booting) start();
-  if(e==="SIGNED_OUT") S.ready=false;
+/* صفحهٔ ورود همین حالا دیده می‌شود؛ این بخش به‌محض رسیدن کتابخانه اجرا
+   می‌شود و اگر از قبل نشست باز بوده، خودکار داشبورد را بالا می‌آورد. */
+ensureDb().then(function(){
+  db.auth.onAuthStateChange(function(e,s){
+    if(e==="PASSWORD_RECOVERY"){ showSetPw(s,false); return; }
+    /* سوپابیس هنگام برگشت به تب هم SIGNED_IN می‌فرستد؛ اگر داشبورد بالاست دست به آن نمی‌زنیم */
+    if(e==="SIGNED_IN" && !S.ready && !S.booting) start();
+    if(e==="SIGNED_OUT") S.ready=false;
+  });
+  start();
+}).catch(function(){
+  anote("کتابخانهٔ برنامه بارگذاری نشد — اینترنت را بررسی کنید و صفحه را دوباره باز کنید.","err");
 });
-start();
 </script>
 </body>
 </html>
