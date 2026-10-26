@@ -1,22 +1,32 @@
 /**
  * سایا نیک — Service Worker
  *
- * قاعده: همیشه اول از شبکه.
+ * قاعده: داده همیشه زنده، پوستهٔ برنامه از حافظه.
  *
- * برای یک داشبورد مالی، نشان دادن عدد کهنه بدتر از نشان ندادن است.
- * پس هر بار که اپ باز می‌شود، نسخه تازه از اینترنت گرفته می‌شود.
- * نسخه ذخیره‌شده فقط وقتی استفاده می‌شود که اینترنت نباشد — و در آن
- * حالت خود اپ به شما می‌گوید که داده کهنه است.
+ * برای یک داشبورد مالی، نشان دادن عدد کهنه بدتر از نشان ندادن است —
+ * پس هیچ پاسخی از سوپابیس ذخیره نمی‌شود و اعداد هر بار تازه خوانده
+ * می‌شوند. ولی خودِ فایل‌های برنامه (HTML، آیکن، کتابخانه) با هر بار
+ * باز شدن اپ دوباره از اینترنت گرفته می‌شدند و روی خط کند، همین
+ * انتظار بود که حس «کندی» می‌داد. حالا این فایل‌ها فوراً از حافظه
+ * می‌آیند و نسخهٔ تازه در پس‌زمینه گرفته می‌شود؛ وقتی آماده شد،
+ * نوار «نسخه تازه داشبورد آماده است» را می‌بینید.
  */
 
-const CACHE = 'sayanik-v2';
+const CACHE = 'sayanik-v3';
 const SHELL = ['./', './index.html', './manifest.json'];
 
 /** کتابخانه‌های ثابت که از دامنه سوپابیس سرو می‌شوند: این‌ها داده نیستند،
- *  کد برنامه‌اند و آدرسشان نسخه‌دار است، پس ذخیره‌شان بی‌خطر است و باعث
- *  می‌شود بار دوم به بعد، ورود منتظر هیچ شبکه‌ای نماند. */
+ *  کد برنامه‌اند و آدرسشان نسخه‌دار است، پس ذخیره‌شان بی‌خطر است. */
 const isStaticLib = url =>
   url.hostname.endsWith('supabase.co') && url.pathname.startsWith('/functions/v1/lib/');
+
+/** پوستهٔ برنامه: صفحه، آیکن‌ها، manifest — نه داده. */
+const isShell = url =>
+  url.origin === location.origin &&
+  // خود sw.js هرگز از حافظه سرو نمی‌شود، وگرنه مرورگر دیگر نسخهٔ تازه را نمی‌بیند
+  !/\/sw\.js$/i.test(url.pathname) &&
+  (url.pathname.endsWith('/') ||
+   /\.(html|css|js|json|png|jpe?g|svg|webmanifest|woff2?)$/i.test(url.pathname));
 
 self.addEventListener('install', e => {
   /* عمداً skipWaiting اینجا صدا زده نمی‌شود.
@@ -41,7 +51,7 @@ self.addEventListener('fetch', e => {
 
   if (e.request.method !== 'GET') return;
 
-  // کتابخانهٔ ثابت: اول از حافظه، چون هرگز عوض نمی‌شود — ورود را سریع می‌کند
+  // کتابخانهٔ ثابت: اول از حافظه، چون هرگز عوض نمی‌شود
   if (isStaticLib(url)) {
     e.respondWith(
       caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
@@ -55,13 +65,32 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // بقیهٔ درخواست‌های Supabase هرگز ذخیره نمی‌شوند — داده مالی باید زنده باشد
+  // داده‌های Supabase هرگز ذخیره نمی‌شوند — عدد مالی باید زنده باشد
   if (url.hostname.endsWith('supabase.co')) return;
 
+  // پوستهٔ برنامه: فوراً از حافظه، و تازه‌سازی در پس‌زمینه
+  if (isShell(url)) {
+    const net = fetch(e.request).then(res => {
+      if (res && res.status === 200) {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+      }
+      return res;
+    }).catch(() => null);
+    e.waitUntil(net);
+    e.respondWith(
+      caches.match(e.request).then(hit =>
+        hit || net.then(r => r || (e.request.mode === 'navigate'
+          ? caches.match('./index.html')
+          : Response.error())))
+    );
+    return;
+  }
+
+  // هر چیز دیگر: اول شبکه
   e.respondWith(
     fetch(e.request)
       .then(res => {
-        // نسخه تازه را برای حالت آفلاین نگه دار
         if (res && res.status === 200 && url.origin === location.origin) {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
