@@ -12,8 +12,14 @@
  * نوار «نسخه تازه داشبورد آماده است» را می‌بینید.
  */
 
-const CACHE = 'sayanik-v3';
+/* نسخه کش با هر انتشار عوض می‌شود — وگرنه مرورگر اصلاً نمی‌فهمد
+   نسخه تازه‌ای هست و کاربر روی نسخه قدیمی گیر می‌کند. */
+const BUILD = '42';
+const CACHE = 'sayanik-' + BUILD;
 const SHELL = ['./', './index.html', './manifest.json'];
+
+/* چقدر به شبکه فرصت بدهیم قبل از اینکه نسخه ذخیره‌شده را نشان دهیم */
+const SHELL_TIMEOUT = 2500;
 
 /** کتابخانه‌های ثابت که از دامنه سوپابیس سرو می‌شوند: این‌ها داده نیستند،
  *  کد برنامه‌اند و آدرسشان نسخه‌دار است، پس ذخیره‌شان بی‌خطر است. */
@@ -68,22 +74,36 @@ self.addEventListener('fetch', e => {
   // داده‌های Supabase هرگز ذخیره نمی‌شوند — عدد مالی باید زنده باشد
   if (url.hostname.endsWith('supabase.co')) return;
 
-  // پوستهٔ برنامه: فوراً از حافظه، و تازه‌سازی در پس‌زمینه
+  /* پوستهٔ برنامه: اول شبکه، ولی فقط تا ۲٫۵ ثانیه.
+     قبلاً اول از حافظه می‌داد و نتیجه‌اش این شد که کاربر روی نسخه
+     قدیمی گیر می‌کرد. حالا اگر شبکه در این فرصت جواب دهد، همیشه
+     آخرین نسخه را می‌بینید؛ اگر کند بود، نسخه ذخیره‌شده فوراً
+     می‌آید و کند شدن حس نمی‌شود. */
   if (isShell(url)) {
-    const net = fetch(e.request).then(res => {
-      if (res && res.status === 200) {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+    e.respondWith((async () => {
+      const cached = await caches.match(e.request);
+      const net = fetch(e.request).then(res => {
+        if (res && res.status === 200) {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        }
+        return res;
+      }).catch(() => null);
+
+      if (!cached) {
+        const r = await net;
+        if (r) return r;
+        return e.request.mode === 'navigate'
+          ? (await caches.match('./index.html')) || Response.error()
+          : Response.error();
       }
-      return res;
-    }).catch(() => null);
-    e.waitUntil(net);
-    e.respondWith(
-      caches.match(e.request).then(hit =>
-        hit || net.then(r => r || (e.request.mode === 'navigate'
-          ? caches.match('./index.html')
-          : Response.error())))
-    );
+      const fresh = await Promise.race([
+        net,
+        new Promise(r => setTimeout(() => r(null), SHELL_TIMEOUT))
+      ]);
+      if (!fresh) e.waitUntil(net);      // دیر رسید؛ دست‌کم برای دفعه بعد ذخیره شود
+      return fresh || cached;
+    })());
     return;
   }
 

@@ -581,12 +581,22 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۴۱";
+var BUILD = "۴۲";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
-/* ---------- formatting ---------- */
-function fa(n){ return Number(n).toLocaleString("fa-IR"); }
+/* ---------- formatting ----------
+   toLocaleString("fa-IR") در هر فراخوانی یک Intl.NumberFormat تازه
+   می‌سازد و همین کار ۲۲ برابر گران‌تر از استفاده از یک نمونهٔ ساخته‌شده
+   است. فرمت‌کننده‌ها یک بار ساخته و بعد استفاده می‌شوند. */
+var NF0, NF1, DF;
+try{ NF0 = new Intl.NumberFormat("fa-IR");
+     NF1 = new Intl.NumberFormat("fa-IR",{maximumFractionDigits:1}); }catch(e){}
+function nf0(n){ return NF0 ? NF0.format(n) : Number(n).toLocaleString("fa-IR"); }
+function nf1(n){ return NF1 ? NF1.format(n)
+                 : Number(n).toLocaleString("fa-IR",{maximumFractionDigits:1}); }
+
+function fa(n){ return nf0(Number(n)); }
 
 /* واحد نمایش اعداد: ریال کامل یا میلیارد — روی همین دستگاه به خاطر می‌ماند */
 var MONEY = "rial";
@@ -595,12 +605,12 @@ function unitLabel(){ return MONEY==="rial" ? "ریال" : "میلیارد ری�
 
 /* عدد اصلی — از واحد انتخابی پیروی می‌کند */
 function bn(n){ if(n===null||n===undefined||n==="") return "—";
-  if(MONEY==="rial") return Math.round(Number(n)).toLocaleString("fa-IR");
-  return (Number(n)/1e9).toLocaleString("fa-IR",{maximumFractionDigits:1}); }
+  if(MONEY==="rial") return nf0(Math.round(Number(n)));
+  return nf1(Number(n)/1e9); }
 
 /* عدد فشرده — فقط برای برچسب نمودارها که جا تنگ است؛ همیشه میلیارد */
 function bnS(n){ if(n===null||n===undefined||n==="") return "—";
-  return (Number(n)/1e9).toLocaleString("fa-IR",{maximumFractionDigits:1}); }
+  return nf1(Number(n)/1e9); }
 function pct(n){ return n===null||n===undefined?"—":fa(Math.round(n))+"٪"; }
 function esc(s){ return String(s===null||s===undefined?"":s)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
@@ -853,6 +863,7 @@ async function boot(ses){
   var sp = startPage(); stamp();
   await go(sp);
   mark("render"); stamp();   /* حالا که رندر تمام شد، خط زمان‌سنجی را بنویس */
+  checkVersion();            /* و مطمئن شو نسخه‌ای که می‌بینید آخرین است */
 }
 
 /* صفحه‌ای که کاربر آخر بار باز کرده بود — تا با برگشت از تب دیگر به صفحه اصلی نپرد */
@@ -2201,6 +2212,37 @@ if ("serviceWorker" in navigator) {
     if(reloaded) return; reloaded=true;
     location.reload();
   });
+}
+
+/* ---------- ضامن اطمینان از رسیدن نسخه تازه ----------
+   version.txt همیشه مستقیم از شبکه و بدون حافظه خوانده می‌شود. اگر با
+   نسخه‌ای که الان در حال اجراست فرق داشت، یعنی مرورگر روی نسخه قدیمی
+   مانده. دکمه‌اش سرویس‌ورکر را باطل و همه حافظه‌ها را پاک می‌کند تا
+   هیچ راهی برای گیر کردن نماند. */
+function faToEn(s){ var fa="۰۱۲۳۴۵۶۷۸۹", o=""; s=String(s);
+  for(var i=0;i<s.length;i++){ var k=fa.indexOf(s[i]); o += k>-1 ? String(k) : s[i]; }
+  return o; }
+
+async function checkVersion(){
+  try{
+    var r = await fetch("./version.txt?t="+Date.now(), { cache:"no-store" });
+    if(!r.ok) return;
+    var live = (await r.text()).trim();
+    var mine = faToEn(BUILD).trim();
+    if(!live || live === mine) return;
+    strip("نسخه تازهٔ داشبورد ("+esc(live)+") منتشر شده — شما نسخه "+esc(mine)+" را می‌بینید.",
+      "گرفتن نسخه تازه", async function(){
+        try{
+          var regs = await navigator.serviceWorker.getRegistrations();
+          for(var i=0;i<regs.length;i++) await regs[i].unregister();
+        }catch(e){}
+        try{
+          var keys = await caches.keys();
+          for(var j=0;j<keys.length;j++) await caches.delete(keys[j]);
+        }catch(e){}
+        location.reload();
+      }, true);
+  }catch(e){}
 }
 
 window.addEventListener("offline", function(){
