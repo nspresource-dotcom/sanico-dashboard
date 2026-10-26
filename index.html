@@ -578,7 +578,7 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۳۹";
+var BUILD = "۴۰";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -1326,17 +1326,31 @@ async function spendCard(){
 async function sub(key){
   var ws=S.widgets.filter(function(w){
     return w.page_key===key && w.kind!=="kpi" && (!w.admin_only||S.role==="admin"); });
-  var parts=await Promise.all(ws.map(widget));
+  if(!ws.length) return '<div class="card"><p class="hint" style="margin:0">موردی برای نمایش نیست.</p></div>';
+
+  /* داده همهٔ ویجت‌های این صفحه در یک فراخوانی.
+     قبلاً هر ویجت درخواست جدای خودش را می‌زد — صفحهٔ تعهدات پنج‌تا — و
+     صفحه تا برگشتن همه خالی می‌ماند. */
+  var pre=null;
+  try{
+    var r=await db.rpc("dash_page",{ p_key:key });
+    if(!r.error && r.data) pre=r.data;
+  }catch(e){}
+
+  var parts=await Promise.all(ws.map(function(w){ return widget(w,pre); }));
   return parts.join("") || '<div class="card"><p class="hint" style="margin:0">موردی برای نمایش نیست.</p></div>';
 }
 
-async function widget(w){
+async function widget(w,pre){
   var c=w.cfg||{};
-  var q=db.from(w.source).select("*");
-  if(c.order){ var p=String(c.order).split(".");
-    q=q.order(p[0],{ascending:p[1]!=="desc",nullsFirst:false}); }
-  if(c.limit) q=q.limit(c.limit); else q=q.limit(w.kind==="table"?300:10);
-  var r=await q; var rows=r.data||[];
+  var rows = (pre && pre[w.id]) || null;
+  if(!rows){                       /* پشتیبان: اگر فراخوانی یک‌جا نرسید */
+    var q=db.from(w.source).select("*");
+    if(c.order){ var p=String(c.order).split(".");
+      q=q.order(p[0],{ascending:p[1]!=="desc",nullsFirst:false}); }
+    if(c.limit) q=q.limit(c.limit); else q=q.limit(w.kind==="table"?300:10);
+    var r=await q; rows=r.data||[];
+  }
   if(!rows.length) return "";
   return w.kind==="bars" ? bars(w,c,rows) : table(w,c,rows);
 }
