@@ -557,7 +557,10 @@ function perfLine(){
     if(m.lib)                       parts.push("کتابخانه "+s(m.lib));
     if(m.auth&&m.lib)               parts.push("ورود "+s(m.auth-m.lib));
     if(m.data&&m.auth)              parts.push("داده "+s(m.data-m.auth));
-    if(m.render&&m.data)            parts.push("رندر "+s(m.render-m.data));
+    if(PERF.pageFetch!==undefined)  parts.push("دادهٔ صفحه "+s(PERF.pageFetch)+
+                                      (PERF.pageFallback?" (پشتیبان!)":""));
+    if(PERF.paint!==undefined)      parts.push("نقاشی "+s(PERF.paint));
+    if(m.render&&m.data)            parts.push("کل رندر "+s(m.render-m.data));
     if(!m.render) return "";
     return "بارگذاری "+s(m.render)+"ث — "+parts.join(" · ");
   }catch(e){ return ""; }
@@ -578,7 +581,7 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۴۰";
+var BUILD = "۴۱";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -912,7 +915,16 @@ async function go(key){
     var pb=$("navs").querySelector('[data-toggle="'+parent+'"]');
     if(pb){ pb.classList.add("open","on"); }
   }
-  $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
+  /* شمارنده: اگر صفحه معطل ماند، کاربر ببیند که منتظر است نه اینکه
+     یخ زده — و ثانیه‌اش برای عیب‌یابی هم به کار می‌آید. */
+  $("body").innerHTML='<div class="spin" id="spinw">در حال خواندن…</div>';
+  var spinT0=Date.now();
+  if(window.__spin) clearInterval(window.__spin);
+  window.__spin=setInterval(function(){
+    var el=$("spinw"); if(!el){ clearInterval(window.__spin); return; }
+    var s=Math.round((Date.now()-spinT0)/1000);
+    if(s>=3) el.textContent="در حال خواندن… "+fa(s)+" ثانیه";
+  },1000);
   window.scrollTo(0,0);
 
   var h;
@@ -925,6 +937,8 @@ async function go(key){
   else if(key==="income")     h = await incomePage();
   else if(key==="balance")    h = await balancePage();
   else                        h = await sub(key);
+  if(window.__spin){ clearInterval(window.__spin); window.__spin=null; }
+  var tPaint=performance.now();
   $("body").innerHTML=h;
   bindGo($("body"));
   bindDrill($("body"));
@@ -937,6 +951,7 @@ async function go(key){
       el.style.display = (!v || el.getAttribute("data-k").indexOf(v)>-1) ? "" : "none";
     });
   });
+  PERF.paint = Math.round(performance.now()-tPaint);
 }
 
 /* one listener on the container: survives every re-render */
@@ -1331,11 +1346,15 @@ async function sub(key){
   /* داده همهٔ ویجت‌های این صفحه در یک فراخوانی.
      قبلاً هر ویجت درخواست جدای خودش را می‌زد — صفحهٔ تعهدات پنج‌تا — و
      صفحه تا برگشتن همه خالی می‌ماند. */
-  var pre=null;
+  var pre=null, t0=performance.now();
   try{
     var r=await db.rpc("dash_page",{ p_key:key });
     if(!r.error && r.data) pre=r.data;
   }catch(e){}
+  PERF.pageFetch   = Math.round(performance.now()-t0);
+  /* اگر این true شد یعنی فراخوانی یک‌جا نرسیده و هر ویجت دارد جدا
+     می‌خواند — همان مسیر کندی که می‌خواستیم از آن خلاص شویم. */
+  PERF.pageFallback = !pre;
 
   var parts=await Promise.all(ws.map(function(w){ return widget(w,pre); }));
   return parts.join("") || '<div class="card"><p class="hint" style="margin:0">موردی برای نمایش نیست.</p></div>';
