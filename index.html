@@ -557,8 +557,8 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۳۶";
-var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{},
+var BUILD = "۳۷";
+var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
 /* ---------- formatting ---------- */
@@ -753,25 +753,26 @@ async function start(force){
 }
 
 async function boot(ses){
-  var q=await Promise.all([
-    db.from("profiles").select("full_name,email,role,sees_internals").eq("id",ses.user.id).single(),
-    db.from("dash_pages").select("*").eq("is_active",true).order("sort_order"),
-    db.from("dash_widgets").select("*").eq("is_active",true).order("sort_order"),
-    db.from("v_kpi_core").select("*").single(),
-    db.from("v_kpi_cash").select("cash_total").single(),
-    db.from("v_data_health").select("*").maybeSingle(),
-    db.from("v_data_freshness").select("*").maybeSingle(),
-    db.from("v_health_score").select("*").single(),
-    db.from("v_insights").select("*").order("ord"),
-    db.from("v_period_totals").select("*").order("sort_order")
-  ]);
-  var p=q[0].data||{};
-  S.role=p.role||"viewer"; S.pages=q[1].data||[]; S.widgets=q[2].data||[];
-  S.core=q[3].data||{}; S.cash=q[4].data?Number(q[4].data.cash_total):null;
-  S.dataHealth=q[5].data||{}; S.fresh=q[6].data||{};
-  S.health=q[7].data||{}; S.insights=q[8].data||[];
-  S.periods=q[9].data||[];
+  /* یک فراخوانی به‌جای سیزده‌تا.
+     اندازه‌گیری روی لاگ سرور نشان داد کار سرور ۴۰ تا ۳۰۰ میلی‌ثانیه است،
+     ولی هر آدرس جداگانه یک preflight و یک درخواست می‌خواست — روی خط
+     پرتأخیر همین رفت‌وبرگشت‌ها بیشترِ زمان ورود بودند، نه خود کوئری‌ها. */
+  var rp = await db.rpc("dash_bootstrap");
+  var d  = rp.data;
+  if(rp.error || !d) throw new Error(
+    "خواندن اطلاعات اولیه ناموفق بود" + (rp.error ? " — " + rp.error.message : ""));
+
+  var p=d.profile||{};
+  S.role=p.role||"viewer"; S.pages=d.pages||[]; S.widgets=d.widgets||[];
+  S.core=d.kpi_core||{}; S.cash=d.kpi_cash?Number(d.kpi_cash.cash_total):null;
+  S.dataHealth=d.data_health||{}; S.fresh=d.freshness||{};
+  S.health=d.health||{}; S.insights=d.insights||[];
+  S.periods=d.periods||[];
   S.internals = !!p.sees_internals;
+  /* کارت‌های صفحه اصلی هم در همین پاسخ آمده‌اند؛ دیگر سه درخواست
+     پشت‌سرهم دیگر لازم نیست. اگر چیزی نیامده بود، هر کارت مثل قبل
+     خودش می‌خواند. */
+  S.pre = { partners:d.partners||null, outlook:d.outlook||null, spend:d.spend||null };
 
   var nm=p.full_name||ses.user.email;
   S.me=ses.user.id; S.meName=nm;
@@ -1063,8 +1064,10 @@ async function home(){
 }
 
 async function partnerCards(){
-  var r=await db.from("v_partner_contributions").select("*").order("share_pct",{ascending:false});
-  var rows=r.data||[]; if(!rows.length) return "";
+  var rows=(S.pre&&S.pre.partners)||null;
+  if(!rows){ var r=await db.from("v_partner_contributions").select("*").order("share_pct",{ascending:false});
+             rows=r.data||[]; }
+  if(!rows.length) return "";
   var h='<h2 style="font-size:.95rem;margin:4px 0 10px;font-weight:700">آورده شرکا</h2>'+
         '<div class="grid g2" style="margin-bottom:14px">';
   rows.forEach(function(x){
@@ -1238,8 +1241,10 @@ function insightCard(){
 }
 
 async function outlookCard(){
-  var r=await db.from("v_monthly_outlook").select("*").order("month_code").limit(6);
-  var rows=r.data||[]; if(!rows.length) return "";
+  var rows=(S.pre&&S.pre.outlook)||null;
+  if(!rows){ var r=await db.from("v_monthly_outlook").select("*").order("month_code").limit(6);
+             rows=r.data||[]; }
+  if(!rows.length) return "";
   var bal=(S.cash||0), pts=[], labs=[];
   rows.forEach(function(x){ bal+=Number(x.inflow_certain)-Number(x.firm_due);
     pts.push(bal/1e9); labs.push(String(x.month_name).replace(" 1405","")); });
@@ -1272,8 +1277,10 @@ async function outlookCard(){
 }
 
 async function spendCard(){
-  var r=await db.from("v_spend_by_category").select("*").order("total_rial",{ascending:false}).limit(8);
-  var rows=r.data||[]; if(!rows.length) return "";
+  var rows=(S.pre&&S.pre.spend)||null;
+  if(!rows){ var r=await db.from("v_spend_by_category").select("*").order("total_rial",{ascending:false}).limit(8);
+             rows=r.data||[]; }
+  if(!rows.length) return "";
   var max=Number(rows[0].total_rial)||1;
   var h='<div class="card"><div class="chead"><div><h3>مخارج به تفکیک دسته</h3>'+
     '<p class="hint">'+unitLabel()+' — بدون قرض بین‌شرکتی و کالای بازرگانی</p></div>'+
