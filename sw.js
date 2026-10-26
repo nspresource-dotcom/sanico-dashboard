@@ -19,7 +19,12 @@ const isStaticLib = url =>
   url.hostname.endsWith('supabase.co') && url.pathname.startsWith('/functions/v1/lib/');
 
 self.addEventListener('install', e => {
-  self.skipWaiting();                       // نسخه جدید بلافاصله جایگزین شود
+  /* عمداً skipWaiting اینجا صدا زده نمی‌شود.
+     اگر نسخه جدید بی‌اجازه کنترل را بگیرد، صفحه رویداد controllerchange
+     می‌گیرد و خودش را رفرش می‌کند؛ و اگر سرور لحظه‌ای نسخه قدیم و جدید را
+     قاطی سرو کند (که هنگام انتشار روی گیت‌هاب پیجز پیش می‌آید) همین چرخه
+     تکرار می‌شود و داشبورد روی «در حال بارگذاری…» گیر می‌کند.
+     نسخه جدید منتظر می‌ماند تا کاربر دکمه «به‌روزرسانی» را بزند. */
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {}));
 });
 

@@ -736,6 +736,19 @@ async function start(force){
     await boot(s.data.session);
     S.ready=true;
     startPresence();
+  } catch(err){
+    /* تا امروز اگر اینجا خطایی می‌افتاد، صفحه بی‌صدا روی پیام «در حال
+       بارگذاری…» می‌ماند و معلوم نبود چه شده. حالا خطا دیده می‌شود. */
+    S.ready=false;
+    var box=$("body");
+    if(box) box.innerHTML =
+      '<div class="card" style="max-width:520px;margin:40px auto;text-align:center">'+
+      '<div style="font-size:15px;margin-bottom:8px">داشبورد بالا نیامد</div>'+
+      '<div class="muted" style="font-size:13px;margin-bottom:14px">'+
+        esc(String((err&&err.message)||err||"خطای نامشخص"))+'</div>'+
+      '<button class="btn" id="retryBoot">تلاش دوباره</button></div>';
+    var rb=$("retryBoot");
+    if(rb) rb.addEventListener("click",function(){ start(true); });
   } finally { S.booting=false; }
 }
 
@@ -2089,6 +2102,8 @@ function strip(msg, btnText, onClick, warn){
   document.body.appendChild(d);
 }
 
+var swUpdating = false;
+var hadController = ("serviceWorker" in navigator) && !!navigator.serviceWorker.controller;
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", function(){
     navigator.serviceWorker.register("./sw.js").then(function(reg){
@@ -2099,7 +2114,9 @@ if ("serviceWorker" in navigator) {
         nw.addEventListener("statechange", function(){
           if(nw.state === "installed" && navigator.serviceWorker.controller){
             strip("نسخه تازه داشبورد آماده است.", "به‌روزرسانی", function(){
-              nw.postMessage("skipWaiting"); location.reload();
+              /* رفرش را به controllerchange می‌سپاریم تا دقیقاً یک بار
+                 و بعد از تحویل گرفتن کنترل انجام شود */
+              swUpdating = true; nw.postMessage("skipWaiting");
             });
           }
         });
@@ -2108,10 +2125,15 @@ if ("serviceWorker" in navigator) {
       reg.update();
     }).catch(function(){});
   });
-  // وقتی worker عوض شد، یک بار رفرش کن
+  /* رفرش خودکار فقط وقتی که خودمان آن را خواسته باشیم.
+     قبلاً هر تغییر کنترل باعث رفرش می‌شد و همین می‌توانست به حلقهٔ
+     بی‌پایان رفرش ختم شود — داشبورد روی «در حال بارگذاری…» می‌ماند. */
   var reloaded=false;
   navigator.serviceWorker.addEventListener("controllerchange", function(){
-    if(reloaded) return; reloaded=true; location.reload();
+    if(!hadController) return;   // اولین نصب روی این دستگاه؛ رفرش لازم نیست
+    if(!swUpdating) return;      // کاربر «به‌روزرسانی» نزده؛ دست به صفحه نمی‌زنیم
+    if(reloaded) return; reloaded=true;
+    location.reload();
   });
 }
 
