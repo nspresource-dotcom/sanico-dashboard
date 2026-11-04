@@ -1,0 +1,18 @@
+{
+  "name": "کارنما — سامانهٔ مدیریت کار و عملکرد",
+  "short_name": "کارنما",
+  "description": "تخته کارها، ساعت کاری، چرخهٔ بررسی و بهره‌وری واحدها",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "./?src=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F7F7",
+  "theme_color": "#387F81",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
