@@ -58,6 +58,15 @@ export const CATALOG = [
     ],
   },
   {
+    group: 'chat',
+    title: 'گفت‌وگو',
+    icon: '✉',
+    items: [
+      { key: 'chat.use', label: 'گفت‌وگوی درون‌سازمانی', hint: 'پیام دونفره و گروه واحد خودش' },
+      { key: 'chat.group', label: 'ساخت گروه گفت‌وگو', hint: 'گروه دلخواه با افراد انتخابی' },
+    ],
+  },
+  {
     group: 'review',
     title: 'بررسی و امتیازدهی',
     icon: '✍',
@@ -83,7 +92,7 @@ export const PRESETS = {
   member: {
     label: 'کارمند',
     hint: 'کار خودش و کارهای واحدش را می‌بیند، ساعت ثبت می‌کند، امتیاز خودش را می‌بیند',
-    keys: ['tasks.view', 'tasks.move_own', 'time.log', 'scores.view_own'],
+    keys: ['tasks.view', 'tasks.move_own', 'time.log', 'scores.view_own', 'chat.use'],
   },
   lead: {
     label: 'مدیر واحد',
@@ -91,6 +100,7 @@ export const PRESETS = {
     keys: ['tasks.view', 'tasks.move_own', 'tasks.view_all', 'tasks.create', 'tasks.edit',
       'labels.manage', 'recurrence.manage', 'units.assign',
       'review.do', 'time.log', 'time.view_all', 'time.approve',
+      'chat.use', 'chat.group',
       'scores.view_own', 'scores.view_unit'],
   },
   manager: {
@@ -101,6 +111,7 @@ export const PRESETS = {
       'units.manage', 'units.assign', 'review.do',
       'time.log', 'time.view_all', 'time.log_others', 'time.approve',
       'users.view', 'users.manage',
+      'chat.use', 'chat.group',
       'scores.view_own', 'scores.view_unit', 'scores.view_all', 'scores.unit', 'reports.unit'],
   },
   full: {

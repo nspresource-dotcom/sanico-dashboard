@@ -2,7 +2,8 @@
 import { isoToJalali, todayIso, jalaliMonthRange, MONTH_NAMES } from './jalali.js';
 import { effectivePermissions, can as canDo, ALL_KEYS, PRESETS, JUSTIFY_ABOVE } from './permissions.js';
 
-const KEY = 'karnama-demo-v3';
+// نسخهٔ کلید که بالا می‌رود، دادهٔ قبلی مرورگر دور ریخته می‌شود و همه از صفر شروع می‌کنند
+const KEY = 'karnama-demo-v4';
 const uid = () => Math.random().toString(36).slice(2, 11);
 const now = () => new Date().toISOString();
 const today = todayIso();
@@ -20,7 +21,7 @@ function seed() {
     mk('ali', 'علی محمدی', 'member', 'سرپرست تولید', 'تولید', PRESETS.lead.keys, 192),
     mk('sara', 'سارا رضایی', 'member', 'کارشناس آزمایشگاه', 'کنترل کیفیت', PRESETS.member.keys),
     mk('nazanin', 'نازنین کریمی', 'member', 'کارشناس اداری', 'منابع انسانی',
-      ['tasks.view', 'tasks.move_own', 'time.log', 'time.view_all', 'scores.view_own']),
+      ['tasks.view', 'tasks.move_own', 'time.log', 'time.view_all', 'scores.view_own', 'chat.use']),
     mk('hamed', 'حامد اکبری', 'member', 'کارشناس فنی', 'فنی و مهندسی', PRESETS.member.keys),
   ];
   const by = (u) => users.find((x) => x.username === u).id;
@@ -184,9 +185,58 @@ function seed() {
     ready.completed_at = now();
   }
 
+  // ───── گفت‌وگوی نمونه ─────
+  // ساعت‌ها به وقت تهران نوشته شده‌اند، پس ۲۱۰ دقیقه (۳:۳۰) از زمان UTC کم می‌شود
+  const at = (daysAgo, h, m) => new Date(
+    new Date(`${shift(-daysAgo)}T00:00:00Z`).getTime() + ((h * 60 + m) - 210) * 60000,
+  ).toISOString();
+
+  const conversations = [];
+  const conversation_members = [];
+  const messages = [];
+  const conv = (kind, title, memberNames, unitId = null) => {
+    const id = `cv${conversations.length + 1}`;
+    const key = kind === 'direct'
+      ? `d:${memberNames.map(by).sort().join(':')}`
+      : (kind === 'unit' ? `u:${unitId}` : null);
+    conversations.push({ id, company_id: 'c1', kind, title, unit_id: unitId, dedupe_key: key,
+      created_by: by(memberNames[0]), last_message_at: null, last_preview: null,
+      last_sender_id: null, archived_at: null, created_at: now() });
+    memberNames.forEach((nm, i) => conversation_members.push({
+      id: uid(), company_id: 'c1', conversation_id: id, user_id: by(nm),
+      member_role: i === 0 && kind === 'group' ? 'owner' : 'member',
+      last_read_at: null, muted: 0, left_at: null, joined_at: now(),
+    }));
+    return id;
+  };
+  const say = (convId, who, body, when, taskId = null) => {
+    const m = { id: uid(), company_id: 'c1', conversation_id: convId, sender_id: by(who),
+      body, task_id: taskId, reply_to: null, edited_at: null, deleted_at: null, created_at: when };
+    messages.push(m);
+    const c = conversations.find((x) => x.id === convId);
+    c.last_message_at = when; c.last_preview = body.slice(0, 90); c.last_sender_id = m.sender_id;
+    return m.id;
+  };
+
+  const dm = conv('direct', null, ['modir', 'ali']);
+  say(dm, 'modir', 'علی جان، گزارش توقفات خط را امروز می‌رسانی؟', at(1, 9, 12));
+  say(dm, 'ali', 'بله، داده‌ها را از PLC گرفتم. تا بعد از ناهار تحلیلش را می‌فرستم.', at(1, 9, 31));
+  say(dm, 'modir', 'ممنون. اگر توقف تکرارشونده دیدی، جدا علامت بزن.', at(1, 10, 5));
+
+  const grp = conv('group', 'هماهنگی تولید', ['ali', 'sara', 'hamed', 'modir']);
+  say(grp, 'ali', 'سلام. محموله باریت امروز می‌رسد؛ نمونه‌برداری را از سه نقطه انجام دهید.', at(0, 8, 2));
+  say(grp, 'sara', 'نمونه‌ها را برداشتم. آزمون چگالی تا ساعت ۱۱ آماده می‌شود.', at(0, 8, 40));
+  say(grp, 'hamed', 'پمپ شمارهٔ ۳ تعمیر شد و روی خط برگشت. @ali خروجی را چک کن.', at(0, 9, 15));
+  say(grp, 'ali', 'دیدم، فشار نرمال است. دست همه درد نکند.', at(0, 9, 48));
+
+  // سارا یک پیام را خوانده، بقیه نخوانده‌اند — تا نشان نخوانده در نسخهٔ نمایشی دیده شود
+  const sm = conversation_members.find((m) => m.conversation_id === grp && m.user_id === by('sara'));
+  if (sm) sm.last_read_at = at(0, 8, 45);
+
   return { company, units, users, boards, columns, labels, task_labels, tasks, checklist_items,
     task_links: [], time_logs, performance_scores, recurrences, notifications,
     task_reviews: [], unit_scores: [],
+    conversations, conversation_members, messages,
     comments: [], events: [], board_members: [], session: null };
 }
 
@@ -246,6 +296,100 @@ function notify(userId, kind, title, body, taskId, actorId) {
   if (!userId || userId === actorId) return;
   db.notifications.unshift({ id: uid(), company_id: 'c1', user_id: userId, kind, title,
     body: body || null, task_id: taskId || null, actor_id: actorId || null, read_at: null, created_at: now() });
+}
+
+// ───────────────────────── کمکی‌های گفت‌وگو ─────────────────────────
+
+// دادهٔ ذخیره‌شدهٔ قدیمی ممکن است این آرایه‌ها را نداشته باشد
+for (const k of ['conversations', 'conversation_members', 'messages']) {
+  if (!Array.isArray(db[k])) db[k] = [];
+}
+
+const memberOf = (convId, userId) => db.conversation_members
+  .find((m) => m.conversation_id === convId && m.user_id === userId) || null;
+
+function joinChat(convId, userId, role = 'member') {
+  const have = memberOf(convId, userId);
+  if (have) { have.left_at = null; return; }
+  db.conversation_members.push({ id: uid(), company_id: 'c1', conversation_id: convId,
+    user_id: userId, member_role: role, last_read_at: null, muted: 0, left_at: null, joined_at: now() });
+}
+
+function unreadCount(convId, userId, lastReadAt) {
+  return db.messages.filter((m) => m.conversation_id === convId
+    && m.sender_id !== userId && !m.deleted_at
+    && (!lastReadAt || m.created_at > lastReadAt)).length;
+}
+
+function ensureUnitChat(unitId) {
+  const unit = db.units.find((x) => x.id === unitId && !x.archived_at);
+  if (!unit) return null;
+  const key = `u:${unitId}`;
+  let c = db.conversations.find((x) => x.dedupe_key === key);
+  if (!c) {
+    c = { id: uid(), company_id: 'c1', kind: 'unit', title: unit.name, unit_id: unitId,
+      dedupe_key: key, created_by: null, last_message_at: null, last_preview: null,
+      last_sender_id: null, archived_at: null, created_at: now() };
+    db.conversations.push(c);
+  } else if (c.title !== unit.name) c.title = unit.name;
+  const ids = new Set(db.users.filter((x) => x.is_active && x.unit_id === unitId).map((x) => x.id));
+  if (unit.manager_id) ids.add(unit.manager_id);
+  for (const id of ids) joinChat(c.id, id, id === unit.manager_id ? 'owner' : 'member');
+  return c;
+}
+
+function syncUnitChats(u) {
+  if (u.unit_id) ensureUnitChat(u.unit_id);
+  for (const un of db.units.filter((x) => x.manager_id === u.id && !x.archived_at)) ensureUnitChat(un.id);
+}
+
+const faNum = (x) => String(x).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
+
+function chatCard(c, mine, u) {
+  const members = db.conversation_members
+    .filter((m) => m.conversation_id === c.id && !m.left_at)
+    .map((m) => db.users.find((x) => x.id === m.user_id))
+    .filter(Boolean);
+  const others = members.filter((m) => m.id !== u.id);
+  let title = c.title || 'گفت‌وگو';
+  if (c.kind === 'direct') title = others[0]?.full_name || 'گفت‌وگوی خالی';
+  else if (c.kind === 'unit') title = `واحد ${c.title}`;
+  return {
+    id: c.id,
+    kind: c.kind,
+    title,
+    subtitle: c.kind === 'direct' ? (others[0]?.job_title || '') : `${faNum(members.length)} عضو`,
+    unit_id: c.unit_id || null,
+    peer_id: c.kind === 'direct' ? (others[0]?.id || null) : null,
+    members: members.map((m) => ({ id: m.id, full_name: m.full_name, job_title: m.job_title })),
+    member_count: members.length,
+    last_message_at: c.last_message_at || null,
+    last_preview: c.last_preview || null,
+    last_sender_id: c.last_sender_id || null,
+    last_sender_name: userName(c.last_sender_id),
+    muted: !!(mine && mine.muted),
+    my_role: mine ? mine.member_role : 'member',
+    unread: unreadCount(c.id, u.id, mine ? mine.last_read_at : null),
+  };
+}
+
+function chatMsg(r) {
+  const t = r.task_id ? db.tasks.find((x) => x.id === r.task_id) : null;
+  const s = db.users.find((x) => x.id === r.sender_id);
+  return {
+    id: r.id,
+    sender_id: r.sender_id,
+    sender_name: s?.full_name || '—',
+    sender_title: s?.job_title || '',
+    body: r.deleted_at ? '' : r.body,
+    deleted: !!r.deleted_at,
+    edited: !!r.edited_at,
+    task_id: r.task_id || null,
+    task_title: t?.title || null,
+    task_code: t?.code || null,
+    reply_to: r.reply_to || null,
+    created_at: r.created_at,
+  };
 }
 
 // ───────────────────────────── ساختار سازمانی ─────────────────────────────
@@ -641,8 +785,13 @@ export const API = {
     },
     async remove(id) {
       const u = auth(); need(u, 'tasks.delete');
+      // کار امتیازگرفته حذف نمی‌شود — امتیازش در کارنامهٔ ماهانهٔ یک نفر نشسته است
+      if (db.task_reviews.some((r) => r.task_id === id)) {
+        fail('این کار بررسی و امتیازدهی شده و حذف نمی‌شود — آن را بایگانی کنید تا سابقهٔ امتیاز دست‌نخورده بماند');
+      }
       // ساعات کاری و زیرکارها پاک نمی‌شوند؛ فقط ارجاعشان باز می‌شود (مثل سرور واقعی)
       db.time_logs.forEach((l) => { if (l.task_id === id) l.task_id = null; });
+      db.messages.forEach((m) => { if (m.task_id === id) m.task_id = null; });
       db.tasks.forEach((t) => { if (t.parent_id === id) t.parent_id = null; });
       db.checklist_items = db.checklist_items.filter((c) => c.task_id !== id);
       db.task_labels = db.task_labels.filter((tl) => tl.task_id !== id);
@@ -711,6 +860,175 @@ export const API = {
         if (nt.user_id === u.id && (!ids || !ids.length || ids.includes(nt.id))) nt.read_at = nt.read_at || now();
       });
       save(); return wait({ ok: true });
+    },
+  },
+
+  // ───────────────────────── گفت‌وگو ─────────────────────────
+  // همان قاعده‌های سرور: نخوانده‌ها از last_read_at می‌آید نه از جدول اعلان‌ها،
+  // و گروه واحد خودکار با ساختار سازمانی هم‌تراز می‌شود.
+  chat: {
+    async list() {
+      const u = auth(); need(u, 'chat.use');
+      syncUnitChats(u);
+      const rows = db.conversation_members
+        .filter((m) => m.user_id === u.id && !m.left_at)
+        .map((m) => ({ m, c: db.conversations.find((x) => x.id === m.conversation_id) }))
+        .filter(({ c }) => c && !c.archived_at)
+        .sort((a, b) => ((a.c.last_message_at || a.c.created_at) < (b.c.last_message_at || b.c.created_at) ? 1 : -1));
+      const conversations = rows.map(({ m, c }) => chatCard(c, m, u));
+      save();
+      return wait({ conversations, unread: conversations.reduce((a, c) => a + c.unread, 0) });
+    },
+    async unread() {
+      const u = auth();
+      if (!allow(u, 'chat.use')) return wait({ total: 0, items: [], latest_at: null });
+      const items = [];
+      let total = 0; let latest = null;
+      for (const m of db.conversation_members.filter((x) => x.user_id === u.id && !x.left_at)) {
+        const c = db.conversations.find((x) => x.id === m.conversation_id);
+        if (!c || c.archived_at) continue;
+        if (c.last_message_at && (!latest || c.last_message_at > latest)) latest = c.last_message_at;
+        const k = unreadCount(c.id, u.id, m.last_read_at);
+        if (k) { items.push({ id: c.id, unread: k }); total += k; }
+      }
+      return wait({ total, items, latest_at: latest });
+    },
+    async directory() {
+      const u = auth(); need(u, 'chat.use');
+      return wait({
+        people: db.users.filter((x) => x.is_active && x.id !== u.id)
+          .map((x) => ({ id: x.id, full_name: x.full_name, job_title: x.job_title,
+            unit_name: x.unit_id ? db.units.find((n) => n.id === x.unit_id)?.name || null : null }))
+          .sort((a, b) => a.full_name.localeCompare(b.full_name, 'fa')),
+        can_group: allow(u, 'chat.group'),
+      });
+    },
+    async direct(userId) {
+      const u = auth(); need(u, 'chat.use');
+      const peer = db.users.find((x) => x.id === userId && x.is_active);
+      if (!peer || peer.id === u.id) fail('مخاطب را انتخاب کنید');
+      const key = `d:${[u.id, peer.id].sort().join(':')}`;
+      let c = db.conversations.find((x) => x.dedupe_key === key);
+      if (!c) {
+        c = { id: uid(), company_id: 'c1', kind: 'direct', title: null, unit_id: null,
+          dedupe_key: key, created_by: u.id, last_message_at: null, last_preview: null,
+          last_sender_id: null, archived_at: null, created_at: now() };
+        db.conversations.push(c);
+      }
+      joinChat(c.id, u.id); joinChat(c.id, peer.id);
+      save();
+      const m = memberOf(c.id, u.id);
+      return wait({ conversation: chatCard(c, m, u) });
+    },
+    async group(title, userIds) {
+      const u = auth(); need(u, 'chat.group');
+      if (String(title || '').trim().length < 2) fail('نام گروه را بنویسید');
+      const c = { id: uid(), company_id: 'c1', kind: 'group', title: String(title).trim(),
+        unit_id: null, dedupe_key: null, created_by: u.id, last_message_at: null,
+        last_preview: null, last_sender_id: null, archived_at: null, created_at: now() };
+      db.conversations.push(c);
+      joinChat(c.id, u.id, 'owner');
+      for (const id of userIds || []) {
+        if (id !== u.id && db.users.some((x) => x.id === id && x.is_active)) joinChat(c.id, id);
+      }
+      save();
+      return wait({ conversation: chatCard(c, memberOf(c.id, u.id), u) });
+    },
+    async messages(id, query = {}) {
+      const u = auth(); need(u, 'chat.use');
+      const m = memberOf(id, u.id);
+      if (!m || m.left_at) fail('گفت‌وگو یافت نشد', 404);
+      const limit = Math.min(200, Number(query.limit) || 60);
+      let rows = db.messages.filter((x) => x.conversation_id === id)
+        .sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+      if (query.after) rows = rows.filter((x) => x.created_at > query.after).slice(0, limit);
+      else rows = rows.slice(-limit);
+      m.last_read_at = now();
+      save();
+      return wait({ conversation_id: id, messages: rows.map(chatMsg), has_more: false });
+    },
+    async send(id, d) {
+      const u = auth(); need(u, 'chat.use');
+      const m = memberOf(id, u.id);
+      if (!m || m.left_at) fail('گفت‌وگو یافت نشد', 404);
+      const body = String(d.body || '').trim();
+      if (!body) fail('متن پیام خالی است');
+      const c = db.conversations.find((x) => x.id === id);
+      const at = now();
+      const msg = { id: uid(), company_id: 'c1', conversation_id: id, sender_id: u.id, body,
+        task_id: d.task_id || null, reply_to: d.reply_to || null,
+        edited_at: null, deleted_at: null, created_at: at };
+      db.messages.push(msg);
+      c.last_message_at = at; c.last_preview = body.slice(0, 90); c.last_sender_id = u.id;
+      m.last_read_at = at;
+      // صدا زدن با @ اعلان می‌سازد؛ پیام عادی فقط شمارندهٔ نخوانده را بالا می‌برد
+      for (const raw of body.match(/@([a-zA-Z0-9._-]{3,32})/g) || []) {
+        const who = db.users.find((x) => x.username === raw.slice(1).toLowerCase() && x.is_active);
+        if (who && db.conversation_members.some((x) => x.conversation_id === id && x.user_id === who.id && !x.left_at)) {
+          notify(who.id, 'chat_mention', `${u.full_name} در گفت‌وگو شما را صدا زد`,
+            body.slice(0, 160), null, u.id);
+        }
+      }
+      save();
+      return wait({ message: chatMsg(msg) });
+    },
+    async update(id, d) {
+      const u = auth(); need(u, 'chat.use');
+      const m = memberOf(id, u.id);
+      const c = db.conversations.find((x) => x.id === id);
+      if (!m || !c) fail('گفت‌وگو یافت نشد', 404);
+      if (c.kind !== 'group') fail('فقط گروه دلخواه را می‌توان ویرایش کرد');
+      if (m.member_role !== 'owner' && !allow(u, 'users.manage')) fail('تنها سازندهٔ گروه می‌تواند آن را تغییر دهد', 403);
+      if (d.title !== undefined) c.title = String(d.title).trim();
+      for (const uid2 of d.add || []) if (db.users.some((x) => x.id === uid2)) joinChat(id, uid2);
+      for (const uid2 of d.remove || []) {
+        if (uid2 === u.id) continue;
+        const mm = memberOf(id, uid2);
+        if (mm) mm.left_at = now();
+      }
+      save();
+      return wait({ conversation: chatCard(c, m, u) });
+    },
+    async mute(id, muted) {
+      const u = auth(); need(u, 'chat.use');
+      const m = memberOf(id, u.id);
+      if (!m) fail('گفت‌وگو یافت نشد', 404);
+      m.muted = muted ? 1 : 0;
+      save();
+      return wait({ ok: true, muted: !!muted });
+    },
+    async leave(id) {
+      const u = auth(); need(u, 'chat.use');
+      const m = memberOf(id, u.id);
+      const c = db.conversations.find((x) => x.id === id);
+      if (!m || !c) fail('گفت‌وگو یافت نشد', 404);
+      if (c.kind === 'unit') fail('عضویت گروه واحد از ساختار سازمانی می‌آید و دستی تغییر نمی‌کند');
+      m.left_at = now();
+      save();
+      return wait({ ok: true });
+    },
+    async editMessage(mid, body) {
+      const u = auth(); need(u, 'chat.use');
+      const msg = db.messages.find((x) => x.id === mid);
+      if (!msg) fail('پیام یافت نشد', 404);
+      if (msg.sender_id !== u.id) fail('فقط پیام خودتان را می‌توانید ویرایش کنید', 403);
+      if (msg.deleted_at) fail('این پیام حذف شده است');
+      msg.body = String(body).trim(); msg.edited_at = now();
+      const c = db.conversations.find((x) => x.id === msg.conversation_id);
+      if (c && c.last_message_at === msg.created_at) c.last_preview = msg.body.slice(0, 90);
+      save();
+      return wait({ ok: true });
+    },
+    async removeMessage(mid) {
+      const u = auth(); need(u, 'chat.use');
+      const msg = db.messages.find((x) => x.id === mid);
+      if (!msg) fail('پیام یافت نشد', 404);
+      if (msg.sender_id !== u.id) fail('فقط پیام خودتان را می‌توانید حذف کنید', 403);
+      msg.deleted_at = now();
+      const c = db.conversations.find((x) => x.id === msg.conversation_id);
+      if (c && c.last_message_at === msg.created_at) c.last_preview = 'پیام حذف شد';
+      save();
+      return wait({ ok: true });
     },
   },
 

@@ -44,6 +44,25 @@ const state = {
   workload: null,
   notifications: [],
   unread: 0,
+  chat: {
+    open: false,
+    pane: 'list',          // list | thread | new | newgroup
+    list: [],
+    activeId: null,
+    messages: [],
+    lastAt: null,
+    unread: 0,
+    directory: [],
+    picked: [],
+    groupTitle: '',
+    search: '',
+    draft: '',
+    replyTo: null,
+    editing: null,
+    loading: false,
+    focusComposer: false,
+    timer: null,
+  },
   recurrences: [],
   logs: [],
   scores: [],
@@ -116,6 +135,8 @@ const NAV = [
   { id: 'dashboard', label: 'داشبورد', icon: '▣' },
   { id: 'board', label: 'تخته کارها', icon: '▤', need: 'tasks.view' },
   { id: 'review', label: 'کارتابل بررسی', icon: '✍', need: 'review.do' },
+  // گفت‌وگو صفحه نمی‌شود؛ کشو را باز می‌کند تا کاری که دستتان است از دست نرود
+  { id: 'chat', label: 'گفت‌وگو', icon: '✉', need: 'chat.use', drawer: true },
   // مدیر واحد هم باید بتواند ایست بهره‌وری واحد خودش را ببیند، حتی اگر واحد نسازد
   { id: 'units', label: 'واحدها', icon: '⌂', needAny: ['units.manage', 'units.assign', 'scores.unit', 'scores.view_unit', 'reports.unit'] },
   { id: 'unitreport', label: 'گزارش واحدها', icon: '◳', need: 'reports.unit' },
@@ -148,18 +169,21 @@ function shell(inner) {
     <button class="nav-item ${state.view === n.id ? 'active' : ''}" data-nav="${n.id}">
       <span>${n.icon}</span><span>${n.label}</span>
       ${n.id === 'approvals' && badge ? `<span class="badge-dot">${toFa(badge)}</span>` : ''}
+      ${n.id === 'chat' ? `<span data-chat-badge>${chatBadgeHtml(state.chat.unread)}</span>` : ''}
     </button>`).join('');
 
   // روی موبایل مهم‌ترین‌ها پایین صفحه، بقیه در «بیشتر»
   const items = navItems();
   // کارتابل بررسی برای سرپرست پرکاربردترین صفحه است، پس روی موبایل هم پایین صفحه می‌ماند
-  const primary = items
-    .filter((n) => ['myday', 'board', 'review', 'time', 'approvals', 'dashboard'].includes(n.id))
-    .slice(0, 4);
+  // ترتیب عمدی است، نه ترتیب منوی کنار: کارتابل بررسی و گفت‌وگو پرکاربردترین‌های
+  // روزمره‌اند و باید روی موبایل یک لمس دور باشند، نه پشت «بیشتر».
+  const MOBILE_ORDER = ['myday', 'board', 'chat', 'review', 'approvals', 'time', 'dashboard'];
+  const primary = MOBILE_ORDER.map((mid) => items.find((n) => n.id === mid)).filter(Boolean).slice(0, 4);
   const mobile = primary.map((n) => `
     <button class="${state.view === n.id ? 'active' : ''}" data-nav="${n.id}">
       <span class="ic">${n.icon}</span><span>${n.label}</span>
       ${n.id === 'approvals' && badge ? `<span class="badge-dot">${toFa(badge)}</span>` : ''}
+      ${n.id === 'chat' ? `<span data-chat-badge>${chatBadgeHtml(state.chat.unread)}</span>` : ''}
     </button>`).join('') + `
     <button class="${primary.some((p) => p.id === state.view) ? '' : 'active'}" data-action="more-menu">
       <span class="ic">☰</span><span>بیشتر</span>
@@ -194,6 +218,10 @@ function shell(inner) {
         <h2>${title}</h2>
         <div class="spacer"></div>
         ${['dashboard', 'time', 'approvals', 'scores'].includes(state.view) ? monthPicker() : ''}
+        ${can('chat.use') ? `
+        <button class="bell chat-btn" data-action="chat-toggle" title="گفت‌وگو">
+          ✉<span data-chat-badge>${chatBadgeHtml(state.chat.unread)}</span>
+        </button>` : ''}
         <button class="bell ${state.unread ? 'has' : ''}" data-action="bell" title="اعلان‌ها">
           🔔${state.unread ? `<i>${toFa(state.unread)}</i>` : ''}
         </button>
@@ -1508,6 +1536,17 @@ function profileView() {
         <button class="btn" type="submit">تغییر رمز</button>
       </form>
     </div>
+    ${API.mode === 'demo' ? `
+    <div class="card">
+      <header><h3>شروع از صفر</h3></header>
+      <p class="hint">
+        این نسخهٔ نمایشی است و همهٔ داده‌ها فقط در مرورگر همین دستگاه می‌مانند.
+        با این دکمه همه‌چیز پاک می‌شود و دادهٔ نمونه از نو ساخته می‌شود — جای دیگری اثر ندارد.
+      </p>
+      <button class="btn danger" data-action="demo-reset" style="margin-top:10px">
+        پاک کردن داده‌ها و شروع از صفر
+      </button>
+    </div>` : ''}
     <div class="card">
       <header><h3>خروج از حساب</h3></header>
       <button class="btn danger" data-action="logout">خروج</button>
@@ -1983,6 +2022,478 @@ async function loadAll() {
   await Promise.all(tasks);
 }
 
+// ───────────────────────────── گفت‌وگو ─────────────────────────────
+//
+// کشوی گفت‌وگو جدا از بدنهٔ صفحه رندر می‌شود. دلیلش ساده است: render() هر بار
+// کل #root را از نو می‌سازد، و اگر گفت‌وگو داخل آن بود، هر تازه‌سازی پس‌زمینه
+// نیمهٔ تایپ‌شدهٔ پیام و جای اسکرول را پاک می‌کرد.
+
+const TZ = 'Asia/Tehran';
+
+function tehranParts(iso) {
+  const f = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  const o = {};
+  for (const p of f.formatToParts(new Date(iso))) o[p.type] = p.value;
+  return o;
+}
+const msgDay = (iso) => { const p = tehranParts(iso); return `${p.year}-${p.month}-${p.day}`; };
+const msgTime = (iso) => {
+  const p = tehranParts(iso);
+  const h = p.hour === '24' ? '00' : p.hour;
+  return toFa(`${h}:${p.minute}`);
+};
+
+/** «۳ دقیقه پیش» برای فهرست گفت‌وگوها */
+function sinceLabel(iso) {
+  if (!iso) return '';
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'همین حالا';
+  if (mins < 60) return `${toFa(mins)} دقیقه پیش`;
+  if (msgDay(iso) === todayIso()) return msgTime(iso);
+  const hours = Math.floor(mins / 60);
+  if (hours < 48) return 'دیروز';
+  return formatJalali(msgDay(iso));
+}
+
+function dayLabel(day) {
+  if (day === todayIso()) return 'امروز';
+  const y = new Date(new Date(`${todayIso()}T00:00:00Z`).getTime() - 864e5).toISOString().slice(0, 10);
+  if (day === y) return 'دیروز';
+  return formatJalali(day, { long: true, withDay: true });
+}
+
+function chatBadgeHtml(count) {
+  return count ? `<span class="badge-dot">${toFa(count > 99 ? '99+' : count)}</span>` : '';
+}
+
+/** نشان نخوانده روی دکمه‌ها را بی‌رندر کامل به‌روز می‌کند */
+function chatPaintBadges() {
+  const total = state.chat.unread;
+  document.querySelectorAll('[data-chat-badge]').forEach((el) => {
+    el.innerHTML = chatBadgeHtml(total);
+  });
+}
+
+function chatAvatar(name, id) {
+  const palette = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--ok)', 'var(--info)'];
+  let h = 0;
+  for (const ch of String(id || name || '')) h = (h * 31 + ch.charCodeAt(0)) % 997;
+  return `<span class="chat-av" style="background:${palette[h % palette.length]}">${esc(initials(name))}</span>`;
+}
+
+function chatListHtml() {
+  const list = state.chat.list;
+  if (!list.length) {
+    return '<div class="chat-empty"><p>هنوز گفت‌وگویی ندارید.<br>از دکمهٔ بالا شروع کنید.</p></div>';
+  }
+  const icon = { direct: '', unit: '⌂', group: '☷' };
+  return list.map((c) => `
+    <button class="chat-row ${c.id === state.chat.activeId ? 'active' : ''} ${c.unread ? 'unread' : ''}"
+            data-action="chat-open" data-id="${c.id}">
+      ${c.kind === 'direct' ? chatAvatar(c.title, c.peer_id) : `<span class="chat-av grp">${icon[c.kind]}</span>`}
+      <span class="chat-row-mid">
+        <b>${esc(c.title)}${c.muted ? ' <i class="muted-mark" title="بی‌صدا">⊘</i>' : ''}</b>
+        <small>${c.last_preview
+    ? `${c.kind !== 'direct' && c.last_sender_name ? `${esc(c.last_sender_name.split(/\s+/)[0])}: ` : ''}${esc(c.last_preview)}`
+    : '<i>پیامی رد و بدل نشده</i>'}</small>
+      </span>
+      <span class="chat-row-end">
+        <small>${sinceLabel(c.last_message_at)}</small>
+        ${chatBadgeHtml(c.unread)}
+      </span>
+    </button>`).join('');
+}
+
+function chatMessagesHtml() {
+  const msgs = state.chat.messages;
+  const conv = state.chat.list.find((c) => c.id === state.chat.activeId);
+  if (!conv) return '<div class="chat-empty"><p>یک گفت‌وگو را از فهرست انتخاب کنید.</p></div>';
+  if (state.chat.loading) return '<div class="chat-empty"><p>در حال بارگذاری…</p></div>';
+  if (!msgs.length) {
+    return `<div class="chat-empty">
+      <p>${conv.kind === 'direct' ? `اولین پیام را به ${esc(conv.title)} بنویسید.` : 'اولین پیام این گروه را بنویسید.'}</p>
+    </div>`;
+  }
+  const me = state.user.id;
+  const out = [];
+  let lastDay = '';
+  let lastSender = '';
+  let lastAt = 0;
+  for (const m of msgs) {
+    const day = msgDay(m.created_at);
+    if (day !== lastDay) {
+      out.push(`<div class="chat-day"><span>${dayLabel(day)}</span></div>`);
+      lastDay = day;
+      lastSender = '';
+    }
+    const at = new Date(m.created_at).getTime();
+    const grouped = m.sender_id === lastSender && at - lastAt < 5 * 60000;
+    lastSender = m.sender_id;
+    lastAt = at;
+    const mine = m.sender_id === me;
+    const reply = m.reply_to ? msgs.find((x) => x.id === m.reply_to) : null;
+
+    out.push(`
+      <div class="chat-msg ${mine ? 'mine' : ''} ${grouped ? 'grouped' : ''} ${m.pending ? 'pending' : ''}"
+           data-msg="${m.id}">
+        ${!mine && !grouped && conv.kind !== 'direct' ? chatAvatar(m.sender_name, m.sender_id) : ''}
+        <div class="bubble">
+          ${!mine && !grouped && conv.kind !== 'direct' ? `<b class="who">${esc(m.sender_name)}</b>` : ''}
+          ${reply ? `<div class="quote"><b>${esc(reply.sender_name)}</b>${esc((reply.body || 'پیام حذف شد').slice(0, 80))}</div>` : ''}
+          ${m.task_id ? `<button class="chat-task" data-action="open-task" data-id="${m.task_id}">
+              ▤ ${esc(m.task_title || 'کار')}${m.task_code ? ` <small>#${toFa(m.task_code)}</small>` : ''}
+            </button>` : ''}
+          <div class="text">${m.deleted ? '<i class="gone">پیام حذف شد</i>' : chatText(m.body)}</div>
+          <div class="meta">
+            ${m.edited && !m.deleted ? '<i>ویرایش‌شده</i>' : ''}
+            <span>${m.pending ? '…' : msgTime(m.created_at)}</span>
+          </div>
+          ${mine && !m.deleted && !m.pending ? `
+            <div class="msg-tools">
+              <button data-action="chat-edit" data-id="${m.id}" title="ویرایش">✎</button>
+              <button data-action="chat-del" data-id="${m.id}" title="حذف">🗑</button>
+            </div>` : ''}
+          ${!m.deleted && !m.pending ? `<button class="msg-reply" data-action="chat-reply" data-id="${m.id}" title="پاسخ">↩</button>` : ''}
+        </div>
+      </div>`);
+  }
+  return out.join('');
+}
+
+/** متن پیام: @نام و نشانی اینترنتی را برجسته می‌کند، بقیه خنثی می‌ماند */
+function chatText(body) {
+  return esc(body)
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|\s)@([a-zA-Z0-9._-]{3,32})/g, '$1<b class="at">@$2</b>')
+    .replace(/\n/g, '<br>');
+}
+
+function chatDirectoryHtml() {
+  const q = (state.chat.search || '').trim();
+  const people = state.chat.directory.filter((p) => !q
+    || p.full_name.includes(q) || (p.job_title || '').includes(q) || (p.unit_name || '').includes(q));
+  const group = state.chat.pane === 'newgroup';
+  const picked = state.chat.picked;
+  return `
+    <div class="chat-new">
+      ${group ? `
+        <div class="field">
+          <label for="cg-title">نام گروه</label>
+          <input class="input" id="cg-title" data-action="chat-group-title"
+                 value="${esc(state.chat.groupTitle || '')}" placeholder="مثلاً هماهنگی تولید">
+        </div>` : ''}
+      <input class="input" data-action="chat-search" value="${esc(q)}"
+             placeholder="جست‌وجوی نام همکار…" autocomplete="off">
+      ${can('chat.group') ? `
+        <button class="btn ghost sm block" data-action="${group ? 'chat-new' : 'chat-new-group'}">
+          ${group ? 'گفت‌وگوی دونفره' : '☷ ساخت گروه دلخواه'}
+        </button>` : ''}
+      <div class="chat-people">
+        ${people.length ? people.map((p) => `
+          <button class="chat-row ${group && picked.includes(p.id) ? 'picked' : ''}"
+                  data-action="${group ? 'chat-pick' : 'chat-start'}" data-id="${p.id}">
+            ${chatAvatar(p.full_name, p.id)}
+            <span class="chat-row-mid">
+              <b>${esc(p.full_name)}</b>
+              <small>${esc(p.job_title || '—')}${p.unit_name ? ` · واحد ${esc(p.unit_name)}` : ''}</small>
+            </span>
+            ${group ? `<span class="chat-row-end">${picked.includes(p.id) ? '✓' : '+'}</span>` : ''}
+          </button>`).join('')
+    : '<div class="chat-empty"><p>همکاری با این نام پیدا نشد.</p></div>'}
+      </div>
+      ${group ? `
+        <button class="btn block" data-action="chat-make-group"
+                ${picked.length ? '' : 'disabled'}>
+          ساخت گروه${picked.length ? ` با ${toFa(picked.length)} نفر` : ''}
+        </button>` : ''}
+    </div>`;
+}
+
+function chatHeadHtml() {
+  const { pane } = state.chat;
+  if (pane === 'new' || pane === 'newgroup') {
+    return `
+      <button class="chat-back" data-action="chat-back">→</button>
+      <div class="chat-head-mid"><b>${pane === 'newgroup' ? 'گروه تازه' : 'گفت‌وگوی تازه'}</b></div>
+      <button class="chat-x" data-action="chat-close" title="بستن">✕</button>`;
+  }
+  const conv = state.chat.list.find((c) => c.id === state.chat.activeId);
+  if (pane === 'thread' && conv) {
+    return `
+      <button class="chat-back" data-action="chat-back">→</button>
+      <div class="chat-head-mid">
+        <b>${esc(conv.title)}</b>
+        <small>${esc(conv.kind === 'direct' ? (conv.subtitle || '') : conv.members.map((m) => m.full_name.split(/\s+/)[0]).slice(0, 4).join('، '))}</small>
+      </div>
+      <button class="chat-x" data-action="chat-mute" data-id="${conv.id}"
+              title="${conv.muted ? 'صدادار کردن' : 'بی‌صدا کردن'}">${conv.muted ? '⊘' : '🔔'}</button>
+      ${conv.kind !== 'unit' ? `<button class="chat-x" data-action="chat-leave" data-id="${conv.id}" title="ترک گفت‌وگو">⎋</button>` : ''}
+      <button class="chat-x" data-action="chat-close" title="بستن">✕</button>`;
+  }
+  return `
+    <div class="chat-head-mid"><b>گفت‌وگو</b>
+      <small>${state.chat.unread ? `${toFa(state.chat.unread)} پیام نخوانده` : 'پیام نخوانده‌ای ندارید'}</small>
+    </div>
+    <button class="chat-x" data-action="chat-close" title="بستن">✕</button>`;
+}
+
+function chatComposerHtml() {
+  const conv = state.chat.list.find((c) => c.id === state.chat.activeId);
+  if (!conv) return '';
+  const reply = state.chat.replyTo
+    ? state.chat.messages.find((m) => m.id === state.chat.replyTo) : null;
+  const editing = state.chat.editing
+    ? state.chat.messages.find((m) => m.id === state.chat.editing) : null;
+  return `
+    <form class="chat-composer" data-form="chat-send">
+      ${reply ? `<div class="composer-ctx">
+        <span>پاسخ به <b>${esc(reply.sender_name)}</b>: ${esc((reply.body || '').slice(0, 60))}</span>
+        <button type="button" class="x-btn" data-action="chat-reply-clear">✕</button>
+      </div>` : ''}
+      ${editing ? `<div class="composer-ctx edit">
+        <span>ویرایش پیام</span>
+        <button type="button" class="x-btn" data-action="chat-edit-clear">✕</button>
+      </div>` : ''}
+      <textarea name="body" rows="1" placeholder="پیام بنویسید…" autocomplete="off"></textarea>
+      <button class="chat-send" type="submit" title="فرستادن">➤</button>
+    </form>`;
+}
+
+function chatRenderAll() {
+  const box = $('#chat');
+  if (!box) return;
+  if (!state.chat.open || !state.user || !can('chat.use')) { box.innerHTML = ''; return; }
+  const { pane } = state.chat;
+  const draft = state.chat.draft || '';
+  box.innerHTML = `
+    <div class="chat-drawer">
+      <div class="chat-backdrop" data-action="chat-close"></div>
+      <section class="chat-panel pane-${pane}${state.chat.animate ? ' enter' : ''}">
+        <header class="chat-head">${chatHeadHtml()}</header>
+        <div class="chat-body">
+          <aside class="chat-side">
+            ${pane === 'new' || pane === 'newgroup' ? '' : `
+            <div class="chat-side-top">
+              <button class="btn sm block" data-action="chat-new">✎ گفت‌وگوی تازه</button>
+            </div>`}
+            <div class="chat-list">${pane === 'new' || pane === 'newgroup' ? chatDirectoryHtml() : chatListHtml()}</div>
+          </aside>
+          <div class="chat-thread">
+            <div class="chat-msgs" id="chat-msgs">${chatMessagesHtml()}</div>
+            ${chatComposerHtml()}
+          </div>
+        </div>
+      </section>
+    </div>`;
+  // انیمیشن فقط هنگام باز شدن کشو، نه در هر بار رندر دوباره — وگرنه با هر
+  // رفت‌وبرگشت بین فهرست و گفت‌وگو، کل پنل چشمک می‌زند.
+  state.chat.animate = false;
+  const ta = $('#chat textarea[name="body"]');
+  if (ta) {
+    ta.value = draft;
+    chatGrow(ta);
+    if (state.chat.focusComposer) { ta.focus(); state.chat.focusComposer = false; }
+  }
+  chatScrollEnd();
+}
+
+/** فقط فهرست — برای وقتی خبر تازه رسید و نباید کادر نوشتن پیام دست بخورد */
+function chatRenderList() {
+  const el = $('#chat .chat-list');
+  if (el && state.chat.pane !== 'new' && state.chat.pane !== 'newgroup') el.innerHTML = chatListHtml();
+  const head = $('#chat .chat-head');
+  if (head) head.innerHTML = chatHeadHtml();
+}
+
+function chatRenderMessages({ keepScroll = false } = {}) {
+  const box = $('#chat-msgs');
+  if (!box) return;
+  const atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  box.innerHTML = chatMessagesHtml();
+  if (!keepScroll || atEnd) chatScrollEnd();
+}
+
+function chatScrollEnd() {
+  const box = $('#chat-msgs');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+
+function chatGrow(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = `${Math.min(140, ta.scrollHeight)}px`;
+}
+
+async function chatLoadList({ quiet = false } = {}) {
+  const d = await guard(() => API.chat.list(), { silent: quiet });
+  if (!d) return;
+  state.chat.list = d.conversations;
+  state.chat.unread = d.unread;
+  chatPaintBadges();
+}
+
+async function chatOpen() {
+  if (!can('chat.use')) { toast('گفت‌وگو برای شما فعال نیست', 'err'); return; }
+  state.chat.open = true;
+  state.chat.animate = true;
+  state.chat.pane = state.chat.activeId ? 'thread' : 'list';
+  chatRenderAll();
+  await chatLoadList();
+  if (state.chat.activeId && state.chat.list.some((c) => c.id === state.chat.activeId)) {
+    await chatOpenConv(state.chat.activeId);
+  } else {
+    state.chat.activeId = null;
+    state.chat.pane = 'list';
+    chatRenderAll();
+  }
+  chatSchedule();
+}
+
+function chatClose() {
+  state.chat.open = false;
+  state.chat.pane = 'list';
+  chatRenderAll();
+  chatSchedule();
+}
+
+async function chatOpenConv(id) {
+  state.chat.activeId = id;
+  state.chat.pane = 'thread';
+  state.chat.replyTo = null;
+  state.chat.editing = null;
+  state.chat.draft = '';
+  state.chat.loading = true;
+  state.chat.messages = [];
+  chatRenderAll();
+  const d = await guard(() => API.chat.messages(id, { limit: 60 }));
+  state.chat.loading = false;
+  if (!d) { chatRenderMessages(); return; }
+  state.chat.messages = d.messages;
+  state.chat.lastAt = d.messages.length ? d.messages[d.messages.length - 1].created_at : null;
+  const row = state.chat.list.find((c) => c.id === id);
+  if (row) {
+    state.chat.unread = Math.max(0, state.chat.unread - row.unread);
+    row.unread = 0;
+  }
+  state.chat.focusComposer = !('ontouchstart' in window);
+  chatRenderAll();
+  chatPaintBadges();
+}
+
+async function chatSend(text) {
+  const id = state.chat.activeId;
+  if (!id || !text.trim()) return;
+  if (state.chat.editing) {
+    const mid = state.chat.editing;
+    const res = await guard(() => API.chat.editMessage(mid, text.trim()));
+    state.chat.editing = null;
+    state.chat.draft = '';
+    if (res) {
+      const m = state.chat.messages.find((x) => x.id === mid);
+      if (m) { m.body = text.trim(); m.edited = true; }
+    }
+    chatRenderAll();
+    await chatLoadList({ quiet: true });
+    chatRenderList();
+    return;
+  }
+  const tmp = {
+    id: `tmp-${Date.now()}`,
+    sender_id: state.user.id,
+    sender_name: state.user.full_name,
+    body: text.trim(),
+    created_at: new Date().toISOString(),
+    pending: true,
+    reply_to: state.chat.replyTo || null,
+  };
+  state.chat.messages.push(tmp);
+  const replyTo = state.chat.replyTo;
+  state.chat.replyTo = null;
+  state.chat.draft = '';
+  chatRenderAll();
+
+  const d = await guard(() => API.chat.send(id, { body: tmp.body, reply_to: replyTo }));
+  state.chat.messages = state.chat.messages.filter((m) => m.id !== tmp.id);
+  if (d) {
+    state.chat.messages.push(d.message);
+    state.chat.lastAt = d.message.created_at;
+  } else {
+    toast('پیام فرستاده نشد — دوباره تلاش کنید', 'err');
+    state.chat.draft = tmp.body;
+  }
+  chatRenderAll();
+  await chatLoadList({ quiet: true });
+  chatRenderList();
+}
+
+/** گرفتن مداوم خبر: سبک، و وقتی برگه پیدا نیست کم‌کارتر */
+function chatSchedule() {
+  clearTimeout(state.chat.timer);
+  if (!state.user || !can('chat.use')) return;
+  const ms = document.hidden ? 60000 : (state.chat.open ? 5000 : 20000);
+  state.chat.timer = setTimeout(async () => {
+    await chatTick();
+    chatSchedule();
+  }, ms);
+}
+
+async function chatTick() {
+  if (!state.user || !can('chat.use')) return;
+  const d = await guard(() => API.chat.unread(), { silent: true });
+  if (!d) return;
+  const before = state.chat.unread;
+  state.chat.unread = d.total;
+  for (const c of state.chat.list) {
+    c.unread = d.items.find((x) => x.id === c.id)?.unread || 0;
+  }
+  if (before !== d.total) chatPaintBadges();
+
+  // گفت‌وگوی باز: فقط پیام‌های تازه را می‌گیریم، نه کل رشته را
+  if (state.chat.open && state.chat.activeId) {
+    const after = state.chat.lastAt;
+    const res = await guard(() => API.chat.messages(state.chat.activeId,
+      after ? { after } : { limit: 60 }), { silent: true });
+    if (res && res.messages.length) {
+      const have = new Set(state.chat.messages.map((m) => m.id));
+      const fresh = res.messages.filter((m) => !have.has(m.id));
+      if (fresh.length) {
+        state.chat.messages.push(...fresh);
+        state.chat.lastAt = fresh[fresh.length - 1].created_at;
+        chatRenderMessages({ keepScroll: true });
+      }
+    }
+    if (d.total !== state.chat.unread || state.chat.list.some((c) => c.unread)) chatRenderList();
+  } else if (state.chat.open) {
+    await chatLoadList({ quiet: true });
+    chatRenderList();
+  } else if (before !== d.total) {
+    await chatLoadList({ quiet: true });
+  }
+}
+
+async function chatStartDirect(userId) {
+  const d = await guard(() => API.chat.direct(userId));
+  if (!d) return;
+  const exists = state.chat.list.find((c) => c.id === d.conversation.id);
+  if (!exists) state.chat.list.unshift(d.conversation);
+  state.chat.pane = 'thread';
+  await chatOpenConv(d.conversation.id);
+}
+
+async function chatShowDirectory(group = false) {
+  state.chat.pane = group ? 'newgroup' : 'new';
+  state.chat.search = '';
+  if (group) state.chat.picked = [];
+  chatRenderAll();
+  if (!state.chat.directory.length) {
+    const d = await guard(() => API.chat.directory());
+    if (d) state.chat.directory = d.people;
+    chatRenderAll();
+  }
+}
+
 // ───────────────────────────── رندر ─────────────────────────────
 
 function render() {
@@ -2007,6 +2518,7 @@ function render() {
   }
   root.innerHTML = shell(inner);
   if (state.view === 'board') wireDragDrop();
+  chatPaintBadges();
 }
 
 async function refresh() {
@@ -2095,7 +2607,13 @@ async function moveTask(id, columnId) {
 
 document.addEventListener('click', async (e) => {
   const nav = e.target.closest('[data-nav]');
-  if (nav) { closeModal(); await setView(nav.dataset.nav); return; }
+  if (nav) {
+    closeModal();
+    // گفت‌وگو صفحه را عوض نمی‌کند — روی همان کاری که باز است می‌نشیند
+    if (nav.dataset.nav === 'chat') { await chatOpen(); return; }
+    await setView(nav.dataset.nav);
+    return;
+  }
 
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
@@ -2104,10 +2622,23 @@ document.addEventListener('click', async (e) => {
   switch (action) {
     case 'logout':
       await guard(() => API.logout());
-      state.user = null; state.view = 'dashboard'; closeModal(); render();
+      state.user = null; state.view = 'dashboard';
+      clearTimeout(state.chat.timer);
+      Object.assign(state.chat, {
+        open: false, pane: 'list', list: [], activeId: null, messages: [],
+        lastAt: null, unread: 0, directory: [], picked: [], draft: '',
+        replyTo: null, editing: null,
+      });
+      chatRenderAll();
+      closeModal(); render();
       break;
 
     case 'close-modal': closeModal(); break;
+
+    case 'demo-reset':
+      if (window.confirm('همهٔ داده‌های نسخهٔ نمایشی روی این دستگاه پاک شود و از صفر شروع کنیم؟')
+        && typeof window.karnamaReset === 'function') window.karnamaReset();
+      break;
 
     case 'filter':
       state.filterMine = btn.dataset.v === 'mine';
@@ -2248,7 +2779,9 @@ document.addEventListener('click', async (e) => {
       if (state.unread) {
         await guard(() => API.notifications.markRead(), { silent: true });
         state.unread = 0;
-        const b = $('.bell'); if (b) { b.classList.remove('has'); b.innerHTML = '🔔'; }
+        // دقت: دکمهٔ گفت‌وگو هم کلاس bell دارد، پس باید با همین انتخابگر دقیق سراغش رفت
+        const b = $('[data-action="bell"]');
+        if (b) { b.classList.remove('has'); b.innerHTML = '🔔'; }
       }
       break;
     case 'read-all':
@@ -2256,6 +2789,91 @@ document.addEventListener('click', async (e) => {
       state.unread = 0; closeModal(); render();
       break;
     case 'more-menu': moreMenuModal(); break;
+
+    // ───── گفت‌وگو ─────
+    case 'chat-toggle':
+      if (state.chat.open) chatClose(); else await chatOpen();
+      break;
+    case 'chat-close': chatClose(); break;
+    case 'chat-open': await chatOpenConv(id); break;
+    case 'chat-back':
+      if (state.chat.pane === 'thread') { state.chat.activeId = null; state.chat.pane = 'list'; } else { state.chat.pane = state.chat.activeId ? 'thread' : 'list'; }
+      chatRenderAll();
+      break;
+    case 'chat-new': await chatShowDirectory(false); break;
+    case 'chat-new-group': await chatShowDirectory(true); break;
+    case 'chat-start': await chatStartDirect(id); break;
+    case 'chat-pick':
+      state.chat.picked = state.chat.picked.includes(id)
+        ? state.chat.picked.filter((x) => x !== id)
+        : [...state.chat.picked, id];
+      chatRenderAll();
+      break;
+    case 'chat-make-group': {
+      const title = (state.chat.groupTitle || '').trim();
+      if (title.length < 2) { toast('نام گروه را بنویسید', 'err'); break; }
+      const d = await guard(() => API.chat.group(title, state.chat.picked));
+      if (!d) break;
+      state.chat.groupTitle = '';
+      state.chat.picked = [];
+      state.chat.list.unshift(d.conversation);
+      await chatOpenConv(d.conversation.id);
+      toast('گروه ساخته شد', 'ok');
+      break;
+    }
+    case 'chat-reply':
+      state.chat.replyTo = id;
+      state.chat.editing = null;
+      state.chat.focusComposer = true;
+      chatRenderAll();
+      break;
+    case 'chat-reply-clear': state.chat.replyTo = null; chatRenderAll(); break;
+    case 'chat-edit': {
+      const m = state.chat.messages.find((x) => x.id === id);
+      if (!m) break;
+      state.chat.editing = id;
+      state.chat.replyTo = null;
+      state.chat.draft = m.body;
+      state.chat.focusComposer = true;
+      chatRenderAll();
+      break;
+    }
+    case 'chat-edit-clear':
+      state.chat.editing = null;
+      state.chat.draft = '';
+      chatRenderAll();
+      break;
+    case 'chat-del': {
+      if (!window.confirm('این پیام حذف شود؟')) break;
+      const res = await guard(() => API.chat.removeMessage(id));
+      if (!res) break;
+      const m = state.chat.messages.find((x) => x.id === id);
+      if (m) { m.deleted = true; m.body = ''; }
+      chatRenderMessages({ keepScroll: true });
+      await chatLoadList({ quiet: true });
+      chatRenderList();
+      break;
+    }
+    case 'chat-mute': {
+      const conv = state.chat.list.find((c) => c.id === id);
+      if (!conv) break;
+      const res = await guard(() => API.chat.mute(id, !conv.muted));
+      if (!res) break;
+      conv.muted = !conv.muted;
+      toast(conv.muted ? 'این گفت‌وگو بی‌صدا شد' : 'صدای این گفت‌وگو برگشت', 'ok');
+      chatRenderAll();
+      break;
+    }
+    case 'chat-leave': {
+      if (!window.confirm('از این گفت‌وگو بیرون می‌آیید؟')) break;
+      const res = await guard(() => API.chat.leave(id));
+      if (!res) break;
+      state.chat.list = state.chat.list.filter((c) => c.id !== id);
+      state.chat.activeId = null;
+      state.chat.pane = 'list';
+      chatRenderAll();
+      break;
+    }
 
     case 'pick-board':
       state.boardId = id;
@@ -2357,6 +2975,40 @@ document.addEventListener('input', (e) => {
     const out = e.target.form.querySelector(`[data-out="${key}"]`);
     if (out) out.textContent = toFa(e.target.value);
   }
+  // کادر نوشتن پیام: متن را در حافظه نگه می‌داریم تا تازه‌سازی پس‌زمینه نبلعدش
+  if (e.target.matches('#chat textarea[name="body"]')) {
+    state.chat.draft = e.target.value;
+    chatGrow(e.target);
+    return;
+  }
+  if (e.target.dataset.action === 'chat-search') {
+    state.chat.search = e.target.value;
+    const el = $('#chat .chat-people');
+    if (el) {
+      const q = state.chat.search.trim();
+      const group = state.chat.pane === 'newgroup';
+      const people = state.chat.directory.filter((p) => !q
+        || p.full_name.includes(q) || (p.job_title || '').includes(q) || (p.unit_name || '').includes(q));
+      el.innerHTML = people.length ? people.map((p) => `
+        <button class="chat-row ${group && state.chat.picked.includes(p.id) ? 'picked' : ''}"
+                data-action="${group ? 'chat-pick' : 'chat-start'}" data-id="${p.id}">
+          ${chatAvatar(p.full_name, p.id)}
+          <span class="chat-row-mid">
+            <b>${esc(p.full_name)}</b>
+            <small>${esc(p.job_title || '—')}${p.unit_name ? ` · واحد ${esc(p.unit_name)}` : ''}</small>
+          </span>
+          ${group ? `<span class="chat-row-end">${state.chat.picked.includes(p.id) ? '✓' : '+'}</span>` : ''}
+        </button>`).join('')
+        : '<div class="chat-empty"><p>همکاری با این نام پیدا نشد.</p></div>';
+    }
+    return;
+  }
+  if (e.target.dataset.action === 'chat-group-title') {
+    state.chat.groupTitle = e.target.value;
+    const btn = $('#chat [data-action="chat-make-group"]');
+    if (btn) btn.disabled = !(state.chat.picked.length && e.target.value.trim().length >= 2);
+    return;
+  }
   if (e.target.dataset.action === 'search') {
     state.search = e.target.value;
     clearTimeout(searchTimer);
@@ -2423,6 +3075,13 @@ document.addEventListener('submit', async (e) => {
     if (kind === 'login') {
       const res = await guard(() => API.login(String(fd.username).trim(), fd.password));
       if (res) { state.user = res.user; await boot(); }
+    }
+
+    if (kind === 'chat-send') {
+      const text = String(fd.body || '');
+      if (submit) submit.disabled = false;
+      await chatSend(text);
+      return;
     }
 
     if (kind === 'timelog') {
@@ -2629,7 +3288,36 @@ document.addEventListener('submit', async (e) => {
   }
 });
 
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', (e) => {
+  // در گفت‌وگو: Enter می‌فرستد، Shift+Enter خط تازه. روی موبایل Enter خط تازه است
+  // چون کلید فرستادن جلوی چشم است و شکستن خط با صفحه‌کلید لمسی راه دیگری ندارد.
+  if (e.target.matches('#chat textarea[name="body"]')) {
+    const touch = 'ontouchstart' in window;
+    if (e.key === 'Enter' && !e.shiftKey && !touch) {
+      e.preventDefault();
+      const text = e.target.value;
+      e.target.value = '';
+      chatSend(text);
+    }
+    if (e.key === 'Escape') {
+      if (state.chat.editing || state.chat.replyTo) {
+        state.chat.editing = null; state.chat.replyTo = null; state.chat.draft = e.target.value;
+        chatRenderAll();
+      } else chatClose();
+      e.stopPropagation();
+    }
+    return;
+  }
+  if (e.key === 'Escape') {
+    if (state.chat.open && !modalEl) { chatClose(); return; }
+    closeModal();
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) chatTick().then(chatSchedule);
+  else chatSchedule();
+});
 
 // ───────────────────────────── راه‌اندازی ─────────────────────────────
 
@@ -2641,6 +3329,7 @@ async function boot() {
   state.view = can('tasks.view') ? 'myday' : 'dashboard';
   await loadAll();
   render();
+  if (can('chat.use')) { await chatLoadList({ quiet: true }); chatSchedule(); }
   // هر ۲ دقیقه اعلان‌های تازه را می‌گیریم
   clearInterval(state.poll);
   state.poll = setInterval(async () => {
@@ -2648,7 +3337,7 @@ async function boot() {
     const d = await guard(() => API.notifications.list(), { silent: true });
     if (d && d.unread !== state.unread) {
       state.unread = d.unread; state.notifications = d.notifications;
-      const b = $('.bell');
+      const b = $('[data-action="bell"]');
       if (b) { b.classList.toggle('has', !!d.unread); b.innerHTML = `🔔${d.unread ? `<i>${toFa(d.unread)}</i>` : ''}`; }
     }
   }, 120000);
