@@ -47,6 +47,7 @@ const state = {
   railOnly: (() => { try { return localStorage.getItem('karnama-rail') === '1'; } catch { return false; } })(),
   kpi: { data: null, filter: 'all' },
   dash: { tab: 'today' },
+  org: { data: null },
   stock: {
     tab: 'onhand',
     setup: null,
@@ -177,6 +178,7 @@ const NAV = [
 
   { group: 'سازمان', icon: '☷' },
   // مدیر واحد هم باید بتواند ایست بهره‌وری واحد خودش را ببیند، حتی اگر واحد نسازد
+  { id: 'orgchart', label: 'چارت سازمانی', short: 'چارت', icon: '⌸', need: 'org.view' },
   { id: 'units', label: 'واحدها', icon: '⌂', needAny: ['units.manage', 'units.assign', 'scores.unit', 'scores.view_unit', 'reports.unit'] },
   { id: 'team', label: 'کارکنان', icon: '☷', needAny: ['users.view', 'users.manage'] },
   { id: 'profile', label: 'حساب من', icon: '⚙' },
@@ -2559,6 +2561,191 @@ function kpiCard(ind) {
     </div>`;
 }
 
+// ───────────────────── چارت سازمانی ─────────────────────
+// سمت مستقل از شخص است. هر چیزی که ممیز بند ۵-۳ می‌پرسد روی خود سمت
+// می‌نشیند: مسئولیت، اختیار، صلاحیت لازم — و دسترسی هم از همین‌جا ارث
+// می‌رسد تا با هر جابه‌جایی پرسنل دوباره تعریف نشود.
+
+function orgFind(id) { return (state.org.data?.positions || []).find((p) => p.id === id); }
+
+/** درخت سمت‌ها از روی «گزارش می‌دهد به». سمت بی‌بالادست ریشه است. */
+function orgTree(positions) {
+  const byParent = new Map();
+  for (const p of positions) {
+    const k = p.reports_to || '__root__';
+    if (!byParent.has(k)) byParent.set(k, []);
+    byParent.get(k).push(p);
+  }
+  const seen = new Set();
+  const build = (key, depth) => (byParent.get(key) || []).flatMap((p) => {
+    if (seen.has(p.id) || depth > 8) return [];   // حلقه را امن می‌شکنیم
+    seen.add(p.id);
+    return [{ ...p, depth }, ...build(p.id, depth + 1)];
+  });
+  const rows = build('__root__', 0);
+  // سمتی که بالادستش حذف یا غیرفعال شده نباید از چارت بیفتد
+  for (const p of positions) if (!seen.has(p.id)) rows.push({ ...p, depth: 0, orphan: true });
+  return rows;
+}
+
+function orgPositionRow(p) {
+  const vac = p.vacancies;
+  return `
+    <div class="pos-row" style="--d:${p.depth || 0}">
+      <div class="pos-main">
+        <div class="pos-title">
+          <b>${esc(p.title)}</b>
+          ${p.code ? `<small class="faint">${esc(p.code)}</small>` : ''}
+          ${p.unit_name ? `<span class="chip">${esc(p.unit_name)}</span>` : ''}
+          ${vac ? `<span class="sdot warn">${toFa(vac)} پست خالی</span>` : ''}
+        </div>
+        ${p.holders.length ? `<div class="pos-people">
+          ${p.holders.map((h) => `<span class="pos-person" title="${h.has_own ? 'دسترسی اختصاصی دارد' : 'دسترسی از سمت'}">
+            <span class="avatar xs">${esc(initials(h.full_name))}</span>${esc(h.full_name)}
+            ${h.has_own ? '<i class="ovr">استثنا</i>' : ''}
+          </span>`).join('')}
+        </div>` : '<div class="pos-people empty">کسی روی این سمت نیست</div>'}
+      </div>
+      <div class="pos-meta">
+        <span class="faint">${toFa(p.filled)} از ${toFa(p.headcount)}</span>
+        <span class="faint">${p.perm_count ? `${toFa(p.perm_count)} دسترسی` : 'بدون قالب دسترسی'}</span>
+      </div>
+      <div class="pos-acts">
+        ${can('org.assign') ? `<button class="btn ghost sm" data-action="pos-assign" data-id="${p.id}">گماردن</button>` : ''}
+        ${can('org.manage') ? `<button class="btn ghost sm" data-action="pos-edit" data-id="${p.id}">ویرایش</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function orgChartView() {
+  const d = state.org.data;
+  if (!d) return '<div class="empty"><p>در حال خواندن چارت…</p></div>';
+  const t = d.totals;
+
+  if (!d.positions.length) {
+    return `
+      <div class="page-head"><h2>چارت سازمانی</h2><span class="spacer"></span></div>
+      <div class="empty">
+        <p>هنوز سمتی تعریف نشده است.</p>
+        <p class="faint">سمت با شخص فرق دارد: «سرپرست تولید» یک سمت است با مسئولیت و
+          اختیار و قالب دسترسیِ خودش. هر کس روی آن صندلی بنشیند همان را می‌گیرد،
+          و وقتی برود مسئولیت سر جایش می‌ماند. بند ۵-۳ استانداردها همین را می‌خواهد.</p>
+        ${can('org.manage') ? '<button class="btn new" data-action="pos-new">+ اولین سمت</button>' : ''}
+      </div>`;
+  }
+
+  return `
+    <div class="page-head">
+      <h2>چارت سازمانی</h2>
+      <span class="count">${toFa(t.positions)} سمت · ${toFa(t.filled)} از ${toFa(t.headcount)} نفر</span>
+      ${t.vacancies ? `<span class="sdot warn">${toFa(t.vacancies)} پست خالی</span>` : '<span class="sdot ok">همهٔ پست‌ها پر است</span>'}
+      <span class="spacer"></span>
+      ${can('org.manage') ? '<button class="btn new sm" data-action="pos-new">+ سمت تازه</button>' : ''}
+    </div>
+
+    ${t.no_position ? `<div class="warn-card">
+      <b>⚠ ${toFa(t.no_position)} نفر هیچ سمتی ندارند</b>
+      <p>دسترسی‌شان از پیش‌فرض نقش می‌آید، نه از سمت. ${d.unassigned.map((x) => esc(x.full_name)).join('، ')}</p>
+    </div>` : ''}
+
+    <div class="card">
+      <header><h3>سمت‌ها و زنجیرهٔ گزارش‌دهی</h3></header>
+      <div class="pos-tree">${orgTree(d.positions).map(orgPositionRow).join('')}</div>
+    </div>`;
+}
+
+function orgPositionModal(id) {
+  const p = id ? orgFind(id) : null;
+  const d = state.org.data || {};
+  const units = d.units || [];
+  const others = (d.positions || []).filter((x) => x.id !== id);
+  const perms = p?.permissions || [];
+  openModal(p ? `سمت — ${esc(p.title)}` : 'سمت تازه', `
+    <form data-form="position" ${p ? `data-id="${p.id}"` : ''}>
+      <div class="row2">
+        <label class="field"><span>عنوان سمت</span>
+          <input class="input" name="title" required value="${esc(p?.title || '')}"
+                 placeholder="مثلاً سرپرست تولید"></label>
+        <label class="field"><span>واحد</span>
+          <select class="select" name="unit_id">
+            <option value="">—</option>
+            ${units.map((un) => `<option value="${un.id}" ${p?.unit_id === un.id ? 'selected' : ''}>${esc(un.name)}</option>`).join('')}
+          </select></label>
+      </div>
+      <div class="row2">
+        <label class="field"><span>گزارش می‌دهد به</span>
+          <select class="select" name="reports_to">
+            <option value="">— بالاترین سطح —</option>
+            ${others.map((o) => `<option value="${o.id}" ${p?.reports_to === o.id ? 'selected' : ''}>${esc(o.title)}</option>`).join('')}
+          </select></label>
+        <label class="field"><span>تعداد نفرات این سمت</span>
+          <input class="input" name="headcount" type="number" min="1" max="999"
+                 value="${p?.headcount ?? 1}"></label>
+      </div>
+
+      <label class="field"><span>مسئولیت‌ها <em>بند ۵-۳</em></span>
+        <textarea class="input" name="responsibilities" rows="3"
+          placeholder="هر مسئولیت در یک خط">${esc(p?.responsibilities || '')}</textarea></label>
+      <label class="field"><span>اختیارات <em>بند ۵-۳</em></span>
+        <textarea class="input" name="authorities" rows="2"
+          placeholder="چه چیزی را بدون اجازهٔ بالادست می‌تواند تصمیم بگیرد">${esc(p?.authorities || '')}</textarea></label>
+      <label class="field"><span>حداقل صلاحیت لازم <em>بند ۷-۲</em></span>
+        <textarea class="input" name="qualifications" rows="2"
+          placeholder="تحصیلات، تجربه، آموزش یا گواهی‌نامهٔ لازم">${esc(p?.qualifications || '')}</textarea></label>
+
+      <fieldset class="perm-wrap">
+        <legend>قالب دسترسی این سمت</legend>
+        <p class="faint" style="margin-bottom:10px;font-size:11.5px">
+          هر کس به این سمت گمارده شود همین دسترسی‌ها را می‌گیرد — مگر اینکه
+          برای خودش دسترسی اختصاصی تعیین شده باشد.</p>
+        ${permissionGrid(perms)}
+      </fieldset>
+
+      <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+        <button type="submit" class="btn">${p ? 'ذخیره' : 'بساز'}</button>
+        ${p ? `<button type="button" class="btn danger ghost" data-action="pos-remove" data-id="${p.id}">حذف سمت</button>` : ''}
+      </div>
+    </form>`);
+}
+
+function orgAssignModal(id) {
+  const p = orgFind(id);
+  if (!p) return;
+  const d = state.org.data || {};
+  const free = d.unassigned || [];
+  const full = p.filled >= p.headcount;
+  openModal(`گماردن به سمت — ${esc(p.title)}`, `
+    <p class="faint" style="margin-bottom:12px">
+      ${toFa(p.filled)} نفر از ${toFa(p.headcount)} نفرِ این سمت پر است.</p>
+
+    ${p.holders.length ? `
+      <h4 class="sub">الان روی این سمت</h4>
+      <ul class="peek-list">
+        ${p.holders.map((h) => `<li>
+          <span class="avatar xs">${esc(initials(h.full_name))}</span>
+          <b>${esc(h.full_name)}</b>
+          ${h.has_own ? '<small class="faint">دسترسی اختصاصی دارد، نه از سمت</small>' : ''}
+          <span class="spacer"></span>
+          <button class="btn ghost sm" data-action="pos-unassign" data-id="${h.id}">برداشتن</button>
+        </li>`).join('')}
+      </ul>` : ''}
+
+    ${full ? `<div class="warn-card" style="margin-top:12px">
+      <b>ظرفیت این سمت تکمیل است</b>
+      <p>اگر می‌خواهید کس دیگری هم اضافه شود، اول تعداد نفرات سمت را در ویرایش بالا ببرید.</p>
+    </div>` : `
+      <h4 class="sub" style="margin-top:14px">افزودن کسی که سمتی ندارد</h4>
+      ${free.length ? `<ul class="peek-list">
+        ${free.map((x) => `<li>
+          <span class="avatar xs">${esc(initials(x.full_name))}</span>
+          <b>${esc(x.full_name)}</b>
+          ${x.job_title ? `<small class="faint">${esc(x.job_title)}</small>` : ''}
+          <span class="spacer"></span>
+          <button class="btn soft sm" data-action="pos-set" data-id="${x.id}" data-pos="${p.id}">به این سمت</button>
+        </li>`).join('')}
+      </ul>` : '<p class="faint">همهٔ کارکنان سمت دارند.</p>'}`}`);
+}
+
 function kpiView() {
   const d = state.kpi.data;
   if (!d) return '<div class="empty"><p>در حال خواندن شاخص‌ها…</p></div>';
@@ -2616,6 +2803,14 @@ function kpiView() {
           <small class="faint">${toFa(g.items.length)} شاخص</small></header>
         <div class="kpi-grid">${g.items.map(kpiCard).join('')}</div>
       </div>`).join('')}`;
+}
+
+async function reloadOrg() {
+  const d = await guard(() => API.positions.list(), { silent: true });
+  if (d) { state.org.data = d; render(); }
+  // دسترسی خودِ کاربر ممکن است از همین تغییر عوض شده باشد
+  const me = await guard(() => API.me(), { silent: true });
+  if (me?.user) { state.user = me.user; render(); }
 }
 
 async function reloadKpi() {
@@ -3688,6 +3883,7 @@ function render() {
     case 'workload': inner = workloadView(); break;
     case 'review': inner = reviewView(); break;
     case 'units': inner = unitsView(); break;
+    case 'orgchart': inner = orgChartView(); break;
     case 'kpi': inner = kpiView(); break;
     case 'stock': inner = stockView(); break;
     case 'unitprod': inner = unitProdView(); break;
@@ -3735,6 +3931,13 @@ async function setView(view) {
     const d = await guard(() => API.kpi.list({ jy: state.month.jy, jm: state.month.jm }),
       { silent: true });
     if (d) state.kpi.data = d;
+  } else if (view === 'orgchart') {
+    const d = await guard(() => API.positions.list());
+    if (d) state.org.data = d;
+    if (!state.users.length) {
+      const us = await guard(() => API.users.list(), { silent: true });
+      if (us) state.users = us.users;
+    }
   } else if (view === 'kpi') {
     const d = await guard(() => API.kpi.list({ jy: state.month.jy, jm: state.month.jm }));
     if (d) state.kpi.data = d;
@@ -4070,6 +4273,27 @@ document.addEventListener('click', async (e) => {
       break;
     }
     case 'stock-card': await stockCardModal(id); break;
+    case 'pos-new': orgPositionModal(); break;
+    case 'pos-edit': orgPositionModal(id); break;
+    case 'pos-assign': orgAssignModal(id); break;
+    case 'pos-set': {
+      const posId = btn.dataset.pos;
+      const res = await guard(() => API.positions.assign(id, posId));
+      if (res) { state.org.data = { ...state.org.data, ...res }; closeModal(); toast('گمارده شد', 'ok'); await reloadOrg(); }
+      break;
+    }
+    case 'pos-unassign': {
+      const res = await guard(() => API.positions.assign(id, null));
+      if (res) { closeModal(); toast('از سمت برداشته شد', 'ok'); await reloadOrg(); }
+      break;
+    }
+    case 'pos-remove': {
+      const pos = orgFind(id);
+      if (!pos || !confirm(`سمت «${pos.title}» حذف شود؟`)) break;
+      const res = await guard(() => API.positions.remove(id));
+      if (res) { closeModal(); toast('سمت حذف شد', 'ok'); await reloadOrg(); }
+      break;
+    }
     case 'dash-tab':
       state.dash.tab = id;
       render();
@@ -4402,6 +4626,29 @@ document.addEventListener('submit', async (e) => {
     if (kind === 'login') {
       const res = await guard(() => API.login(String(fd.username).trim(), fd.password));
       if (res) { state.user = res.user; await boot(); }
+    }
+
+    if (kind === 'position') {
+      const rid = form.dataset.id;
+      const perms = [...form.querySelectorAll('input[name="perm"]:checked')].map((x) => x.value);
+      const payload = {
+        title: fd.title,
+        unit_id: fd.unit_id || null,
+        reports_to: fd.reports_to || null,
+        headcount: Number(fd.headcount) || 1,
+        responsibilities: fd.responsibilities || '',
+        authorities: fd.authorities || '',
+        qualifications: fd.qualifications || '',
+        // تیک نزدن هیچ کلیدی یعنی «قالبی ندارد»، نه «هیچ دسترسی‌ای ندارد» —
+        // آن وقت دسترسی به پیش‌فرض نقش برمی‌گردد.
+        permissions: perms.length ? perms : null,
+      };
+      const res = await guard(() => (rid ? API.positions.update(rid, payload) : API.positions.create(payload)));
+      if (res) {
+        closeModal();
+        toast(rid ? 'سمت به‌روز شد' : 'سمت ساخته شد', 'ok');
+        await reloadOrg();
+      }
     }
 
     if (kind === 'kpi-value') {

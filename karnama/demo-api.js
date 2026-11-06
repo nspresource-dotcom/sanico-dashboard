@@ -1,9 +1,9 @@
 // نسخهٔ نمایشی — همان رابط API، اما داده‌ها در مرورگر خودتان نگهداری می‌شود.
 import { isoToJalali, todayIso, jalaliMonthRange, MONTH_NAMES } from './jalali.js';
-import { effectivePermissions, can as canDo, ALL_KEYS, PRESETS, JUSTIFY_ABOVE } from './permissions.js';
+import { effectivePermissions, permissionSource, can as canDo, ALL_KEYS, PRESETS, JUSTIFY_ABOVE } from './permissions.js';
 
 // نسخهٔ کلید که بالا می‌رود، دادهٔ قبلی مرورگر دور ریخته می‌شود و همه از صفر شروع می‌کنند
-const KEY = 'karnama-demo-v7';
+const KEY = 'karnama-demo-v8';
 const uid = () => Math.random().toString(36).slice(2, 11);
 const now = () => new Date().toISOString();
 const today = todayIso();
@@ -314,6 +314,57 @@ function seed() {
   const sm = conversation_members.find((m) => m.conversation_id === grp && m.user_id === by('sara'));
   if (sm) sm.last_read_at = at(0, 8, 45);
 
+  // ── چارت سازمانی نمونه: سمت‌ها با مسئولیت و اختیار و قالب دسترسی
+  const positions = [];
+  let pcode = 1001;
+  const addPos = (title, unitName, reportsTo, preset, head, resp, auth2, qual) => {
+    const un = units.find((x) => x.name === unitName);
+    const up = positions.find((x) => x.title === reportsTo);
+    positions.push({
+      id: `pos${pcode}`, company_id: 'c1', code: `P${pcode}`, title,
+      unit_id: un ? un.id : null, reports_to: up ? up.id : null,
+      responsibilities: resp, authorities: auth2, qualifications: qual,
+      permissions: preset ? JSON.stringify(PRESETS[preset].keys) : null,
+      headcount: head, is_active: 1, sort_order: pcode - 1000,
+      created_at: now(), updated_at: now(),
+    });
+    pcode += 1;
+  };
+  addPos('مدیرعامل', null, null, 'ceo', 1,
+    'راهبری گروه، تصویب اهداف سالانه، تأمین منابع، بازنگری مدیریت',
+    'تصویب بودجه، انتصاب مدیران، تأیید اهداف و خط‌مشی',
+    'کارشناسی ارشد مدیریت یا مهندسی، ۱۰ سال سابقهٔ مدیریت صنعتی');
+  addPos('مدیر کارخانه', 'کارخانه', 'مدیرعامل', 'manager', 1,
+    'اجرای برنامهٔ تولید، کنترل هزینهٔ تبدیل، نگهداشت تجهیزات، ایمنی کارگاه',
+    'توقف خط در شرایط ناایمن، تخصیص نیرو بین شیفت‌ها',
+    'کارشناسی مهندسی معدن یا مکانیک، ۵ سال سابقهٔ کارخانه');
+  addPos('سرپرست تولید', 'تولید', 'مدیر کارخانه', 'lead', 2,
+    'تحویل تناژ برنامه، کنترل ضایعات، گزارش توقف خط، آموزش اپراتورها',
+    'تغییر تنظیمات آسیاب در محدودهٔ مجاز، توزیع کار بین اپراتورها',
+    'کاردانی فنی، ۳ سال سابقهٔ خط آسیاب، گذراندن دورهٔ ایمنی');
+  addPos('مسئول کنترل کیفیت', 'کنترل کیفیت', 'مدیر کارخانه', 'lead', 1,
+    'نمونه‌برداری، آزمون انطباق با مشخصات API، صدور گواهی محموله، ثبت عدم انطباق',
+    'توقف ارسال محمولهٔ نامنطبق — این اختیار قابل نقض توسط تولید نیست',
+    'کارشناسی شیمی یا متالورژی، آشنایی با استاندارد API 13A');
+  addPos('انباردار', 'کارخانه', 'مدیر کارخانه', 'keeper', 1,
+    'ثبت رسید و حواله، انبارگردانی دوره‌ای، پایش نقطهٔ سفارش',
+    'رد تحویل کالای بدون مدرک یا نامنطبق با مشخصات خرید',
+    'دیپلم، آشنایی با سامانهٔ انبار، ۲ سال سابقه');
+  addPos('کارشناس اداری و منابع انسانی', 'اداری', 'مدیرعامل', 'member', 1,
+    'پروندهٔ پرسنلی، قراردادها، بیمه، پیگیری آموزش‌های الزامی',
+    'صدور گواهی اشتغال، هماهنگی دوره‌های آموزشی',
+    'کارشناسی مدیریت یا حقوق، آشنایی با قانون کار');
+  const seat = (username, title) => {
+    const u = users.find((x) => x.username === username);
+    const p = positions.find((x) => x.title === title);
+    if (u && p) { u.position_id = p.id; u.job_title = title; }
+  };
+  seat('modir', 'مدیرعامل');
+  seat('ali', 'سرپرست تولید');
+  seat('sara', 'مسئول کنترل کیفیت');
+  seat('hamed', 'انباردار');
+  seat('nazanin', 'کارشناس اداری و منابع انسانی');
+
   // ── شاخص‌های نمونه، با سابقهٔ شش ماه تا روند واقعی دیده شود
   const indicators = [];
   const indicator_values = [];
@@ -365,7 +416,7 @@ function seed() {
     task_links: [], time_logs, performance_scores, recurrences, notifications,
     task_reviews: [], unit_scores: [],
     uoms, item_groups, warehouses, items, stock_entries, stock_entry_items, stock_ledger,
-    indicators, indicator_values,
+    positions, indicators, indicator_values,
     conversations, conversation_members, messages,
     comments: [], events: [], board_members: [], session: null };
 }
@@ -385,12 +436,23 @@ const fail = (msg, status = 400) => { const e = new Error(msg); e.status = statu
 
 const me = () => db.users.find((x) => x.id === db.session) || null;
 function auth() { const u = me(); if (!u) fail('ابتدا وارد شوید', 401); return u; }
-const allow = (u, key) => canDo({ ...u, perms: effectivePermissions(u) }, key);
+/** قالب دسترسی سمت را کنار کاربر می‌گذارد — سرور هم در SELECT همین کار را می‌کند */
+function withPos(u) {
+  if (!u) return u;
+  const p = u.position_id ? (db.positions || []).find((x) => x.id === u.position_id && x.is_active) : null;
+  return {
+    ...u,
+    position_title: p ? p.title : null,
+    position_permissions: p ? p.permissions : null,
+  };
+}
+const allow = (u, key) => canDo({ ...withPos(u), perms: effectivePermissions(withPos(u)) }, key);
 function need(u, key) { if (!allow(u, key)) fail('این دسترسی برای شما فعال نیست', 403); }
 const pub = (u) => ({
-  ...u,
+  ...withPos(u),
   is_active: !!u.is_active,
-  perms: effectivePermissions(u),
+  perms: effectivePermissions(withPos(u)),
+  perm_source: permissionSource(withPos(u)),
   company_name: db.company.name,
   unit_name: u.unit_id ? db.units.find((x) => x.id === u.unit_id)?.name || null : null,
   supervisor_name: u.supervisor_id ? db.users.find((x) => x.id === u.supervisor_id)?.full_name || null : null,
@@ -912,6 +974,50 @@ function kpiPayload({ jy, jm }) {
   };
 }
 
+
+// ───────────── چارت سازمانی (آینهٔ سرور) ─────────────
+function posPayload() {
+  const list = (db.positions || []).filter((p) => p.is_active)
+    .sort((a, b) => a.sort_order - b.sort_order);
+  const holders = db.users.filter((u) => u.is_active && u.position_id);
+  const positions = list.map((p) => {
+    let perms = null;
+    try { const x = JSON.parse(p.permissions); if (Array.isArray(x)) perms = x; } catch { perms = null; }
+    const mine = holders.filter((h) => h.position_id === p.id);
+    const un = db.units.find((x) => x.id === p.unit_id);
+    const rp = list.find((x) => x.id === p.reports_to);
+    const head = Number(p.headcount) || 1;
+    return {
+      id: p.id, code: p.code, title: p.title,
+      unit_id: p.unit_id, unit_name: un ? un.name : null,
+      reports_to: p.reports_to, reports_to_title: rp ? rp.title : null,
+      responsibilities: p.responsibilities || '',
+      authorities: p.authorities || '',
+      qualifications: p.qualifications || '',
+      permissions: perms, perm_count: perms ? perms.length : 0,
+      headcount: head, filled: mine.length,
+      vacancies: Math.max(0, head - mine.length),
+      holders: mine.map((h) => ({ id: h.id, full_name: h.full_name, has_own: !!h.permissions })),
+      sort_order: p.sort_order,
+    };
+  });
+  const unassigned = db.users
+    .filter((u) => u.is_active && !u.position_id)
+    .map((u) => ({ id: u.id, full_name: u.full_name, job_title: u.job_title }));
+  return {
+    positions,
+    units: db.units.filter((u) => !u.archived_at).map((u) => ({ id: u.id, name: u.name, parent_id: u.parent_id })),
+    unassigned,
+    totals: {
+      positions: positions.length,
+      headcount: positions.reduce((a, p) => a + p.headcount, 0),
+      filled: positions.reduce((a, p) => a + p.filled, 0),
+      vacancies: positions.reduce((a, p) => a + p.vacancies, 0),
+      no_position: unassigned.length,
+    },
+  };
+}
+
 export const API = {
   mode: 'demo',
 
@@ -1273,6 +1379,101 @@ export const API = {
 
   // ───────────────────────── انبار ─────────────────────────
   // همان سه قاعدهٔ سرور: موجودی از دفتر، سند قطعی دست‌نخوردنی، انبار بدون منفی.
+  positions: {
+    async list() { auth(); need(auth(), 'org.view'); return wait(posPayload()); },
+    async create(d) {
+      const u = auth(); need(u, 'org.manage');
+      const title = String(d.title || '').trim();
+      if (title.length < 2) fail('عنوان سمت را بنویسید');
+      const head = Number(d.headcount);
+      if (d.headcount !== undefined && (!Number.isInteger(head) || head < 1 || head > 999)) {
+        fail('تعداد نفرات باید عددی بین ۱ تا ۹۹۹ باشد');
+      }
+      db.positions.push({
+        id: uid(), company_id: 'c1', code: `P${1001 + db.positions.length}`, title,
+        unit_id: d.unit_id || null, reports_to: d.reports_to || null,
+        responsibilities: String(d.responsibilities || '').trim() || null,
+        authorities: String(d.authorities || '').trim() || null,
+        qualifications: String(d.qualifications || '').trim() || null,
+        permissions: Array.isArray(d.permissions) ? JSON.stringify(d.permissions) : null,
+        headcount: Number.isInteger(head) && head > 0 ? head : 1,
+        is_active: 1, sort_order: db.positions.length + 1,
+        created_at: now(), updated_at: now(),
+      });
+      save();
+      return wait(posPayload());
+    },
+    async update(id, d) {
+      const u = auth(); need(u, 'org.manage');
+      const p = db.positions.find((x) => x.id === id);
+      if (!p) fail('سمت یافت نشد');
+      if (d.title !== undefined) {
+        const t = String(d.title).trim();
+        if (t.length < 2) fail('عنوان سمت را بنویسید');
+        p.title = t;
+      }
+      if (d.unit_id !== undefined) p.unit_id = d.unit_id || null;
+      if (d.reports_to !== undefined) {
+        if (d.reports_to === p.id) fail('یک سمت نمی‌تواند به خودش گزارش بدهد');
+        if (d.reports_to) {
+          let cur = d.reports_to; const seen = new Set([p.id]);
+          for (let i = 0; i < 20 && cur; i += 1) {
+            if (seen.has(cur)) fail('این انتخاب در چارت حلقه می‌سازد');
+            seen.add(cur);
+            const up = db.positions.find((x) => x.id === cur);
+            cur = up ? up.reports_to : null;
+          }
+        }
+        p.reports_to = d.reports_to || null;
+      }
+      for (const f of ['responsibilities', 'authorities', 'qualifications']) {
+        if (d[f] !== undefined) p[f] = String(d[f]).trim() || null;
+      }
+      if (d.permissions !== undefined) {
+        p.permissions = Array.isArray(d.permissions) ? JSON.stringify(d.permissions) : null;
+      }
+      if (d.headcount !== undefined) {
+        const h = Number(d.headcount);
+        if (!Number.isInteger(h) || h < 1 || h > 999) fail('تعداد نفرات باید عددی بین ۱ تا ۹۹۹ باشد');
+        p.headcount = h;
+      }
+      if (d.is_active !== undefined) p.is_active = d.is_active ? 1 : 0;
+      p.updated_at = now(); save();
+      return wait(posPayload());
+    },
+    async remove(id) {
+      const u = auth(); need(u, 'org.manage');
+      const p = db.positions.find((x) => x.id === id);
+      if (!p) fail('سمت یافت نشد');
+      if (db.users.some((x) => x.position_id === id && x.is_active)) {
+        fail('کسی روی این سمت است — اول او را جابه‌جا کنید');
+      }
+      if (db.positions.some((x) => x.reports_to === id && x.is_active)) {
+        fail('سمت‌های دیگری به این سمت گزارش می‌دهند — اول بالادستشان را عوض کنید');
+      }
+      p.is_active = 0; p.updated_at = now(); save();
+      return wait(posPayload());
+    },
+    async assign(userId, positionId) {
+      const u = auth(); need(u, 'org.assign');
+      const target = db.users.find((x) => x.id === userId);
+      if (!target) fail('کاربر یافت نشد');
+      let pos = null;
+      if (positionId) {
+        pos = db.positions.find((x) => x.id === positionId && x.is_active);
+        if (!pos) fail('سمت یافت نشد');
+        const filled = db.users.filter((x) => x.position_id === pos.id && x.is_active && x.id !== target.id).length;
+        if (filled >= (Number(pos.headcount) || 1)) {
+          fail(`ظرفیت سمت «${pos.title}» تکمیل است (${Number(pos.headcount) || 1} نفر). اول ظرفیت را بالا ببرید.`);
+        }
+      }
+      target.position_id = positionId || null;
+      if (pos) target.job_title = pos.title;
+      save();
+      return wait(posPayload());
+    },
+  },
+
   kpi: {
     async list(query) {
       const u = auth(); need(u, 'kpi.view');
@@ -2354,7 +2555,7 @@ window.karnamaResetEmpty = () => {
       task_reviews: [], unit_scores: [],
       uoms: fresh.uoms, item_groups: [], warehouses: [], items: [],
       stock_entries: [], stock_entry_items: [], stock_ledger: [],
-      indicators: [], indicator_values: [],
+      positions: [], indicators: [], indicator_values: [],
       conversations: [], conversation_members: [], messages: [],
       comments: [], events: [], board_members: [], session: null,
     }));

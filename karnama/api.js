@@ -103,6 +103,15 @@ export const API = {
     units: (query) => call('GET', '/api/reports/units', null, query),
   },
 
+  positions: {
+    list: () => call('GET', '/api/positions'),
+    create: (d) => call('POST', '/api/positions', d),
+    update: (id, d) => call('PATCH', `/api/positions/${id}`, d),
+    remove: (id) => call('DELETE', `/api/positions/${id}`, {}),
+    assign: (userId, positionId) => call('PUT', `/api/users/${userId}/position`,
+      { position_id: positionId || null }),
+  },
+
   kpi: {
     list: (query) => call('GET', '/api/kpi', null, query),
     create: (d) => call('POST', '/api/kpi', d),

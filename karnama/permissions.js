@@ -38,6 +38,17 @@ export const CATALOG = [
     ],
   },
   {
+    group: 'org',
+    title: 'چارت سازمانی',
+    icon: '⌸',
+    items: [
+      { key: 'org.view', label: 'دیدن چارت سازمانی و سمت‌ها' },
+      { key: 'org.manage', label: 'تعریف و ویرایش سمت',
+        hint: 'شرح وظایف، اختیارات، صلاحیت لازم و قالب دسترسی سمت' },
+      { key: 'org.assign', label: 'گماردن افراد به سمت' },
+    ],
+  },
+  {
     group: 'kpi',
     title: 'پایشگر شاخص‌ها',
     icon: '◎',
@@ -125,6 +136,7 @@ export const PRESETS = {
       'review.do', 'time.log', 'time.view_all', 'time.approve',
       'chat.use', 'chat.group',
       'kpi.view', 'kpi.record',
+      'org.view',
       'scores.view_own', 'scores.view_unit'],
   },
   // انبارداری عمداً در قالب کارمند و مدیر واحد نیست: دسترسی به موجودی و سند
@@ -146,6 +158,7 @@ export const PRESETS = {
       'chat.use', 'chat.group',
       'stock.view', 'stock.view_all', 'stock.entry', 'stock.submit', 'stock.manage', 'stock.report',
       'kpi.view', 'kpi.record',
+      'org.view', 'org.assign',
       'scores.view_own', 'scores.view_unit', 'scores.view_all', 'scores.unit', 'reports.unit'],
   },
   // مدیرعامل ساعت کاری ثبت نمی‌کند — ساعت دیگران را می‌بیند و تأیید می‌کند،
@@ -180,16 +193,37 @@ export const ROLE_DEFAULTS = {
 // همهٔ صفحه‌های سامانه را لازم ندارد.
 export const ADMIN_FLOOR = ['users.view', 'users.manage', 'users.permissions'];
 
+const parseList = (v) => {
+  if (Array.isArray(v)) return v;
+  if (typeof v !== 'string') return null;
+  try { const x = JSON.parse(v); return Array.isArray(x) ? x : null; } catch { return null; }
+};
+
+/**
+ * دسترسی مؤثر، در سه لایه و به همین ترتیب:
+ *   ۱ دسترسی اختصاصی خودِ شخص، اگر برایش تعیین شده باشد (استثنا)
+ *   ۲ قالب دسترسی سمتش — جای معمول و درست تعریف دسترسی
+ *   ۳ پیش‌فرض نقش، برای کسی که هنوز سمتی ندارد
+ * این‌طور یک‌بار برای «سرپرست تولید» تیک می‌زنید و هر کسی که به آن سمت
+ * برود همان را می‌گیرد؛ ولی استثنا برای یک نفر هم ممکن می‌ماند.
+ * `position_permissions` را سرور کنار کاربر می‌گذارد.
+ */
 export function effectivePermissions(user) {
   if (!user) return [];
-  let list = user.permissions;
-  if (typeof list === 'string') {
-    try { list = JSON.parse(list); } catch { list = null; }
-  }
-  if (!Array.isArray(list)) list = ROLE_DEFAULTS[user.role] || ROLE_DEFAULTS.member;
+  const own = parseList(user.permissions);
+  const fromPosition = parseList(user.position_permissions);
+  const list = own || fromPosition || ROLE_DEFAULTS[user.role] || ROLE_DEFAULTS.member;
   const out = list.filter((k) => ALL_KEYS.includes(k));
   if (user.role === 'admin') return [...new Set([...out, ...ADMIN_FLOOR])];
   return out;
+}
+
+/** دسترسی از کجا آمده — برای اینکه رابط بتواند صادقانه بگوید */
+export function permissionSource(user) {
+  if (!user) return 'none';
+  if (parseList(user.permissions)) return 'own';
+  if (parseList(user.position_permissions)) return 'position';
+  return 'role';
 }
 
 /** آیا کاربر این دسترسی را دارد؟ */
