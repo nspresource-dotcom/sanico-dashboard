@@ -1,78 +1,94 @@
 /* ═══════════════════════════════════════════════════════════
    کارنما — شیوه‌نامهٔ رابط کاربری
 
-   سه تصمیم که کل ظاهر رویشان سوار است:
+   چهار تصمیم که کل ظاهر رویشان سوار است:
 
-   ۱. صفحه یک کاغذ سفید تمام‌قد نیست. پس‌زمینه آبیِ روشن است و خودِ
-      برنامه مثل یک برگهٔ سفید با گوشه‌های گرد رویش شناور می‌ماند.
-      این همان حسی است که در نمونه‌های پیوست، صفحه را سبک می‌کند.
-   ۲. سه رنگ کنش، هر کدام یک معنی ثابت و بی‌استثنا:
-        مرجانی  = چیز تازه بساز       (افزودن، سند تازه، پیام تازه)
-        سبزآبی  = تأیید کن و پیش برو  (ثبت، ذخیره، ارسال) — رنگ برند سایا
-        قرمز سیر = کار برگشت‌ناپذیر   (حذف، ابطال)
-      کاربر بعد از دو روز دیگر دکمه را نمی‌خواند، رنگش را می‌شناسد.
-   ۳. سبزآبی برند رنگ غالب نیست. منوی سرمه‌ای و زمینهٔ آبیِ روشن،
-      زمینه‌اند؛ برند فقط روی آیتم فعال و کنش تأیید می‌نشیند.
+   ۱. همه‌چیز سفید است مگر خلافش ثابت شود. منوی کنار، نوار بالا و
+      کارت‌ها سفیدند؛ زمینهٔ صفحه خاکستریِ بسیار روشن. در سامانه‌ای که
+      کسی هشت ساعت در روز تویش کار می‌کند، سطح سیر خسته‌کننده است.
+   ۲. آبی تنها رنگِ «کنش» است: دکمهٔ اصلی، آیتم فعال منو، پیوند، و
+      نقطهٔ تأکید داده. هر جای دیگری آبی بیاید، معنی‌اش رقیق می‌شود.
+   ۳. آیتم فعالِ منو با آبیِ کم‌رنگ و نوار باریکِ آبی مشخص می‌شود، نه
+      با یک قرص آبیِ پررنگ — روی زمینهٔ سفید، کم‌رنگ هم کاملاً پیداست
+      و چشم را در فهرستِ بلند خسته نمی‌کند.
+   ۴. سبز و قرمز فقط برای عدد و وضعیت‌اند، نه برای تزیین: رشد و کاهش،
+      تأیید و خطا. کاربر رنگ را می‌بیند و قبل از خواندن می‌فهمد.
    ═══════════════════════════════════════════════════════════ */
 
-:root {
-  /* رنگ برند — سایا */
-  --brand: #387F81;
-  --brand-ink: #2B6264;
-  --brand-lift: #4A9496;
-  --brand-soft: #E8F2F2;
-  --brand-soft-2: #D4E7E7;
+/* وزیرمتن از روی همین دامنه سرو می‌شود، نه از گوگل.
+   دلیلش ساده است: گوگل‌فونت از ایران اغلب باز نمی‌شود و نتیجه‌اش این بود
+   که کاربر فونت پیش‌فرض دستگاه را می‌دید. این یک فایل ۱۱۱ کیلوبایتیِ
+   متغیر است و همهٔ وزن‌های ۱۰۰ تا ۹۰۰ را پوشش می‌دهد. */
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('./vazirmatn.woff2') format('woff2-variations'),
+       url('./vazirmatn.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 
-  /* کنش «تازه بساز» */
-  --accent: #F2615F;
-  --accent-ink: #D94947;
-  --accent-soft: #FDECEC;
+:root {
+  /* پالت کارفرما: #659287 · #88BDA4 · #B1D3B9 · #E6F2DD
+     یک نکته: روی #659287 متن سفید نسبت کنتراست ۳٫۵ می‌دهد که برای متن
+     ۱۴ پیکسلی کم است. پس «پُرکنندهٔ دکمه» یک پله تیره‌تر از آن گرفته شده
+     (#4F7A70، نسبت ۴٫۹) و خودِ #659287 جای دیگری می‌نشیند که متن رویش
+     نیست: نوار آیتم فعال، نشان برند، و رنگ اولِ نمودار. */
+  --brand: #4F7A70;
+  --brand-ink: #3C625A;
+  --brand-lift: #659287;
+  --brand-soft: #E6F2DD;
+  --brand-soft-2: #B1D3B9;
+
+  --accent: #4F7A70;
+  --accent-ink: #3C625A;
+  --accent-soft: #E6F2DD;
 
   /* سطح‌ها و متن */
-  --page: #E8F0FB;            /* زمینهٔ آبیِ روشنِ پشت برگه */
-  --page-2: #F3F7FD;
-  --bg: #EDF2F9;              /* داخل برگه، پشت کارت‌ها — کمی سیرتر از سفید تا کارت‌ها جدا شوند */
+  --page: #E9F2E2;
+  --page-2: #F1F7EC;
+  --bg: #E9F2E2;
   --surface: #FFFFFF;
-  --surface-2: #F7FAFD;
-  --line: #E6EDF5;
-  --line-strong: #CFDBE8;
-  --text: #16222F;
-  --muted: #5B6B7C;
-  --faint: #93A3B4;
+  --surface-2: #F6FAF3;
+  --line: #E2EBDD;
+  --line-strong: #CBDAC4;
+  --text: #15211D;
+  --muted: #5B6B65;
+  --faint: #93A29B;
 
-  /* وضعیت‌ها — عمداً خارج از خانوادهٔ برند، تا «خوب/بد» با «برند» اشتباه نشود */
-  --ok: #2E9268;
-  --ok-soft: #E6F4EE;
-  --warn: #B07619;
-  --warn-soft: #FBF1DD;
-  --danger: #C14A43;
-  --danger-soft: #FAE9E8;
-  --info: #43698F;
-  --info-soft: #E9F0F7;
+  /* وضعیت‌ها — عمداً بیرون از خانوادهٔ سبزِ برند، تا «تأیید» با «برند» قاطی نشود */
+  --ok: #2E8B63;
+  --ok-soft: #E3F3EB;
+  --warn: #C98211;
+  --warn-soft: #FBF2DF;
+  --danger: #CF4A42;
+  --danger-soft: #FBEAE9;
+  --info: #3C7390;
+  --info-soft: #E7F0F5;
 
-  /* رنگ‌های کمکی نمودار — کم‌اشباع، تا جدول شلوغ نشود */
-  --c1: #387F81;
-  --c2: #6E8FB8;
-  --c3: #C98B5E;
-  --c4: #8E7CB0;
+  /* رنگ‌های کمکی نمودار — سه تای اول دقیقاً پالت شما */
+  --c1: #659287;
+  --c2: #88BDA4;
+  --c3: #B1D3B9;
+  --c4: #C98211;
 
-  /* منوی کنار سرمه‌ای است، نه سبز: وقتی خودش سبز بود، سبزآبی برند روی آیتم
-     فعال گم می‌شد. سرمه‌ای با سبزآبی هم‌خانواده است بدون اینکه با آن رقابت کند. */
-  --sidebar: #1B2238;
-  --sidebar-2: #252D47;
-  --sidebar-3: #2F3855;
-  --sidebar-ink: #A3ACC4;
+  /* منوی کنار سفید است. این متغیرها می‌مانند تا جایی که به آن‌ها ارجاع
+     هست نشکند، ولی حالا همه روشن‌اند. */
+  --sidebar: #FFFFFF;
+  --sidebar-2: #F4F6FA;
+  --sidebar-3: #EDF1FF;
+  --sidebar-ink: #5A6779;
 
-  --r-xl: 22px;
-  --r-lg: 18px;
-  --r: 14px;
-  --r-sm: 10px;
+  --r-xl: 18px;
+  --r-lg: 15px;
+  --r: 12px;
+  --r-sm: 9px;
 
-  --sh-sm: 0 1px 2px rgba(22, 34, 47, .05);
-  --sh: 0 1px 2px rgba(22, 34, 47, .04), 0 10px 28px -14px rgba(22, 34, 47, .18);
-  --sh-md: 0 2px 4px rgba(22, 34, 47, .05), 0 16px 36px -16px rgba(22, 34, 47, .22);
-  --sh-lg: 0 28px 70px -24px rgba(22, 34, 47, .36);
-  --sh-page: 0 1px 3px rgba(22, 34, 47, .05), 0 22px 60px -28px rgba(27, 34, 56, .32);
+  --sh-sm: 0 1px 2px rgba(21, 33, 29, .04);
+  --sh: 0 1px 2px rgba(21, 33, 29, .04), 0 1px 3px rgba(21, 33, 29, .03);
+  --sh-md: 0 2px 6px rgba(21, 33, 29, .06), 0 12px 28px -14px rgba(21, 33, 29, .18);
+  --sh-lg: 0 24px 60px -22px rgba(21, 33, 29, .30);
+  --sh-page: none;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -88,11 +104,11 @@
     --muted: #9CAEC2;
     --faint: #6E8097;
 
-    --brand: #52A5A7;
-    --brand-ink: #6BB9BB;
-    --brand-lift: #6BB9BB;
-    --brand-soft: #16302F;
-    --brand-soft-2: #1D3C3B;
+    --brand: #7FB3A4;
+    --brand-ink: #9BC9BB;
+    --brand-lift: #9BC9BB;
+    --brand-soft: #1B2A26;
+    --brand-soft-2: #263B35;
 
     --ok: #43B183;
     --ok-soft: #142C22;
@@ -103,14 +119,14 @@
     --info: #7BA3CC;
     --info-soft: #16242F;
 
-    --accent: #FF7A77;
-    --accent-ink: #FF9694;
-    --accent-soft: #33201F;
+    --accent: #7FB3A4;
+    --accent-ink: #9BC9BB;
+    --accent-soft: #1B2A26;
 
-    --sidebar: #121829;
-    --sidebar-2: #1B2338;
-    --sidebar-3: #242E48;
-    --sidebar-ink: #94A0BA;
+    --sidebar: #17212E;
+    --sidebar-2: #1E2A3A;
+    --sidebar-3: #243054;
+    --sidebar-ink: #9CAEC2;
 
     --sh-sm: none;
     --sh: 0 1px 2px rgba(0, 0, 0, .3);
@@ -124,14 +140,14 @@
   --bg: #101822; --surface: #17212E; --surface-2: #131C27;
   --line: #223041; --line-strong: #324354;
   --text: #E8EEF5; --muted: #9CAEC2; --faint: #6E8097;
-  --brand: #52A5A7; --brand-ink: #6BB9BB; --brand-lift: #6BB9BB;
-  --brand-soft: #16302F; --brand-soft-2: #1D3C3B;
-  --accent: #FF7A77; --accent-ink: #FF9694; --accent-soft: #33201F;
+  --brand: #7FB3A4; --brand-ink: #9BC9BB; --brand-lift: #9BC9BB;
+  --brand-soft: #1B2A26; --brand-soft-2: #263B35;
+  --accent: #7FB3A4; --accent-ink: #9BC9BB; --accent-soft: #1B2A26;
   --ok: #43B183; --ok-soft: #142C22;
   --warn: #D29A3C; --warn-soft: #2C2415;
   --danger: #DE7872; --danger-soft: #2E1B1A;
   --info: #7BA3CC; --info-soft: #16242F;
-  --sidebar: #121829; --sidebar-2: #1B2338; --sidebar-3: #242E48; --sidebar-ink: #94A0BA;
+  --sidebar: #17212E; --sidebar-2: #1E2A3A; --sidebar-3: #243054; --sidebar-ink: #9CAEC2;
   --sh-sm: none; --sh: 0 1px 2px rgba(0,0,0,.3);
   --sh-md: 0 10px 30px -14px rgba(0,0,0,.6); --sh-lg: 0 28px 70px -24px rgba(0,0,0,.7);
   --sh-page: 0 22px 60px -28px rgba(0,0,0,.8);
@@ -141,12 +157,7 @@
 
 html, body {
   margin: 0; padding: 0; min-height: 100%;
-  background:
-    radial-gradient(60rem 36rem at 88% -8%, var(--page-2) 0%, transparent 60%),
-    radial-gradient(52rem 32rem at 4% 104%, var(--page-2) 0%, transparent 55%),
-    var(--page);
-  background-attachment: fixed;
-  color: var(--text);
+  background: var(--page); color: var(--text);
   font-family: Vazirmatn, 'Vazir', 'IRANSans', 'IRANYekan', 'Sahel',
                'Segoe UI', Tahoma, system-ui, sans-serif;
   font-size: 15px; line-height: 1.75;
@@ -188,7 +199,7 @@ h1, h2, h3, h4 { margin: 0; font-weight: 800; letter-spacing: -.015em; }
   background: linear-gradient(145deg, var(--brand-lift), var(--brand-ink));
   display: grid; place-items: center; color: #fff;
   font-size: 25px; font-weight: 800; margin-bottom: 20px;
-  box-shadow: 0 8px 22px -8px rgba(56, 127, 129, .55);
+  box-shadow: 0 8px 22px -8px rgba(79, 122, 112, .45);
 }
 .login-card h1 { font-size: 21px; }
 .login-card .sub { color: var(--muted); font-size: 13.5px; margin: 5px 0 24px; }
@@ -219,10 +230,10 @@ input[type="number"] { direction: ltr; text-align: right; }
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   padding: 10px 17px; border: 1px solid transparent; border-radius: var(--r-sm);
   background: var(--brand); color: #fff; font-weight: 700; font-size: 14px;
-  box-shadow: 0 1px 2px rgba(20, 41, 43, .10);
+  box-shadow: 0 1px 2px rgba(79, 122, 112, .20);
   transition: background .15s, transform .08s, box-shadow .15s, border-color .15s;
 }
-.btn:hover { background: var(--brand-ink); box-shadow: 0 6px 16px -7px rgba(56, 127, 129, .7); }
+.btn:hover { background: var(--brand-ink); box-shadow: 0 6px 16px -7px rgba(79, 122, 112, .55); }
 .btn:active { transform: translateY(1px); }
 .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn.ghost {
@@ -234,9 +245,9 @@ input[type="number"] { direction: ltr; text-align: right; }
 .btn.soft:hover { background: var(--brand-soft-2); }
 .btn.ok { background: var(--ok); }
 .btn.ok:hover { background: var(--ok); filter: brightness(.92); }
-/* مرجانی فقط برای «چیز تازه بساز». هر جای دیگری بیاید، معنی‌اش را از دست می‌دهد. */
-.btn.new { background: var(--accent); box-shadow: 0 1px 2px rgba(242, 97, 95, .22); }
-.btn.new:hover { background: var(--accent-ink); box-shadow: 0 7px 18px -7px rgba(242, 97, 95, .75); }
+/* «تازه بساز» همان آبیِ اصلی است، فقط با علامت + — رنگ دومِ کنش نداریم. */
+.btn.new { background: var(--brand); }
+.btn.new:hover { background: var(--brand-ink); }
 .btn.danger { background: var(--danger); }
 .btn.danger:hover { background: var(--danger); filter: brightness(.92); }
 .btn.sm { padding: 6px 12px; font-size: 12.5px; border-radius: 9px; }
@@ -246,54 +257,61 @@ input[type="number"] { direction: ltr; text-align: right; }
 /* ───────────── چارچوب ─────────────
    برنامه یک برگهٔ شناور است، نه کاغذ تمام‌قد: حاشیهٔ آبیِ دور تا دور باعث
    می‌شود صفحه سبک‌تر به نظر برسد و چشم بداند محدودهٔ کار کجا تمام می‌شود. */
+/* لبه‌تا‌لبه، بدون حاشیهٔ شناور: در سامانه‌ای پر از جدول، هر پیکسل عرض
+   به کار می‌آید و قاب اضافه فقط جا می‌گیرد. */
 .app {
-  display: grid; grid-template-columns: 252px 1fr;
-  min-height: calc(100dvh - 22px);
-  margin: 11px; border-radius: var(--r-xl); overflow: hidden;
-  background: var(--bg); box-shadow: var(--sh-page);
-  border: 1px solid rgba(255, 255, 255, .7);
+  display: grid; grid-template-columns: 248px 1fr;
+  min-height: 100dvh; background: var(--bg);
 }
 
 .sidebar {
-  background: var(--sidebar); color: var(--sidebar-ink);
-  padding: 20px 12px 14px; display: flex; flex-direction: column; gap: 2px;
-  position: sticky; top: 11px; height: calc(100dvh - 22px); overflow-y: auto;
+  background: var(--surface); color: var(--muted);
+  border-inline-start: 1px solid var(--line);
+  padding: 18px 10px 14px; display: flex; flex-direction: column; gap: 1px;
+  position: sticky; top: 0; height: 100dvh; overflow-y: auto;
   scrollbar-width: thin;
 }
-.brand { display: flex; align-items: center; gap: 11px; padding: 2px 8px 18px; }
-.brand .mark {
-  width: 40px; height: 40px; border-radius: 12px;
-  background: linear-gradient(145deg, var(--brand-lift), var(--brand-ink));
-  display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 18px;
-  box-shadow: 0 6px 16px -6px rgba(56, 127, 129, .8);
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 2px 8px 16px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
 }
-.brand .name { color: #fff; font-weight: 800; font-size: 15.5px; letter-spacing: -.02em; }
-.brand .org { font-size: 11.5px; color: var(--sidebar-ink); opacity: .72; }
+.brand .mark {
+  width: 37px; height: 37px; border-radius: 11px;
+  background: linear-gradient(145deg, var(--brand-lift), var(--brand));
+  display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 17px;
+  box-shadow: 0 6px 14px -6px rgba(79, 122, 112, .65);
+}
+.brand .name { color: var(--text); font-weight: 800; font-size: 15px; letter-spacing: -.02em; }
+.brand .org { font-size: 11.5px; color: var(--faint); }
 
 /* سرگروه‌های منو: چهارده آیتم پشت سر هم، فهرست نیست — دیوار است.
    گروه‌بندی همان کاری است که نمونه‌های پیوست می‌کنند. */
 .nav-group {
-  font-size: 11px; font-weight: 800; letter-spacing: .03em;
-  color: #fff; opacity: .42;
-  padding: 16px 14px 6px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .04em;
+  color: var(--faint); padding: 15px 13px 5px;
 }
 .nav-item {
-  display: flex; align-items: center; gap: 11px; width: 100%;
-  padding: 9px 13px; border: 0; border-radius: 10px;
-  background: none; color: var(--sidebar-ink); font-size: 13.5px; font-weight: 600;
-  text-align: right; transition: background .15s, color .15s;
+  position: relative; display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 12px; border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--muted); font-size: 13.5px; font-weight: 600;
+  text-align: right; transition: background .14s, color .14s;
 }
-.nav-item:hover { background: rgba(255, 255, 255, .07); color: #fff; }
-.nav-item.active {
-  background: var(--brand); color: #fff; font-weight: 700;
-  box-shadow: 0 8px 20px -10px rgba(56, 127, 129, .95);
+.nav-item:hover { background: var(--surface-2); color: var(--text); }
+/* فعال: آبیِ کم‌رنگ و یک نوار باریک در لبه. قرص آبیِ پررنگ در فهرستی به
+   این بلندی، هر بار چشم را می‌کِشد و خسته می‌کند. */
+.nav-item.active { background: var(--brand-soft); color: var(--brand-ink); font-weight: 800; }
+.nav-item.active::before {
+  content: ''; position: absolute; inset-block: 7px; inset-inline-start: 0;
+  width: 3px; border-radius: 3px; background: var(--brand);
 }
 .nav-item > span:first-child {
-  width: 26px; height: 26px; flex: 0 0 26px; border-radius: 8px;
-  display: grid; place-items: center; font-size: 13px;
-  background: rgba(255, 255, 255, .06);
+  width: 25px; height: 25px; flex: 0 0 25px; border-radius: 7px;
+  display: grid; place-items: center; font-size: 12.5px;
+  background: var(--surface-2); color: var(--muted); transition: background .14s, color .14s;
 }
-.nav-item.active > span:first-child { background: rgba(255, 255, 255, .18); }
+.nav-item:hover > span:first-child { background: var(--line); }
+.nav-item.active > span:first-child { background: var(--brand); color: #fff; }
 .nav-item .badge-dot {
   margin-inline-start: auto; background: var(--danger); color: #fff;
   font-size: 11px; min-width: 19px; padding: 0 5px;
@@ -302,8 +320,8 @@ input[type="number"] { direction: ltr; text-align: right; }
 .nav-spacer { flex: 1; min-height: 16px; }
 
 .sidebar-user {
-  display: flex; align-items: center; gap: 10px; padding: 11px;
-  background: rgba(255, 255, 255, .055); border-radius: 13px;
+  display: flex; align-items: center; gap: 10px; padding: 10px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r);
 }
 .avatar {
   width: 36px; height: 36px; border-radius: 50%; flex: 0 0 36px;
@@ -311,8 +329,8 @@ input[type="number"] { direction: ltr; text-align: right; }
   font-size: 12.5px; font-weight: 800;
 }
 .sidebar-user .meta { min-width: 0; flex: 1; }
-.sidebar-user .meta b { display: block; color: #fff; font-size: 13px; font-weight: 700; }
-.sidebar-user .meta span { font-size: 11px; opacity: .72; }
+.sidebar-user .meta b { display: block; color: var(--text); font-size: 12.5px; font-weight: 700; }
+.sidebar-user .meta span { font-size: 11px; color: var(--faint); }
 
 .main { min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
 
@@ -331,8 +349,8 @@ input[type="number"] { direction: ltr; text-align: right; }
 .avatar.sm { width: 29px; height: 29px; flex: 0 0 29px; font-size: 11px; border-radius: 9px; }
 @media (max-width: 700px) { .user-chip .who, .user-chip .caret { display: none; } }
 .topbar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 13px 24px; background: var(--surface);
+  display: flex; align-items: center; gap: 11px;
+  padding: 12px 22px; background: var(--surface);
   border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 20;
 }
@@ -343,8 +361,8 @@ input[type="number"] { direction: ltr; text-align: right; }
 /* ───────────── کارت ───────────── */
 .card {
   background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--r-lg); padding: 19px; margin-bottom: 15px;
-  box-shadow: var(--sh);
+  border-radius: var(--r-lg); padding: 18px; margin-bottom: 14px;
+  box-shadow: var(--sh-sm);
 }
 .card > header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .card > header h3 { font-size: 16px; }
@@ -358,10 +376,10 @@ input[type="number"] { direction: ltr; text-align: right; }
 .stat {
   position: relative; overflow: hidden;
   background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--r-lg); padding: 17px 18px; box-shadow: var(--sh);
-  transition: transform .15s, box-shadow .15s;
+  border-radius: var(--r-lg); padding: 16px 17px; box-shadow: var(--sh-sm);
+  transition: transform .15s, box-shadow .15s, border-color .15s;
 }
-.stat:hover { transform: translateY(-2px); box-shadow: var(--sh-md); }
+.stat:hover { transform: translateY(-1px); box-shadow: var(--sh-md); border-color: var(--line-strong); }
 .stat::after {
   content: ''; position: absolute; inset-block: 0; inset-inline-start: 0;
   width: 3px; background: var(--brand); border-radius: 0 3px 3px 0;
@@ -787,11 +805,7 @@ input[type="range"] { accent-color: var(--brand); height: 26px; }
 .mobile-nav { display: none; }
 
 @media (max-width: 860px) {
-  /* روی موبایل حاشیهٔ شناور معنی ندارد: صفحه کوچک است و هر پیکسل به کار می‌آید */
-  .app {
-    grid-template-columns: 1fr; margin: 0; border-radius: 0;
-    border: none; box-shadow: none; min-height: 100dvh;
-  }
+  .app { grid-template-columns: 1fr; }
   .sidebar { display: none; }
   .topbar { padding: 12px 15px; gap: 9px; }
   .topbar h2 { font-size: 16.5px; }

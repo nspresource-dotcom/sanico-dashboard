@@ -10,13 +10,14 @@
  * دفعهٔ بعد که اپ را ببندید و باز کنید، نسخهٔ تازه بالا می‌آید.
  */
 
-const BUILD = '4';
+const BUILD = '6';
 const CACHE = 'karnama-' + BUILD;
 
 const SHELL = [
   './', './index.html', './style.css', './app.js', './data-source.js',
   './demo-api.js', './jalali.js', './permissions.js',
   './manifest.json', './icon.svg', './icon-192.png', './icon-512.png',
+  './vazirmatn.woff2',
 ];
 
 self.addEventListener('install', (e) => {
@@ -42,10 +43,8 @@ self.addEventListener('fetch', (e) => {
   // خودِ sw.js هرگز از حافظه نمی‌آید، وگرنه مرورگر دیگر نسخهٔ تازه را نمی‌بیند
   if (/\/sw\.js$/i.test(url.pathname)) return;
 
-  // فونت از دامنهٔ گوگل: اگر یک‌بار گرفته شد، دفعهٔ بعد از حافظه
-  const sameOrigin = url.origin === location.origin;
-  const isFont = /fonts\.(googleapis|gstatic)\.com$/.test(url.hostname);
-  if (!sameOrigin && !isFont) return;
+  // فونت حالا روی همین دامنه است، پس چیزی از بیرون لازم نداریم
+  if (url.origin !== location.origin) return;
 
   e.respondWith(
     caches.match(e.request).then((hit) => {

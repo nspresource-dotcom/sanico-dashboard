@@ -403,7 +403,7 @@ function unitsView() {
               <tr>
                 <td>
                   <span style="display:inline-block;width:${un.depth * 18}px"></span>
-                  <span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${esc(un.color || '#387F81')};margin-inline-end:7px"></span>
+                  <span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${esc(un.color || '#659287')};margin-inline-end:7px"></span>
                   <b>${esc(un.name)}</b>
                   ${un.depth ? `<span class="muted small"> زیرمجموعهٔ ${esc(un.parent_name || '')}</span>` : ''}
                 </td>
@@ -439,7 +439,7 @@ function unitFormModal(unit = null) {
           </select></div>
         <div class="field"><label>رنگ</label>
           <input type="color" name="color" class="input" style="padding:3px;height:40px"
-                 value="${esc(unit?.color || '#387F81')}"></div>
+                 value="${esc(unit?.color || '#659287')}"></div>
       </div>
       <div class="field"><label>مدیر واحد</label>
         <select class="select" name="manager_id">
@@ -567,7 +567,7 @@ function unitReportView() {
           <tbody>
             ${rows.map((r) => `
               <tr>
-                <td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${esc(r.unit.color || '#387F81')};margin-inline-end:7px"></span><b>${esc(r.unit.name)}</b></td>
+                <td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${esc(r.unit.color || '#659287')};margin-inline-end:7px"></span><b>${esc(r.unit.name)}</b></td>
                 <td class="small ${r.unit.manager_name ? '' : 'muted'}">${esc(r.unit.manager_name || 'تعیین نشده')}</td>
                 <td class="num">${toFa(r.headcount)}</td>
                 <td class="num">${toFa(r.approved)}</td>
@@ -702,7 +702,7 @@ function reviewView() {
           <div class="t-top">
             <span class="prio ${t.priority}"></span>
             <span class="t-code">#${toFa(t.code)}</span>
-            ${t.unit_name ? `<span class="chip" style="background:${esc(t.unit_color || '#387F81')};color:#fff">${esc(t.unit_name)}</span>` : ''}
+            ${t.unit_name ? `<span class="chip" style="background:${esc(t.unit_color || '#659287')};color:#fff">${esc(t.unit_name)}</span>` : ''}
             <span class="who" style="margin-inline-start:auto">
               <span class="av">${esc(initials(t.assignee_name))}</span>${esc(t.assignee_name || '—')}</span>
           </div>
@@ -896,7 +896,7 @@ function boardPicker() {
     <div class="board-tabs">
       ${state.boards.map((b) => `
         <button class="board-tab ${b.id === state.boardId ? 'active' : ''}" data-action="pick-board" data-id="${b.id}">
-          <span class="dot" style="background:${esc(b.color || '#387F81')}"></span>
+          <span class="dot" style="background:${esc(b.color || '#659287')}"></span>
           ${esc(b.name)}
           ${b.open_tasks ? `<i>${toFa(b.open_tasks)}</i>` : ''}
         </button>`).join('')}
@@ -944,7 +944,7 @@ function boardView() {
     return `
         <section class="column" data-col="${col.id}">
           <header>
-            <span class="dot" style="background:${esc(col.color || '#387F81')}"></span>
+            <span class="dot" style="background:${esc(col.color || '#659287')}"></span>
             <h4>${esc(col.title)}</h4>
             <span class="count ${over ? 'chip danger' : ''}">${toFa(items.length)}${col.wip_limit ? ` / ${toFa(col.wip_limit)}` : ''}</span>
           </header>
@@ -1465,7 +1465,7 @@ function labelManagerModal() {
     </div>
     <form data-form="label" class="row" style="gap:7px">
       <input class="input" name="name" placeholder="نام برچسب" required style="flex:2 1 140px">
-      <input type="color" name="color" value="#387F81" class="input" style="flex:0 0 52px;padding:3px;height:40px">
+      <input type="color" name="color" value="#659287" class="input" style="flex:0 0 52px;padding:3px;height:40px">
       <button class="btn sm" type="submit" style="flex:0 0 auto">افزودن</button>
     </form>`);
 }
