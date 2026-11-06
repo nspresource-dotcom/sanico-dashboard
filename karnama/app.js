@@ -4237,6 +4237,16 @@ async function boot() {
 }
 
 (async function start() {
+  // با #out در انتهای نشانی، برنامه اول خارج می‌شود و صفحهٔ ورود می‌آید.
+  // برای وقتی که لینک را به کسی می‌دهید و نمی‌خواهید با حساب قبلیِ همان
+  // مرورگر باز شود. خودِ #out بعدش از نوار نشانی پاک می‌شود.
+  // رفتن به #out وقتی صفحه همین الان باز است، مرورگر را دوباره بار نمی‌زند؛
+  // پس خودمان گوش می‌دهیم و یک‌بار نو می‌کنیم.
+  addEventListener('hashchange', () => { if (location.hash === '#out') location.reload(); });
+  if (location.hash === '#out' || new URLSearchParams(location.search).has('out')) {
+    await guard(() => API.logout(), { silent: true });
+    history.replaceState(null, '', location.pathname);
+  }
   const res = await guard(() => API.me(), { silent: true });
   state.user = res?.user || null;
   if (state.user) await boot(); else render();
