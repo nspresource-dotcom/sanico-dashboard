@@ -31,20 +31,19 @@
 :root {
   /* پالت از همان طرحی که پسندیدید: خاکستریِ سردِ خنثی + سبز زمردی.
      سبزِ زیتونیِ قبلی کنار این خاکستری‌ها زرد می‌زد، پس کنار گذاشته شد.
-     یک نکته: روی زمردیِ روشنِ نمونه (#2FBF7C) متن سفید نسبت ۲٫۴ می‌دهد
-     که خواندنی نیست. پس «پُرکنندهٔ دکمه» تیره‌تر است (#12864F، نسبت ۴٫۶)
-     و زمردیِ روشن جایی می‌نشیند که متن رویش نیست: نقطهٔ وضعیت،
-     آیکن، میلهٔ نمودار و نشان برند. رنگ وضعیت‌ها هم به همین دلیل یک
-     پله تیره‌تر از رنگ خامشان است — همه بالای نسبت ۴٫۵. */
-  --brand: #12864F;
-  --brand-ink: #0D6B3F;
-  --brand-lift: #2FBF7C;
-  --brand-soft: #E7F6EE;       /* نعناییِ سرد، نه سبزِ زیتونی */
-  --brand-soft-2: #C6EBD8;
+     رنگ برند #00817B است (تیل). با متن سفید نسبت ۴٫۷ می‌دهد، پس
+     مستقیم روی دکمه می‌نشیند و لازم نشد تیره‌ترش کنیم. بقیهٔ خانواده
+     هم تیل شد — نعناییِ سبز کنار تیل ناجور می‌نشست. رنگ وضعیت‌ها یک
+     پله تیره‌تر از رنگ خامشان است، همه بالای نسبت ۴٫۵. */
+  --brand: #00817B;
+  --brand-ink: #00635E;
+  --brand-lift: #19A89F;
+  --brand-soft: #E3F4F2;       /* تیلِ کم‌رنگ، نه سبزِ زیتونی */
+  --brand-soft-2: #BCE5E0;
 
-  --accent: #12864F;
-  --accent-ink: #0D6B3F;
-  --accent-soft: #E7F6EE;
+  --accent: #00817B;
+  --accent-ink: #00635E;
+  --accent-soft: #E3F4F2;
 
   /* سطح‌ها و متن — خاکستریِ سرد، بدون هیچ ته‌رنگ سبز */
   --page: #EDEDF2;            /* زمینهٔ پشت برگه */
@@ -60,8 +59,8 @@
   --faint: #9BA0A6;
 
   /* وضعیت‌ها — «در انتظار» آبی است، همان نقشی که در نمونه دارد */
-  --ok: #12864F;
-  --ok-soft: #E7F6EE;
+  --ok: #00817B;
+  --ok-soft: #E3F4F2;
   --warn: #A06508;
   --warn-soft: #FDF3E2;
   --danger: #C8413A;
@@ -70,15 +69,15 @@
   --info-soft: #E8F0FE;
 
   /* رنگ‌های کمکی نمودار */
-  --c1: #2FBF7C;
-  --c2: #3B82F6;
-  --c3: #F0A030;
+  --c1: #00817B;
+  --c2: #E09A2E;
+  --c3: #2563EB;
   --c4: #8B5CF6;
 
   /* رنگ سری‌های نمودار جدا از رنگ برچسب‌هاست: دو سری باید از هم تفکیک
      شوند، و دو سبزِ هم‌خانواده کنار هم روی میله یکی به نظر می‌رسند.
      پس سری دوم کهربایی است — همان نقشی که نارنجی در نمونه دارد. */
-  --ch1: #12864F;
+  --ch1: #00817B;
   --ch2: #E09A2E;
 
   /* منوی کنار سفید است. این متغیرها می‌مانند تا جایی که به آن‌ها ارجاع
@@ -113,14 +112,14 @@
     --muted: #9CAEC2;
     --faint: #6E8097;
 
-    --brand: #35C586;
-    --brand-ink: #5BD6A0;
-    --brand-lift: #5BD6A0;
-    --brand-soft: #15271F;
-    --brand-soft-2: #1E3A2D;
+    --brand: #2BC2B8;
+    --brand-ink: #54D8CE;
+    --brand-lift: #54D8CE;
+    --brand-soft: #0E2624;
+    --brand-soft-2: #17403C;
 
-    --ok: #35C586;
-    --ok-soft: #142C22;
+    --ok: #2BC2B8;
+    --ok-soft: #0E2624;
     --warn: #D29A3C;
     --warn-soft: #2C2415;
     --danger: #DE7872;
@@ -151,11 +150,11 @@
   --bg: #101822; --surface: #17212E; --surface-2: #131C27; --panel: #141D28;
   --line: #223041; --line-strong: #324354;
   --text: #E8EEF5; --muted: #9CAEC2; --faint: #6E8097;
-  --brand: #35C586; --brand-ink: #5BD6A0; --brand-lift: #5BD6A0;
-  --brand-soft: #15271F; --brand-soft-2: #1E3A2D;
+  --brand: #2BC2B8; --brand-ink: #54D8CE; --brand-lift: #54D8CE;
+  --brand-soft: #0E2624; --brand-soft-2: #17403C;
   --accent: #7FB3A4; --accent-ink: #9BC9BB; --accent-soft: #1B2A26;
   --ch1: #7FB3A4; --ch2: #E8B45C;
-  --ok: #35C586; --ok-soft: #142C22;
+  --ok: #2BC2B8; --ok-soft: #0E2624;
   --warn: #D29A3C; --warn-soft: #2C2415;
   --danger: #DE7872; --danger-soft: #2E1B1A;
   --info: #7BA3CC; --info-soft: #16242F;
@@ -558,7 +557,7 @@ input[type="number"] { direction: ltr; text-align: right; }
   background: linear-gradient(90deg, var(--brand-lift), var(--brand));
   transition: width .45s cubic-bezier(.4, 0, .2, 1);
 }
-.progress.ok > i { background: linear-gradient(90deg, #4FD69B, var(--ok)); }
+.progress.ok > i { background: linear-gradient(90deg, #3FC9C0, var(--ok)); }
 .progress.warn > i { background: linear-gradient(90deg, #EFC06A, var(--warn)); }
 
 /* ───────────── جدول ───────────── */
@@ -752,7 +751,7 @@ input[type="range"] { accent-color: var(--brand); height: 26px; }
   box-shadow: var(--sh-md); animation: pop .2s ease;
   max-width: 340px;
 }
-.toast.ok { background: #0C5538; color: #fff; }
+.toast.ok { background: #00514C; color: #fff; }
 .toast.err { background: #7C2823; color: #fff; }
 
 /* ───────────── انتخابگر بخش ───────────── */
