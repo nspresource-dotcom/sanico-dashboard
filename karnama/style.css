@@ -1418,7 +1418,17 @@ tr.row-muted > td { opacity: .55; text-decoration: line-through; }
 @media (max-width: 520px) { .row2 { grid-template-columns: 1fr; } }
 
 /* ───────────── داشبورد مدیرعامل ───────────── */
+/* روی موبایل شش تب در یک خط جا نمی‌شود. به‌جای کوچک کردن متن،
+   نوار افقی اسکرول می‌شود — تب‌ها اندازهٔ انگشت می‌مانند. */
 .dash-seg { display: flex; flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .dash-seg {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dash-seg::-webkit-scrollbar { display: none; }
+  .dash-seg button { flex: 0 0 auto; }
+}
 /* شمارش تب وقتی انحراف دارد قرمز می‌شود: پیش از کلیک معلوم است کجا می‌لنگد */
 .seg button .n.hot { background: var(--danger-soft); color: var(--danger); }
 .seg button .n.pale { background: var(--warn-soft); color: var(--warn); }

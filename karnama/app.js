@@ -167,13 +167,13 @@ const NAV = [
   { id: 'stock', label: 'موجودی و اسناد', icon: '▦', need: 'stock.view' },
 
   { group: 'راهبری', icon: '◎' },
-  { id: 'kpi', label: 'پایشگر شاخص‌ها', icon: '◎', need: 'kpi.view' },
+  { id: 'kpi', label: 'پایشگر شاخص‌ها', short: 'پایشگر', icon: '◎', need: 'kpi.view' },
 
   { group: 'زمان و عملکرد', icon: '◷' },
   { id: 'time', label: 'ساعت کاری', icon: '◷', needAny: ['time.log', 'time.view_all'] },
   { id: 'approvals', label: 'تأیید ساعات', icon: '✓', need: 'time.approve' },
   { id: 'scores', label: 'امتیاز عملکرد', icon: '★', needAny: ['scores.view_own', 'scores.view_all'] },
-  { id: 'unitreport', label: 'گزارش واحدها', icon: '◳', need: 'reports.unit' },
+  { id: 'unitreport', label: 'گزارش واحدها', short: 'گزارش', icon: '◳', need: 'reports.unit' },
 
   { group: 'سازمان', icon: '☷' },
   // مدیر واحد هم باید بتواند ایست بهره‌وری واحد خودش را ببیند، حتی اگر واحد نسازد
@@ -257,11 +257,18 @@ function shell(inner) {
   // کارتابل بررسی برای سرپرست پرکاربردترین صفحه است، پس روی موبایل هم پایین صفحه می‌ماند
   // ترتیب عمدی است، نه ترتیب منوی کنار: کارتابل بررسی و گفت‌وگو پرکاربردترین‌های
   // روزمره‌اند و باید روی موبایل یک لمس دور باشند، نه پشت «بیشتر».
-  const MOBILE_ORDER = ['myday', 'board', 'chat', 'review', 'approvals', 'time', 'dashboard'];
+  // کسی که ساعت ثبت می‌کند روزش با «امروز من» شروع می‌شود؛ مدیرعامل
+  // با داشبورد و پایشگر. نوار پایین موبایل فقط چهار جا دارد، پس باید
+  // همان چهار جایی باشد که این آدم واقعاً هر روز می‌رود.
+  const MOBILE_ORDER = can('time.log')
+    ? ['myday', 'board', 'chat', 'review', 'approvals', 'time', 'dashboard']
+    : ['dashboard', 'kpi', 'chat', 'approvals', 'review', 'board', 'myday'];
   const primary = MOBILE_ORDER.map((mid) => items.find((n) => n.id === mid)).filter(Boolean).slice(0, 4);
+  // نوار پایین موبایل جای یک کلمه دارد: «پایشگر شاخص‌ها» دو خط می‌شود
+  // و نوار را به هم می‌ریزد، پس نام کوتاه را می‌گیرد اگر داشته باشد.
   const mobile = primary.map((n) => `
     <button class="${state.view === n.id ? 'active' : ''}" data-nav="${n.id}">
-      <span class="ic">${n.icon}</span><span>${n.label}</span>
+      <span class="ic">${n.icon}</span><span>${n.short || n.label}</span>
       ${n.id === 'approvals' && badge ? `<span class="badge-dot">${toFa(badge)}</span>` : ''}
       ${n.id === 'chat' ? `<span data-chat-badge>${chatBadgeHtml(state.chat.unread)}</span>` : ''}
     </button>`).join('') + `
@@ -386,13 +393,14 @@ function mydayView() {
     : `${toFa(d.total)} کار باز دارید${g.overdue.length ? ` — ${toFa(g.overdue.length)} مورد از مهلت گذشته` : ''}.`}
         </p>
       </div>
+      ${can('time.log') ? `
       <div class="hello-today">
         <div class="label">ساعت ثبت‌شدهٔ امروز</div>
         <div class="value">${fh(d.logged_today)}<small> از ${fh(target)}</small></div>
         <div class="progress ${d.logged_today >= target ? 'ok' : 'warn'}">
           <i style="width:${Math.min(100, Math.round((d.logged_today / target) * 100))}%"></i></div>
-        ${can('time.log') ? '<button class="btn sm block" data-action="quick-log" style="margin-top:9px">ثبت ساعت امروز</button>' : ''}
-      </div>
+        <button class="btn sm block" data-action="quick-log" style="margin-top:9px">ثبت ساعت امروز</button>
+      </div>` : ''}
     </div>
 
     ${section('overdue', 'از مهلت گذشته', 'اینها را اول تعیین تکلیف کنید', 'danger')}
@@ -4716,9 +4724,14 @@ async function boot() {
   const today = isoToJalali(todayIso());
   state.month = state.month || { jy: today.jy, jm: today.jm };
   state.filterMine = !can('tasks.view_all');
-  // هر کس اول «امروز من» را می‌بیند؛ اگر دسترسی کار ندارد، داشبورد
-  state.view = can('tasks.view') ? 'myday' : 'dashboard';
+  // صفحهٔ آغاز به کار آدم بستگی دارد: کسی که ساعت ثبت می‌کند با
+  // «امروز من» شروع می‌کند، و مدیرعامل که ساعت ثبت نمی‌کند با داشبورد —
+  // وگرنه اولین چیزی که می‌بیند نوار «۰ از ۸ ساعت» است که به او ربطی ندارد.
+  const deskUser = can('tasks.view') && can('time.log');
   await loadAll();
+  // setView به‌جای state.view: صفحهٔ آغاز هم دادهٔ مخصوص خودش را لازم دارد.
+  // بدون این، داشبورد بدون شاخص‌ها رسم می‌شد و تب‌هایش اصلاً ساخته نمی‌شد.
+  await setView(deskUser ? 'myday' : 'dashboard');
   render();
   if (can('chat.use')) { await chatLoadList({ quiet: true }); chatSchedule(); }
   // هر ۲ دقیقه اعلان‌های تازه را می‌گیریم
