@@ -3,7 +3,7 @@ import { isoToJalali, todayIso, jalaliMonthRange, MONTH_NAMES } from './jalali.j
 import { effectivePermissions, can as canDo, ALL_KEYS, PRESETS, JUSTIFY_ABOVE } from './permissions.js';
 
 // نسخهٔ کلید که بالا می‌رود، دادهٔ قبلی مرورگر دور ریخته می‌شود و همه از صفر شروع می‌کنند
-const KEY = 'karnama-demo-v4';
+const KEY = 'karnama-demo-v5';
 const uid = () => Math.random().toString(36).slice(2, 11);
 const now = () => new Date().toISOString();
 const today = todayIso();
@@ -185,6 +185,87 @@ function seed() {
     ready.completed_at = now();
   }
 
+  // ───── انبار نمونه ─────
+  const uoms = [];
+  const uomIds = {};
+  for (const [name, symbol, dec] of [['کیلوگرم', 'kg', 2], ['تن', 't', 3],
+    ['عدد', '', 0], ['لیتر', 'L', 2]]) {
+    const id = uid();
+    uoms.push({ id, company_id: 'c1', name, symbol: symbol || null, decimals: dec,
+      is_active: 1, created_at: now() });
+    uomIds[name] = id;
+  }
+  const item_groups = [];
+  const groupIds = {};
+  for (const name of ['مواد اولیه', 'محصول', 'قطعات یدکی', 'مواد مصرفی']) {
+    const id = uid();
+    item_groups.push({ id, company_id: 'c1', name, parent_id: null, created_at: now() });
+    groupIds[name] = id;
+  }
+  const warehouses = [];
+  const whIds = {};
+  for (const [name, code, unitId, keeper] of [
+    ['انبار مواد اولیه', 'RAW', 'un2', 'hamed'],
+    ['انبار محصول', 'FG', 'un2', 'hamed'],
+    ['انبار قطعات یدکی', 'SPR', 'un1', 'ali'],
+  ]) {
+    const id = uid();
+    warehouses.push({ id, company_id: 'c1', name, code, parent_id: null, unit_id: unitId,
+      keeper_id: by(keeper), address: null, is_active: 1, created_at: now() });
+    whIds[name] = id;
+  }
+  const items = [];
+  const itemIds = {};
+  for (const [code, nm, grp, uom, reorder, rqty] of [
+    ['1001', 'سنگ باریت خام', 'مواد اولیه', 'تن', 50, 100],
+    ['1002', 'پودر باریت حفاری API', 'محصول', 'تن', 20, 50],
+    ['1003', 'کیسه بسته‌بندی ۵۰ کیلویی', 'مواد مصرفی', 'عدد', 2000, 5000],
+    ['1004', 'یاتاقان آسیاب', 'قطعات یدکی', 'عدد', 4, 10],
+    ['1005', 'روغن صنعتی ۶۸', 'مواد مصرفی', 'لیتر', 200, 400],
+  ]) {
+    const id = uid();
+    items.push({ id, company_id: 'c1', code, name: nm, group_id: groupIds[grp],
+      uom_id: uomIds[uom], description: null, barcode: null, reorder_level: reorder,
+      reorder_qty: rqty, default_warehouse_id: null, is_active: 1,
+      created_by: by('modir'), created_at: now(), updated_at: now() });
+    itemIds[code] = id;
+  }
+  const stock_entries = [];
+  const stock_entry_items = [];
+  const stock_ledger = [];
+  let scode = 0;
+  const mkEntry = (kind, from, to, lines, ref, party, daysAgo) => {
+    scode += 1;
+    const id = uid();
+    const date = shift(-daysAgo);
+    stock_entries.push({ id, company_id: 'c1', code: scode, kind, status: 'submitted',
+      entry_date: date, from_warehouse_id: from || null, to_warehouse_id: to || null,
+      ref_no: ref, party, note: null, task_id: null, unit_id: 'un2',
+      created_by: by('hamed'), submitted_by: by('hamed'), submitted_at: now(),
+      cancelled_by: null, cancelled_at: null, cancel_reason: null,
+      created_at: now(), updated_at: now() });
+    lines.forEach(([code, qty], i) => {
+      const lid = uid();
+      const it = items.find((x) => x.id === itemIds[code]);
+      stock_entry_items.push({ id: lid, company_id: 'c1', entry_id: id, item_id: it.id,
+        qty, uom_id: it.uom_id, note: null, position: i });
+      for (const [wh, sign] of [[from, -1], [to, 1]]) {
+        if (!wh) continue;
+        stock_ledger.push({ id: uid(), company_id: 'c1', item_id: it.id, warehouse_id: wh,
+          entry_id: id, entry_item_id: lid, qty_change: sign * qty, is_reversal: 0,
+          entry_date: date, created_by: by('hamed'), created_at: now() });
+      }
+    });
+  };
+  mkEntry('receipt', null, whIds['انبار مواد اولیه'],
+    [['1001', 320], ['1003', 4000], ['1005', 600]], 'بارنامه ۸۸۴۱', 'معدن شهرضا', 9);
+  mkEntry('receipt', null, whIds['انبار قطعات یدکی'], [['1004', 3]], 'فاکتور ۲۲۱۷', 'بازرگانی پارس‌یاتاقان', 6);
+  mkEntry('issue', whIds['انبار مواد اولیه'], null,
+    [['1001', 180], ['1005', 120]], 'حوالهٔ تولید ۳۱', 'خط تولید ۱', 4);
+  mkEntry('receipt', null, whIds['انبار محصول'], [['1002', 150]], 'تولید شیفت صبح', 'خط تولید ۱', 4);
+  mkEntry('transfer', whIds['انبار مواد اولیه'], whIds['انبار محصول'],
+    [['1003', 1500]], 'انتقال بسته‌بندی', null, 3);
+
   // ───── گفت‌وگوی نمونه ─────
   // ساعت‌ها به وقت تهران نوشته شده‌اند، پس ۲۱۰ دقیقه (۳:۳۰) از زمان UTC کم می‌شود
   const at = (daysAgo, h, m) => new Date(
@@ -236,6 +317,7 @@ function seed() {
   return { company, units, users, boards, columns, labels, task_labels, tasks, checklist_items,
     task_links: [], time_logs, performance_scores, recurrences, notifications,
     task_reviews: [], unit_scores: [],
+    uoms, item_groups, warehouses, items, stock_entries, stock_entry_items, stock_ledger,
     conversations, conversation_members, messages,
     comments: [], events: [], board_members: [], session: null };
 }
@@ -298,6 +380,124 @@ function notify(userId, kind, title, body, taskId, actorId) {
     body: body || null, task_id: taskId || null, actor_id: actorId || null, read_at: null, created_at: now() });
 }
 
+// ───────────────────────── کمکی‌های انبار ─────────────────────────
+
+for (const k of ['uoms', 'item_groups', 'warehouses', 'items',
+  'stock_entries', 'stock_entry_items', 'stock_ledger']) {
+  if (!Array.isArray(db[k])) db[k] = [];
+}
+
+/** انبارهایی که این فرد حق دیدنشان را دارد — همان قاعدهٔ سرور */
+function visibleWh(u) {
+  const act = db.warehouses.filter((w) => w.is_active);
+  if (allow(u, 'stock.view_all')) return act;
+  return act.filter((w) => !w.unit_id || w.unit_id === u.unit_id || w.keeper_id === u.id);
+}
+
+const onHandOf = (itemId, whId) => db.stock_ledger
+  .filter((l) => l.item_id === itemId && l.warehouse_id === whId)
+  .reduce((a, l) => a + l.qty_change, 0);
+
+function whOr404(u, id) {
+  const w = db.warehouses.find((x) => x.id === id && x.is_active);
+  if (!w) fail('انبار یافت نشد', 404);
+  const mine = allow(u, 'stock.view_all') || !w.unit_id || w.unit_id === u.unit_id || w.keeper_id === u.id;
+  if (!mine) fail('انبار یافت نشد', 404);
+  return w;
+}
+
+function entryWarehouses(u, kind, d) {
+  let from = null;
+  let to = null;
+  if (kind === 'issue' || kind === 'transfer') {
+    if (!d.from_warehouse_id) fail('انبار مبدأ را انتخاب کنید');
+    from = whOr404(u, d.from_warehouse_id).id;
+  }
+  if (kind === 'receipt' || kind === 'transfer' || kind === 'adjust') {
+    if (!d.to_warehouse_id) fail(kind === 'transfer' ? 'انبار مقصد را انتخاب کنید' : 'انبار را انتخاب کنید');
+    to = whOr404(u, d.to_warehouse_id).id;
+  }
+  if (kind === 'transfer' && from === to) fail('انبار مبدأ و مقصد یکی است');
+  return { from, to };
+}
+
+function readLines(d) {
+  const raw = Array.isArray(d.lines) ? d.lines : [];
+  if (!raw.length) fail('حداقل یک قلم کالا به سند اضافه کنید');
+  const out = [];
+  const seen = new Set();
+  raw.forEach((l, i) => {
+    const it = db.items.find((x) => x.id === l.item_id);
+    if (!it) fail(`ردیف ${i + 1}: کالا انتخاب نشده است`);
+    if (!it.is_active) fail(`ردیف ${i + 1}: «${it.name}» غیرفعال است`);
+    const qty = Number(l.qty);
+    if (!Number.isFinite(qty) || qty <= 0) fail(`ردیف ${i + 1}: مقدار «${it.name}» باید عددی بزرگ‌تر از صفر باشد`);
+    if (seen.has(it.id)) fail(`«${it.name}» دو بار در سند آمده — ردیف‌ها را یکی کنید`);
+    seen.add(it.id);
+    out.push({ item_id: it.id, qty, uom_id: l.uom_id || it.uom_id });
+  });
+  return out;
+}
+
+function doSubmit(u, entryId) {
+  const e = db.stock_entries.find((x) => x.id === entryId);
+  if (!e) fail('سند یافت نشد', 404);
+  if (e.status === 'submitted') fail('این سند قبلاً قطعی شده است');
+  if (e.status === 'cancelled') fail('سند باطل‌شده دوباره قطعی نمی‌شود');
+  const lines = db.stock_entry_items.filter((x) => x.entry_id === entryId);
+  if (!lines.length) fail('سند بدون قلم کالا قطعی نمی‌شود');
+
+  if (e.from_warehouse_id) {
+    const w = db.warehouses.find((x) => x.id === e.from_warehouse_id);
+    for (const l of lines) {
+      const have = onHandOf(l.item_id, e.from_warehouse_id);
+      if (l.qty - have > 1e-9) {
+        const it = db.items.find((x) => x.id === l.item_id);
+        const uo = db.uoms.find((x) => x.id === l.uom_id);
+        fail(`موجودی «${it?.name}» در انبار ${w?.name} کافی نیست: `
+          + `${faNum(have)} ${uo?.name} هست و ${faNum(l.qty)} ${uo?.name} خواسته شده`);
+      }
+    }
+  }
+  for (const l of lines) {
+    for (const [wh, sign] of [[e.from_warehouse_id, -1], [e.to_warehouse_id, 1]]) {
+      if (!wh) continue;
+      db.stock_ledger.push({ id: uid(), company_id: 'c1', item_id: l.item_id,
+        warehouse_id: wh, entry_id: e.id, entry_item_id: l.id, qty_change: sign * l.qty,
+        is_reversal: 0, entry_date: e.entry_date, created_by: u.id, created_at: now() });
+    }
+  }
+  Object.assign(e, { status: 'submitted', submitted_by: u.id, submitted_at: now(), updated_at: now() });
+}
+
+function entryCard(u, e) {
+  const lines = db.stock_entry_items.filter((x) => x.entry_id === e.id)
+    .sort((a, b) => a.position - b.position)
+    .map((l) => {
+      const it = db.items.find((x) => x.id === l.item_id);
+      const uo = db.uoms.find((x) => x.id === l.uom_id);
+      return { id: l.id, item_id: l.item_id, item_code: it?.code, item_name: it?.name,
+        qty: l.qty, uom_id: l.uom_id, uom_name: uo?.name, uom_decimals: uo?.decimals ?? 2,
+        note: l.note };
+    });
+  const whName = (id) => db.warehouses.find((w) => w.id === id)?.name || null;
+  const LAB = { receipt: 'رسید', issue: 'حواله', transfer: 'انتقال', adjust: 'اصلاح' };
+  return {
+    id: e.id, code: e.code, kind: e.kind, kind_label: LAB[e.kind], status: e.status,
+    entry_date: e.entry_date,
+    from_warehouse_id: e.from_warehouse_id, to_warehouse_id: e.to_warehouse_id,
+    from_warehouse: whName(e.from_warehouse_id), to_warehouse: whName(e.to_warehouse_id),
+    ref_no: e.ref_no, party: e.party, note: e.note, task_id: e.task_id,
+    created_by_name: userName(e.created_by),
+    submitted_by_name: userName(e.submitted_by), submitted_at: e.submitted_at,
+    cancelled_by_name: userName(e.cancelled_by), cancelled_at: e.cancelled_at,
+    cancel_reason: e.cancel_reason, created_at: e.created_at, lines,
+    can_edit: e.status === 'draft' && (e.created_by === u.id || allow(u, 'stock.manage')),
+    can_submit: e.status === 'draft' && allow(u, 'stock.submit'),
+    can_cancel: e.status === 'submitted' && allow(u, 'stock.submit'),
+  };
+}
+
 // ───────────────────────── کمکی‌های گفت‌وگو ─────────────────────────
 
 // دادهٔ ذخیره‌شدهٔ قدیمی ممکن است این آرایه‌ها را نداشته باشد
@@ -343,7 +543,8 @@ function syncUnitChats(u) {
   for (const un of db.units.filter((x) => x.manager_id === u.id && !x.archived_at)) ensureUnitChat(un.id);
 }
 
-const faNum = (x) => String(x).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
+const faNum = (x) => (typeof x === 'number' && !Number.isInteger(x)
+  ? String(Math.round(x * 1000) / 1000) : String(x)).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
 
 function chatCard(c, mine, u) {
   const members = db.conversation_members
@@ -860,6 +1061,290 @@ export const API = {
         if (nt.user_id === u.id && (!ids || !ids.length || ids.includes(nt.id))) nt.read_at = nt.read_at || now();
       });
       save(); return wait({ ok: true });
+    },
+  },
+
+  // ───────────────────────── انبار ─────────────────────────
+  // همان سه قاعدهٔ سرور: موجودی از دفتر، سند قطعی دست‌نخوردنی، انبار بدون منفی.
+  stock: {
+    async setup() {
+      const u = auth(); need(u, 'stock.view');
+      return wait({
+        uoms: db.uoms.filter((x) => x.is_active),
+        groups: db.item_groups,
+        warehouses: visibleWh(u),
+        can_manage: allow(u, 'stock.manage'),
+        can_entry: allow(u, 'stock.entry'),
+        can_submit: allow(u, 'stock.submit'),
+      });
+    },
+    async createUom(d) {
+      const u = auth(); need(u, 'stock.manage');
+      if (!String(d.name || '').trim()) fail('نام واحد سنجش را بنویسید');
+      const uom = { id: uid(), company_id: 'c1', name: String(d.name).trim(),
+        symbol: d.symbol || null, decimals: Number(d.decimals) || 0, is_active: 1, created_at: now() };
+      db.uoms.push(uom); save();
+      return wait({ uom });
+    },
+    async createGroup(d) {
+      const u = auth(); need(u, 'stock.manage');
+      const g = { id: uid(), company_id: 'c1', name: String(d.name || '').trim(),
+        parent_id: d.parent_id || null, created_at: now() };
+      if (g.name.length < 2) fail('نام گروه کالا را بنویسید');
+      db.item_groups.push(g); save();
+      return wait({ group: g });
+    },
+    async warehouses() {
+      const u = auth(); need(u, 'stock.view');
+      return wait({
+        warehouses: visibleWh(u).map((w) => ({
+          ...w,
+          unit_name: db.units.find((x) => x.id === w.unit_id)?.name || null,
+          keeper_name: db.users.find((x) => x.id === w.keeper_id)?.full_name || null,
+          item_kinds: new Set(db.stock_ledger.filter((l) => l.warehouse_id === w.id)
+            .map((l) => l.item_id)).size,
+        })),
+        can_manage: allow(u, 'stock.manage'),
+      });
+    },
+    async createWarehouse(d) {
+      const u = auth(); need(u, 'stock.manage');
+      const name = String(d.name || '').trim();
+      if (name.length < 2) fail('نام انبار را بنویسید');
+      if (db.warehouses.some((w) => w.name === name)) fail('انباری با همین نام هست');
+      const w = { id: uid(), company_id: 'c1', name, code: d.code || null, parent_id: null,
+        unit_id: d.unit_id || null, keeper_id: d.keeper_id || null, address: d.address || null,
+        is_active: 1, created_at: now() };
+      db.warehouses.push(w); save();
+      return wait({ warehouse: w });
+    },
+    async updateWarehouse(id, d) {
+      const u = auth(); need(u, 'stock.manage');
+      const w = db.warehouses.find((x) => x.id === id);
+      if (!w) fail('انبار یافت نشد', 404);
+      for (const k of ['name', 'code', 'unit_id', 'keeper_id', 'address']) {
+        if (d[k] !== undefined) w[k] = d[k] || null;
+      }
+      if (d.is_active !== undefined) w.is_active = d.is_active ? 1 : 0;
+      save();
+      return wait({ warehouse: w });
+    },
+    async items() {
+      const u = auth(); need(u, 'stock.view');
+      const ids = visibleWh(u).map((w) => w.id);
+      return wait({
+        items: db.items.filter((it) => it.is_active).map((it) => {
+          const onHand = db.stock_ledger
+            .filter((l) => l.item_id === it.id && ids.includes(l.warehouse_id))
+            .reduce((a, l) => a + l.qty_change, 0);
+          const uo = db.uoms.find((x) => x.id === it.uom_id);
+          return { ...it,
+            group_name: db.item_groups.find((g) => g.id === it.group_id)?.name || null,
+            uom_name: uo?.name || '—',
+            uom_decimals: uo?.decimals ?? 2,
+            on_hand: onHand,
+            low: it.reorder_level != null && onHand < it.reorder_level };
+        }).sort((a, b) => a.name.localeCompare(b.name, 'fa')),
+        can_manage: allow(u, 'stock.manage'),
+      });
+    },
+    async createItem(d) {
+      const u = auth(); need(u, 'stock.manage');
+      const name = String(d.name || '').trim();
+      if (name.length < 2) fail('نام کالا را بنویسید');
+      if (!db.uoms.some((x) => x.id === d.uom_id)) fail('واحد سنجش کالا را انتخاب کنید');
+      let code = String(d.code || '').trim();
+      if (!code) code = String(db.items.reduce((m, r) => Math.max(m, Number(r.code) || 0), 1000) + 1);
+      if (db.items.some((x) => x.code === code)) fail('کالایی با همین کد هست');
+      const it = { id: uid(), company_id: 'c1', code, name, group_id: d.group_id || null,
+        uom_id: d.uom_id, description: d.description || null, barcode: null,
+        reorder_level: d.reorder_level == null || d.reorder_level === '' ? null : Number(d.reorder_level),
+        reorder_qty: d.reorder_qty == null || d.reorder_qty === '' ? null : Number(d.reorder_qty),
+        default_warehouse_id: null, is_active: 1, created_by: u.id,
+        created_at: now(), updated_at: now() };
+      db.items.push(it); save();
+      return wait({ item: it });
+    },
+    async updateItem(id, d) {
+      const u = auth(); need(u, 'stock.manage');
+      const it = db.items.find((x) => x.id === id);
+      if (!it) fail('کالا یافت نشد', 404);
+      for (const k of ['name', 'group_id', 'uom_id', 'description']) {
+        if (d[k] !== undefined) it[k] = d[k] || null;
+      }
+      for (const k of ['reorder_level', 'reorder_qty']) {
+        if (d[k] !== undefined) it[k] = d[k] === '' || d[k] == null ? null : Number(d[k]);
+      }
+      if (d.is_active !== undefined) it.is_active = d.is_active ? 1 : 0;
+      it.updated_at = now(); save();
+      return wait({ item: it });
+    },
+    async onHand(query = {}) {
+      const u = auth(); need(u, 'stock.view');
+      const seen = visibleWh(u);
+      if (!seen.length) return wait({ rows: [], warehouses: [], low: [], totals: { kinds: 0, low: 0 } });
+      const wanted = query.warehouse_id ? seen.filter((w) => w.id === query.warehouse_id) : seen;
+      if (!wanted.length) fail('انبار یافت نشد', 404);
+      const ids = wanted.map((w) => w.id);
+
+      const agg = new Map();
+      for (const l of db.stock_ledger) {
+        if (!ids.includes(l.warehouse_id)) continue;
+        const k = `${l.item_id}|${l.warehouse_id}`;
+        agg.set(k, (agg.get(k) || 0) + l.qty_change);
+      }
+      const rows = [];
+      const totalByItem = new Map();
+      for (const [k, qty] of agg) {
+        if (Math.abs(qty) < 1e-9) continue;
+        const [itemId, whId] = k.split('|');
+        const it = db.items.find((x) => x.id === itemId);
+        if (!it) continue;
+        const uo = db.uoms.find((x) => x.id === it.uom_id);
+        rows.push({ item_id: itemId, code: it.code, name: it.name,
+          group_name: db.item_groups.find((g) => g.id === it.group_id)?.name || null,
+          uom_name: uo?.name || '—', uom_decimals: uo?.decimals ?? 2,
+          warehouse_id: whId, warehouse_name: wanted.find((w) => w.id === whId)?.name || '—',
+          qty, reorder_level: it.reorder_level });
+        totalByItem.set(itemId, (totalByItem.get(itemId) || 0) + qty);
+      }
+      rows.sort((a, b) => a.name.localeCompare(b.name, 'fa'));
+      const low = db.items.filter((it) => it.reorder_level != null
+        && (totalByItem.get(it.id) || 0) < it.reorder_level)
+        .map((it) => ({ item_id: it.id, code: it.code, name: it.name,
+          uom_name: db.uoms.find((x) => x.id === it.uom_id)?.name || '—',
+          on_hand: totalByItem.get(it.id) || 0, reorder_level: it.reorder_level }));
+      return wait({ rows, warehouses: seen, low, totals: { kinds: totalByItem.size, low: low.length } });
+    },
+    async card(query = {}) {
+      const u = auth(); need(u, 'stock.report');
+      const it = db.items.find((x) => x.id === query.item_id);
+      if (!it) fail('کالا یافت نشد', 404);
+      const uo = db.uoms.find((x) => x.id === it.uom_id);
+      const ids = visibleWh(u).map((w) => w.id);
+      const moves = db.stock_ledger
+        .filter((l) => l.item_id === it.id && ids.includes(l.warehouse_id))
+        .sort((a, b) => (a.entry_date === b.entry_date
+          ? (a.created_at < b.created_at ? -1 : 1) : (a.entry_date < b.entry_date ? -1 : 1)));
+      let running = 0;
+      const out = moves.map((m) => {
+        running += m.qty_change;
+        const e = db.stock_entries.find((x) => x.id === m.entry_id);
+        return { id: m.id, entry_id: m.entry_id, entry_code: e?.code, kind: e?.kind,
+          ref_no: e?.ref_no, party: e?.party,
+          warehouse_name: db.warehouses.find((w) => w.id === m.warehouse_id)?.name || '—',
+          qty_change: m.qty_change, is_reversal: !!m.is_reversal, balance: running,
+          entry_date: m.entry_date, who: userName(m.created_by), created_at: m.created_at };
+      });
+      return wait({ item: { ...it, uom_name: uo?.name, uom_decimals: uo?.decimals ?? 2 },
+        moves: out.reverse(), balance: running });
+    },
+    async entries(query = {}) {
+      const u = auth(); need(u, 'stock.view');
+      const ids = visibleWh(u).map((w) => w.id);
+      const rows = db.stock_entries
+        .filter((e) => ids.includes(e.from_warehouse_id) || ids.includes(e.to_warehouse_id))
+        .filter((e) => !query.status || e.status === query.status)
+        .sort((a, b) => (a.entry_date === b.entry_date
+          ? (a.created_at < b.created_at ? 1 : -1) : (a.entry_date < b.entry_date ? 1 : -1)));
+      return wait({ entries: rows.map((e) => entryCard(u, e)),
+        can_entry: allow(u, 'stock.entry'), can_submit: allow(u, 'stock.submit') });
+    },
+    async entry(id) {
+      const u = auth(); need(u, 'stock.view');
+      const e = db.stock_entries.find((x) => x.id === id);
+      if (!e) fail('سند یافت نشد', 404);
+      return wait({ entry: entryCard(u, e) });
+    },
+    async createEntry(d) {
+      const u = auth(); need(u, 'stock.entry');
+      const kind = String(d.kind || '');
+      if (!['receipt', 'issue', 'transfer', 'adjust'].includes(kind)) fail('نوع سند نامعتبر است');
+      const { from, to } = entryWarehouses(u, kind, d);
+      const lines = readLines(d);
+      const id = uid();
+      const code = db.stock_entries.reduce((m, r) => Math.max(m, r.code || 0), 0) + 1;
+      db.stock_entries.push({ id, company_id: 'c1', code, kind, status: 'draft',
+        entry_date: /^\d{4}-\d{2}-\d{2}$/.test(String(d.entry_date || '')) ? d.entry_date : todayIso(),
+        from_warehouse_id: from, to_warehouse_id: to,
+        ref_no: d.ref_no || null, party: d.party || null, note: d.note || null,
+        task_id: d.task_id || null, unit_id: u.unit_id || null, created_by: u.id,
+        submitted_by: null, submitted_at: null, cancelled_by: null, cancelled_at: null,
+        cancel_reason: null, created_at: now(), updated_at: now() });
+      lines.forEach((l, i) => db.stock_entry_items.push({ id: uid(), company_id: 'c1',
+        entry_id: id, item_id: l.item_id, qty: l.qty, uom_id: l.uom_id, note: null, position: i }));
+      if (d.submit && allow(u, 'stock.submit')) doSubmit(u, id);
+      save();
+      return wait({ entry: entryCard(u, db.stock_entries.find((x) => x.id === id)) });
+    },
+    async updateEntry(id, d) {
+      const u = auth(); need(u, 'stock.entry');
+      const e = db.stock_entries.find((x) => x.id === id);
+      if (!e) fail('سند یافت نشد', 404);
+      if (e.status !== 'draft') fail('سند قطعی‌شده ویرایش نمی‌شود — اگر اشتباه است باطلش کنید و سند تازه بزنید');
+      const { from, to } = entryWarehouses(u, e.kind, {
+        from_warehouse_id: d.from_warehouse_id ?? e.from_warehouse_id,
+        to_warehouse_id: d.to_warehouse_id ?? e.to_warehouse_id,
+      });
+      const lines = readLines(d);
+      Object.assign(e, { from_warehouse_id: from, to_warehouse_id: to,
+        entry_date: /^\d{4}-\d{2}-\d{2}$/.test(String(d.entry_date || '')) ? d.entry_date : e.entry_date,
+        ref_no: d.ref_no !== undefined ? (d.ref_no || null) : e.ref_no,
+        party: d.party !== undefined ? (d.party || null) : e.party,
+        note: d.note !== undefined ? (d.note || null) : e.note,
+        updated_at: now() });
+      db.stock_entry_items = db.stock_entry_items.filter((x) => x.entry_id !== id);
+      lines.forEach((l, i) => db.stock_entry_items.push({ id: uid(), company_id: 'c1',
+        entry_id: id, item_id: l.item_id, qty: l.qty, uom_id: l.uom_id, note: null, position: i }));
+      if (d.submit && allow(u, 'stock.submit')) doSubmit(u, id);
+      save();
+      return wait({ entry: entryCard(u, e) });
+    },
+    async removeEntry(id) {
+      const u = auth(); need(u, 'stock.entry');
+      const e = db.stock_entries.find((x) => x.id === id);
+      if (!e) fail('سند یافت نشد', 404);
+      if (e.status !== 'draft') fail('فقط پیش‌نویس حذف می‌شود؛ سند قطعی‌شده را باید باطل کرد');
+      db.stock_entry_items = db.stock_entry_items.filter((x) => x.entry_id !== id);
+      db.stock_entries = db.stock_entries.filter((x) => x.id !== id);
+      save();
+      return wait({ ok: true });
+    },
+    async submitEntry(id) {
+      const u = auth(); need(u, 'stock.submit');
+      doSubmit(u, id);
+      save();
+      return wait({ entry: entryCard(u, db.stock_entries.find((x) => x.id === id)) });
+    },
+    async cancelEntry(id, reason) {
+      const u = auth(); need(u, 'stock.submit');
+      const e = db.stock_entries.find((x) => x.id === id);
+      if (!e) fail('سند یافت نشد', 404);
+      if (e.status !== 'submitted') fail('فقط سند قطعی‌شده باطل می‌شود');
+      if (String(reason || '').trim().length < 5) {
+        fail('دلیل ابطال را بنویسید — سند باطل بی‌دلیل، سابقه را بی‌معنا می‌کند');
+      }
+      const rows = db.stock_ledger.filter((l) => l.entry_id === id && !l.is_reversal);
+      if (!rows.length) fail('این سند در دفتر انبار اثری ندارد');
+      for (const r of rows) {
+        if (r.qty_change <= 0) continue;
+        const have = onHandOf(r.item_id, r.warehouse_id);
+        if (r.qty_change - have > 1e-9) {
+          const it = db.items.find((x) => x.id === r.item_id);
+          const w = db.warehouses.find((x) => x.id === r.warehouse_id);
+          fail(`ابطال ممکن نیست: از «${it?.name}» در انبار ${w?.name} فقط ${faNum(have)} مانده و بقیه مصرف شده. اول سندهای بعدی را باطل کنید.`);
+        }
+      }
+      for (const r of rows) {
+        db.stock_ledger.push({ id: uid(), company_id: 'c1', item_id: r.item_id,
+          warehouse_id: r.warehouse_id, entry_id: id, entry_item_id: r.entry_item_id,
+          qty_change: -r.qty_change, is_reversal: 1, entry_date: e.entry_date,
+          created_by: u.id, created_at: now() });
+      }
+      Object.assign(e, { status: 'cancelled', cancelled_by: u.id, cancelled_at: now(),
+        cancel_reason: String(reason).trim(), updated_at: now() });
+      save();
+      return wait({ entry: entryCard(u, e) });
     },
   },
 
@@ -1546,3 +2031,27 @@ export const API = {
 };
 
 window.karnamaReset = () => { try { localStorage.removeItem(KEY); } catch { /* */ } location.reload(); };
+
+/**
+ * شروع خالی: فقط حساب مدیر می‌ماند و هیچ دادهٔ نمونه‌ای ساخته نمی‌شود.
+ * برای وقتی که می‌خواهید ساختار واقعی سازمان را از صفر و بدون شلوغی وارد کنید.
+ */
+window.karnamaResetEmpty = () => {
+  try {
+    const fresh = seed();
+    const admin = fresh.users.find((x) => x.username === 'modir');
+    localStorage.setItem(KEY, JSON.stringify({
+      company: fresh.company,
+      users: admin ? [{ ...admin, unit_id: null, supervisor_id: null }] : [],
+      units: [], boards: fresh.boards, columns: fresh.columns,
+      labels: [], task_labels: [], tasks: [], checklist_items: [], task_links: [],
+      time_logs: [], performance_scores: [], recurrences: [], notifications: [],
+      task_reviews: [], unit_scores: [],
+      uoms: fresh.uoms, item_groups: [], warehouses: [], items: [],
+      stock_entries: [], stock_entry_items: [], stock_ledger: [],
+      conversations: [], conversation_members: [], messages: [],
+      comments: [], events: [], board_members: [], session: null,
+    }));
+  } catch { /* حافظهٔ مرورگر در دسترس نیست */ }
+  location.reload();
+};

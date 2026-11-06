@@ -58,6 +58,19 @@ export const CATALOG = [
     ],
   },
   {
+    group: 'stock',
+    title: 'انبارداری',
+    icon: '▦',
+    items: [
+      { key: 'stock.view', label: 'دیدن موجودی انبار', hint: 'فقط انبارهای واحد خودش' },
+      { key: 'stock.view_all', label: 'دیدن همهٔ انبارها', hint: 'بدون محدودیت واحد سازمانی' },
+      { key: 'stock.entry', label: 'ثبت سند انبار', hint: 'رسید، حواله و انتقال — به‌صورت پیش‌نویس' },
+      { key: 'stock.submit', label: 'قطعی کردن سند انبار', hint: 'سند قطعی دیگر ویرایش نمی‌شود' },
+      { key: 'stock.manage', label: 'تعریف کالا و انبار', hint: 'کالا، گروه کالا، واحد سنجش، انبار' },
+      { key: 'stock.report', label: 'کاردکس و گزارش انبار', hint: 'دفتر انبار، گردش کالا، کمبودها' },
+    ],
+  },
+  {
     group: 'chat',
     title: 'گفت‌وگو',
     icon: '✉',
@@ -103,6 +116,14 @@ export const PRESETS = {
       'chat.use', 'chat.group',
       'scores.view_own', 'scores.view_unit'],
   },
+  // انبارداری عمداً در قالب کارمند و مدیر واحد نیست: دسترسی به موجودی و سند
+  // انبار را مدیر برای همان چند نفری که واقعاً انبار دستشان است تیک می‌زند.
+  keeper: {
+    label: 'انباردار',
+    hint: 'کالا را تحویل می‌گیرد و تحویل می‌دهد و سند انبار می‌زند — انبارهای واحد خودش',
+    keys: ['tasks.view', 'tasks.move_own', 'time.log', 'scores.view_own', 'chat.use',
+      'stock.view', 'stock.entry', 'stock.submit', 'stock.report'],
+  },
   manager: {
     label: 'مدیر ارشد',
     hint: 'به واحدها امتیاز می‌دهد و گزارش تفصیلی می‌گیرد — به افراد امتیاز نمی‌دهد',
@@ -112,6 +133,7 @@ export const PRESETS = {
       'time.log', 'time.view_all', 'time.log_others', 'time.approve',
       'users.view', 'users.manage',
       'chat.use', 'chat.group',
+      'stock.view', 'stock.view_all', 'stock.entry', 'stock.submit', 'stock.manage', 'stock.report',
       'scores.view_own', 'scores.view_unit', 'scores.view_all', 'scores.unit', 'reports.unit'],
   },
   full: {

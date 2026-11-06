@@ -44,6 +44,20 @@ const state = {
   workload: null,
   notifications: [],
   unread: 0,
+  stock: {
+    tab: 'onhand',
+    setup: null,
+    onhand: [],
+    low: [],
+    warehouses: [],
+    warehouseCards: [],
+    items: [],
+    entries: [],
+    filterWarehouse: '',
+    entryStatus: '',
+    search: '',
+    lines: [],
+  },
   chat: {
     open: false,
     pane: 'list',          // list | thread | new | newgroup
@@ -137,6 +151,7 @@ const NAV = [
   { id: 'review', label: 'کارتابل بررسی', icon: '✍', need: 'review.do' },
   // گفت‌وگو صفحه نمی‌شود؛ کشو را باز می‌کند تا کاری که دستتان است از دست نرود
   { id: 'chat', label: 'گفت‌وگو', icon: '✉', need: 'chat.use', drawer: true },
+  { id: 'stock', label: 'انبار', icon: '▦', need: 'stock.view' },
   // مدیر واحد هم باید بتواند ایست بهره‌وری واحد خودش را ببیند، حتی اگر واحد نسازد
   { id: 'units', label: 'واحدها', icon: '⌂', needAny: ['units.manage', 'units.assign', 'scores.unit', 'scores.view_unit', 'reports.unit'] },
   { id: 'unitreport', label: 'گزارش واحدها', icon: '◳', need: 'reports.unit' },
@@ -1541,11 +1556,16 @@ function profileView() {
       <header><h3>شروع از صفر</h3></header>
       <p class="hint">
         این نسخهٔ نمایشی است و همهٔ داده‌ها فقط در مرورگر همین دستگاه می‌مانند.
-        با این دکمه همه‌چیز پاک می‌شود و دادهٔ نمونه از نو ساخته می‌شود — جای دیگری اثر ندارد.
+        هر دو دکمه همه‌چیز را پاک می‌کنند و جای دیگری اثر ندارند.
       </p>
-      <button class="btn danger" data-action="demo-reset" style="margin-top:10px">
-        پاک کردن داده‌ها و شروع از صفر
-      </button>
+      <div class="row" style="margin-top:11px;gap:8px">
+        <button class="btn ghost" data-action="demo-reset">بازگشت به دادهٔ نمونه</button>
+        <button class="btn danger" data-action="demo-reset-empty">شروع خالی — فقط حساب مدیر</button>
+      </div>
+      <p class="hint" style="margin-top:9px">
+        «شروع خالی» برای وقتی است که می‌خواهید ساختار واقعی خودتان را از صفر وارد کنید:
+        هیچ واحد، کار، کالا یا انباری ساخته نمی‌شود — فقط حساب مدیر و واحدهای سنجش پایه.
+      </p>
     </div>` : ''}
     <div class="card">
       <header><h3>خروج از حساب</h3></header>
@@ -2020,6 +2040,532 @@ async function loadAll() {
       .then((d) => { if (d) state.unitView = d; }));
   }
   await Promise.all(tasks);
+}
+
+// ───────────────────────────── انبار ─────────────────────────────
+//
+// یک آیتم در منو، چهار زبانه داخلش. اگر هر کدام یک آیتم منو می‌شد، منوی کنار
+// هفده‌تایی می‌شد و پیدا کردن چیزها سخت‌تر — نه آسان‌تر.
+
+const STOCK_TABS = [
+  { id: 'onhand', label: 'موجودی', need: 'stock.view' },
+  { id: 'entries', label: 'اسناد انبار', need: 'stock.view' },
+  { id: 'items', label: 'کالاها', need: 'stock.view' },
+  { id: 'warehouses', label: 'انبارها', need: 'stock.view' },
+];
+
+const STOCK_KINDS = {
+  receipt: { label: 'رسید', icon: '↓', hint: 'ورود کالا به انبار', from: false, to: true },
+  issue: { label: 'حواله', icon: '↑', hint: 'خروج کالا از انبار', from: true, to: false },
+  transfer: { label: 'انتقال', icon: '⇄', hint: 'جابه‌جایی بین دو انبار', from: true, to: true },
+  adjust: { label: 'اصلاح', icon: '✎', hint: 'اصلاح موجودی پس از انبارگردانی', from: false, to: true },
+};
+
+const STOCK_STATUS = {
+  draft: { label: 'پیش‌نویس', cls: '' },
+  submitted: { label: 'قطعی', cls: 'ok' },
+  cancelled: { label: 'باطل', cls: 'danger' },
+};
+
+/**
+ * عدد انبار: ارقام فارسی، با همان تعداد رقم اعشار که واحد سنجش می‌خواهد.
+ * صفرهای انتهایی فقط وقتی حذف می‌شوند که بعد از ممیز باشند — وگرنه ۲۵۰۰ کیسه
+ * «۲۵» نمایش داده می‌شود، که در انبار یعنی فاجعه.
+ */
+function qtyText(v, decimals = 2) {
+  const x = Number(v) || 0;
+  const s = x.toFixed(Math.max(0, Math.min(3, decimals)));
+  const trimmed = s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s;
+  return toFa(trimmed);
+}
+
+async function loadStock() {
+  const [setup, data] = await Promise.all([
+    guard(() => API.stock.setup(), { silent: true }),
+    guard(() => API.stock.onHand(state.stock.filterWarehouse
+      ? { warehouse_id: state.stock.filterWarehouse } : {}), { silent: true }),
+  ]);
+  if (setup) state.stock.setup = setup;
+  if (data) { state.stock.onhand = data.rows; state.stock.low = data.low; state.stock.warehouses = data.warehouses; }
+}
+
+async function loadStockTab(tab) {
+  if (tab === 'onhand') {
+    const d = await guard(() => API.stock.onHand(state.stock.filterWarehouse
+      ? { warehouse_id: state.stock.filterWarehouse } : {}), { silent: true });
+    if (d) { state.stock.onhand = d.rows; state.stock.low = d.low; state.stock.warehouses = d.warehouses; }
+  } else if (tab === 'entries') {
+    const d = await guard(() => API.stock.entries(state.stock.entryStatus
+      ? { status: state.stock.entryStatus } : {}), { silent: true });
+    if (d) state.stock.entries = d.entries;
+  } else if (tab === 'items') {
+    const d = await guard(() => API.stock.items({}), { silent: true });
+    if (d) state.stock.items = d.items;
+  } else if (tab === 'warehouses') {
+    const d = await guard(() => API.stock.warehouses(), { silent: true });
+    if (d) state.stock.warehouseCards = d.warehouses;
+  }
+}
+
+function stockView() {
+  const tabs = STOCK_TABS.filter((t) => can(t.need));
+  const tab = state.stock.tab;
+  return `
+    <div class="seg" style="margin-bottom:14px">
+      ${tabs.map((t) => `<button class="${tab === t.id ? 'active' : ''}" data-action="stock-tab" data-id="${t.id}">${t.label}</button>`).join('')}
+    </div>
+    ${tab === 'onhand' ? stockOnHandTab()
+    : tab === 'entries' ? stockEntriesTab()
+      : tab === 'items' ? stockItemsTab()
+        : stockWarehousesTab()}`;
+}
+
+/** ردیف‌های موجودی پس از جست‌وجو — جدا است تا بشود بدون رندر کامل تازه‌اش کرد */
+function stockShownRows() {
+  const rows = state.stock.onhand || [];
+  const qq = (state.stock.search || '').trim();
+  if (!qq) return rows;
+  return rows.filter((r) => r.name.includes(qq) || String(r.code).includes(qq)
+    || (r.group_name || '').includes(qq));
+}
+
+function stockOnHandRows() {
+  const shown = stockShownRows();
+  if (!shown.length) {
+    return '<tr><td colspan="6"><div class="empty"><p>کالایی با این نام در موجودی نیست.</p></div></td></tr>';
+  }
+  // «کمبود» با مجموع کالا در همهٔ انبارها سنجیده می‌شود، نه با موجودی یک انبار.
+  // وگرنه کالایی که در دو انبار پخش شده، در هر دو ردیف الکی قرمز می‌شود.
+  const lowItems = new Set((state.stock.low || []).map((l) => l.item_id));
+  return shown.map((r) => {
+    const isLow = lowItems.has(r.item_id);
+    return `<tr class="${isLow ? 'row-warn' : ''}">
+      <td><code>${toFa(r.code)}</code></td>
+      <td><b>${esc(r.name)}</b></td>
+      <td>${esc(r.group_name || '—')}</td>
+      <td>${esc(r.warehouse_name)}</td>
+      <td><b>${qtyText(r.qty, r.uom_decimals)}</b> <small>${esc(r.uom_name)}</small>
+          ${isLow ? ' <span class="chip danger sm">کمبود</span>' : ''}</td>
+      <td>${can('stock.report') ? `<button class="btn ghost sm" data-action="stock-card" data-id="${r.item_id}">کاردکس</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function stockOnHandTab() {
+  const rows = state.stock.onhand || [];
+  const low = state.stock.low || [];
+  const whs = state.stock.warehouses || [];
+  const qq = (state.stock.search || '').trim();
+  const shown = stockShownRows();
+  const kinds = new Set(shown.map((r) => r.item_id));
+
+  if (!whs.length) {
+    return `<div class="card"><div class="empty">
+      <p>هنوز انباری برای شما تعریف نشده است.</p>
+      ${can('stock.manage') ? '<p class="hint">از زبانهٔ «انبارها» اولین انبار را بسازید.</p>' : ''}
+    </div></div>`;
+  }
+
+  return `
+    ${low.length ? `
+    <div class="card warn-card">
+      <header><h3>⚠ کمبود موجودی — ${toFa(low.length)} قلم</h3></header>
+      <div class="chips">
+        ${low.map((l) => `<button class="chip danger" data-action="stock-card" data-id="${l.item_id}">
+          ${esc(l.name)}: ${qtyText(l.on_hand)} از ${qtyText(l.reorder_level)} ${esc(l.uom_name)}
+        </button>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="card">
+      <header>
+        <h3>موجودی لحظه‌ای</h3>
+        <div class="spacer"></div>
+        ${can('stock.entry') ? '<button class="btn sm" data-action="stock-new-entry">+ سند انبار</button>' : ''}
+        <select class="select sm" data-action="stock-warehouse-filter" style="max-width:190px">
+          <option value="">همهٔ انبارها</option>
+          ${whs.map((w) => `<option value="${w.id}" ${state.stock.filterWarehouse === w.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}
+        </select>
+        <input class="input sm" data-action="stock-search" value="${esc(qq)}"
+               placeholder="جست‌وجوی کالا…" style="max-width:190px">
+      </header>
+      <div class="kpis">
+        <div class="kpi"><b>${toFa(kinds.size)}</b><span>قلم کالا</span></div>
+        <div class="kpi"><b>${toFa(whs.length)}</b><span>انبار</span></div>
+        <div class="kpi ${low.length ? 'danger' : ''}"><b>${toFa(low.length)}</b><span>زیر حداقل</span></div>
+      </div>
+      ${rows.length ? `
+      <div class="table-wrap"><table id="stock-onhand">
+        <thead><tr>
+          <th>کد</th><th>کالا</th><th>گروه</th><th>انبار</th><th>موجودی</th><th></th>
+        </tr></thead>
+        <tbody>${stockOnHandRows()}</tbody>
+      </table></div>`
+    : '<div class="empty"><p>موجودی‌ای برای نمایش نیست. با یک «رسید» شروع کنید.</p></div>'}
+    </div>`;
+}
+
+function stockEntriesTab() {
+  const list = state.stock.entries || [];
+  return `
+    <div class="card">
+      <header>
+        <h3>اسناد انبار</h3>
+        <div class="spacer"></div>
+        ${can('stock.entry') ? '<button class="btn sm" data-action="stock-new-entry">+ سند انبار</button>' : ''}
+        <select class="select sm" data-action="stock-entry-status" style="max-width:170px">
+          <option value="">همهٔ اسناد</option>
+          <option value="draft" ${state.stock.entryStatus === 'draft' ? 'selected' : ''}>پیش‌نویس</option>
+          <option value="submitted" ${state.stock.entryStatus === 'submitted' ? 'selected' : ''}>قطعی‌شده</option>
+          <option value="cancelled" ${state.stock.entryStatus === 'cancelled' ? 'selected' : ''}>باطل‌شده</option>
+        </select>
+      </header>
+      ${list.length ? `<div class="entry-list">${list.map(stockEntryRow).join('')}</div>`
+    : '<div class="empty"><p>سندی ثبت نشده است.</p></div>'}
+    </div>`;
+}
+
+function stockEntryRow(e) {
+  const k = STOCK_KINDS[e.kind] || { icon: '•', label: e.kind };
+  const st = STOCK_STATUS[e.status] || { label: e.status, cls: '' };
+  const route = e.kind === 'transfer'
+    ? `${esc(e.from_warehouse || '—')} ← ${esc(e.to_warehouse || '—')}`
+    : (e.kind === 'issue' ? `از ${esc(e.from_warehouse || '—')}` : `به ${esc(e.to_warehouse || '—')}`);
+  return `
+    <div class="entry-row ${e.status}">
+      <span class="entry-kind">${k.icon}</span>
+      <div class="entry-mid">
+        <b>${k.label} #${toFa(e.code)}</b>
+        <small>${route} · ${formatJalali(e.entry_date)}${e.party ? ` · ${esc(e.party)}` : ''}${e.ref_no ? ` · ${esc(e.ref_no)}` : ''}</small>
+        <small class="faint">${toFa(e.lines.length)} قلم: ${e.lines.slice(0, 3).map((l) => esc(l.item_name)).join('، ')}${e.lines.length > 3 ? ' …' : ''}</small>
+      </div>
+      <div class="entry-end">
+        <span class="chip ${st.cls}">${st.label}</span>
+        <button class="btn ghost sm" data-action="stock-entry-open" data-id="${e.id}">جزئیات</button>
+      </div>
+    </div>`;
+}
+
+function stockItemsTab() {
+  const list = state.stock.items || [];
+  return `
+    <div class="card">
+      <header>
+        <h3>کالاها</h3>
+        <div class="spacer"></div>
+        ${can('stock.manage') ? '<button class="btn sm" data-action="stock-new-item">+ کالای تازه</button>' : ''}
+      </header>
+      ${list.length ? `
+      <div class="table-wrap"><table>
+        <thead><tr><th>کد</th><th>نام</th><th>گروه</th><th>واحد</th><th>موجودی کل</th><th>حداقل</th><th></th></tr></thead>
+        <tbody>${list.map((it) => `
+          <tr class="${it.low ? 'row-warn' : ''}">
+            <td><code>${toFa(it.code)}</code></td>
+            <td><b>${esc(it.name)}</b>${it.description ? `<br><small class="faint">${esc(it.description)}</small>` : ''}</td>
+            <td>${esc(it.group_name || '—')}</td>
+            <td>${esc(it.uom_name)}</td>
+            <td><b>${qtyText(it.on_hand, it.uom_decimals)}</b></td>
+            <td>${it.reorder_level == null ? '—' : qtyText(it.reorder_level, it.uom_decimals)}</td>
+            <td>
+              ${can('stock.report') ? `<button class="btn ghost sm" data-action="stock-card" data-id="${it.id}">کاردکس</button>` : ''}
+              ${can('stock.manage') ? `<button class="btn ghost sm" data-action="stock-edit-item" data-id="${it.id}">ویرایش</button>` : ''}
+            </td>
+          </tr>`).join('')}</tbody>
+      </table></div>`
+    : `<div class="empty"><p>هنوز کالایی تعریف نشده است.</p>
+         ${can('stock.manage') ? '<p class="hint">پیش از ثبت سند، کالاها و واحد سنجششان را تعریف کنید.</p>' : ''}</div>`}
+    </div>`;
+}
+
+function stockWarehousesTab() {
+  const list = state.stock.warehouseCards || [];
+  return `
+    <div class="card">
+      <header>
+        <h3>انبارها</h3>
+        <div class="spacer"></div>
+        ${can('stock.manage') ? '<button class="btn sm" data-action="stock-new-warehouse">+ انبار تازه</button>' : ''}
+      </header>
+      ${list.length ? `<div class="wh-grid">${list.map((w) => `
+        <div class="wh-card">
+          <b>${esc(w.name)}${w.code ? ` <small class="faint">${esc(w.code)}</small>` : ''}</b>
+          <small>${w.unit_name ? `واحد ${esc(w.unit_name)}` : 'بدون واحد سازمانی'}</small>
+          <small>انباردار: ${esc(w.keeper_name || '—')}</small>
+          <div class="wh-foot">
+            <span class="chip">${toFa(w.item_kinds)} قلم</span>
+            ${can('stock.manage') ? `<button class="btn ghost sm" data-action="stock-edit-warehouse" data-id="${w.id}">ویرایش</button>` : ''}
+          </div>
+        </div>`).join('')}</div>`
+    : '<div class="empty"><p>انباری تعریف نشده است.</p></div>'}
+    </div>`;
+}
+
+// ───── پنجره‌ها ─────
+
+function stockLineRowHtml(line = {}, i = 0) {
+  const items = (state.stock.items || []).filter((x) => x.is_active !== 0);
+  return `
+    <div class="stock-line" data-line="${i}">
+      <select class="select" name="item">
+        <option value="">— کالا —</option>
+        ${items.map((it) => `<option value="${it.id}" ${line.item_id === it.id ? 'selected' : ''}>${toFa(it.code)} · ${esc(it.name)} (${esc(it.uom_name)})</option>`).join('')}
+      </select>
+      <input class="input" name="qty" type="number" step="0.001" min="0" placeholder="مقدار"
+             value="${line.qty ?? ''}">
+      <button type="button" class="x-btn" data-action="stock-line-del" data-i="${i}" title="حذف ردیف">×</button>
+    </div>`;
+}
+
+function stockEntryModal(kind = 'receipt', entry = null) {
+  const setup = state.stock.setup || {};
+  const whs = setup.warehouses || [];
+  const k = STOCK_KINDS[kind];
+  const today = isoToJalali(entry?.entry_date || todayIso());
+  state.stock.lines = entry ? entry.lines.map((l) => ({ item_id: l.item_id, qty: l.qty })) : [{}];
+
+  openModal(entry ? `ویرایش ${k.label} #${toFa(entry.code)}` : `${k.label} انبار`, `
+    <form data-form="stock-entry" data-id="${entry?.id || ''}" data-kind="${kind}">
+      ${!entry ? `
+      <div class="field"><label>نوع سند</label>
+        <div class="seg">
+          ${Object.entries(STOCK_KINDS)
+    .filter(([id]) => id !== 'adjust' || can('stock.manage'))
+    .map(([id, v]) => `<button type="button" class="${id === kind ? 'active' : ''}"
+              data-action="stock-kind" data-id="${id}">${v.icon} ${v.label}</button>`).join('')}
+        </div>
+        <p class="hint">${k.hint}</p>
+      </div>` : ''}
+
+      <div class="row">
+        ${k.from ? `
+        <div class="field"><label>انبار مبدأ</label>
+          <select class="select" name="from_warehouse_id" required>
+            <option value="">— انتخاب —</option>
+            ${whs.map((w) => `<option value="${w.id}" ${entry?.from_warehouse_id === w.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}
+          </select></div>` : ''}
+        ${k.to ? `
+        <div class="field"><label>${kind === 'transfer' ? 'انبار مقصد' : 'انبار'}</label>
+          <select class="select" name="to_warehouse_id" required>
+            <option value="">— انتخاب —</option>
+            ${whs.map((w) => `<option value="${w.id}" ${entry?.to_warehouse_id === w.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}
+          </select></div>` : ''}
+      </div>
+
+      <div class="field"><label>تاریخ سند</label>
+        <div class="row" style="gap:6px">
+          <select class="select" name="jd">${Array.from({ length: 31 }, (_, i) => i + 1)
+    .map((d) => `<option value="${d}" ${today.jd === d ? 'selected' : ''}>${toFa(d)}</option>`).join('')}</select>
+          <select class="select" name="jm">${MONTH_NAMES
+    .map((m, i) => `<option value="${i + 1}" ${today.jm === i + 1 ? 'selected' : ''}>${m}</option>`).join('')}</select>
+          <select class="select" name="jy">${[today.jy - 1, today.jy, today.jy + 1]
+    .map((y) => `<option value="${y}" ${today.jy === y ? 'selected' : ''}>${toFa(y)}</option>`).join('')}</select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field"><label>${kind === 'receipt' ? 'تأمین‌کننده' : 'تحویل‌گیرنده'}</label>
+          <input class="input" name="party" value="${esc(entry?.party || '')}"
+                 placeholder="${kind === 'receipt' ? 'نام فروشنده یا معدن' : 'خط تولید، پیمانکار…'}"></div>
+        <div class="field"><label>شمارهٔ مرجع</label>
+          <input class="input" name="ref_no" value="${esc(entry?.ref_no || '')}"
+                 placeholder="بارنامه، فاکتور، حوالهٔ کاغذی"></div>
+      </div>
+
+      <div class="field">
+        <label>اقلام سند</label>
+        <div id="stock-lines">${state.stock.lines.map((l, i) => stockLineRowHtml(l, i)).join('')}</div>
+        <button type="button" class="btn ghost sm" data-action="stock-line-add" style="margin-top:7px">+ ردیف</button>
+      </div>
+
+      <div class="field"><label>توضیح</label>
+        <textarea class="textarea" name="note" rows="2">${esc(entry?.note || '')}</textarea></div>
+    </form>`, `
+    <button class="btn ghost" data-action="close-modal">انصراف</button>
+    <div class="spacer"></div>
+    <button class="btn ghost" form="" data-action="stock-save-draft">ذخیرهٔ پیش‌نویس</button>
+    ${can('stock.submit') ? '<button class="btn" data-action="stock-save-submit">ثبت قطعی</button>' : ''}`);
+}
+
+function stockEntryDetailModal(e) {
+  const k = STOCK_KINDS[e.kind] || {};
+  const st = STOCK_STATUS[e.status] || {};
+  openModal(`${k.label} #${toFa(e.code)}`, `
+    <div class="chips" style="margin-bottom:11px">
+      <span class="chip ${st.cls}">${st.label}</span>
+      <span class="chip">${formatJalali(e.entry_date)}</span>
+      ${e.from_warehouse ? `<span class="chip">از ${esc(e.from_warehouse)}</span>` : ''}
+      ${e.to_warehouse ? `<span class="chip">به ${esc(e.to_warehouse)}</span>` : ''}
+      ${e.party ? `<span class="chip">${esc(e.party)}</span>` : ''}
+      ${e.ref_no ? `<span class="chip">مرجع: ${esc(e.ref_no)}</span>` : ''}
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>کالا</th><th>مقدار</th><th>واحد</th></tr></thead>
+      <tbody>${e.lines.map((l) => `<tr>
+        <td><code>${toFa(l.item_code)}</code> ${esc(l.item_name)}</td>
+        <td><b>${qtyText(l.qty, l.uom_decimals)}</b></td>
+        <td>${esc(l.uom_name)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+    ${e.note ? `<p class="hint" style="margin-top:10px">${esc(e.note)}</p>` : ''}
+    <div class="trail">
+      <div>ثبت‌کننده: <b>${esc(e.created_by_name || '—')}</b></div>
+      ${e.submitted_by_name ? `<div>قطعی‌کننده: <b>${esc(e.submitted_by_name)}</b></div>` : ''}
+      ${e.cancelled_by_name ? `<div class="danger-text">ابطال: <b>${esc(e.cancelled_by_name)}</b> — ${esc(e.cancel_reason || '')}</div>` : ''}
+    </div>`, `
+    <button class="btn ghost" data-action="close-modal">بستن</button>
+    <div class="spacer"></div>
+    ${e.can_edit ? `<button class="btn ghost" data-action="stock-edit-entry" data-id="${e.id}">ویرایش</button>` : ''}
+    ${e.can_edit ? `<button class="btn ghost danger" data-action="stock-del-entry" data-id="${e.id}">حذف پیش‌نویس</button>` : ''}
+    ${e.can_submit ? `<button class="btn" data-action="stock-submit-entry" data-id="${e.id}">ثبت قطعی</button>` : ''}
+    ${e.can_cancel ? `<button class="btn danger" data-action="stock-cancel-entry" data-id="${e.id}">ابطال سند</button>` : ''}`);
+}
+
+async function stockCardModal(itemId) {
+  const d = await guard(() => API.stock.card({ item_id: itemId }));
+  if (!d) return;
+  const dec = Number(d.item.uom_decimals) || 0;
+  openModal(`کاردکس — ${esc(d.item.name)}`, `
+    <div class="kpis" style="margin-bottom:12px">
+      <div class="kpi"><b>${qtyText(d.balance, dec)}</b><span>موجودی کل (${esc(d.item.uom_name)})</span></div>
+      <div class="kpi"><b>${toFa(d.moves.length)}</b><span>حرکت ثبت‌شده</span></div>
+    </div>
+    ${d.moves.length ? `
+    <div class="table-wrap"><table>
+      <thead><tr><th>تاریخ</th><th>سند</th><th>انبار</th><th>وارده</th><th>صادره</th><th>مانده</th><th>ثبت</th></tr></thead>
+      <tbody>${d.moves.map((m) => `
+        <tr class="${m.is_reversal ? 'row-muted' : ''}">
+          <td>${formatJalali(m.entry_date)}</td>
+          <td>${STOCK_KINDS[m.kind]?.label || m.kind} #${toFa(m.entry_code)}${m.is_reversal ? ' <small class="faint">(ابطال)</small>' : ''}</td>
+          <td>${esc(m.warehouse_name)}</td>
+          <td>${m.qty_change > 0 ? `<b class="ok-text">${qtyText(m.qty_change, dec)}</b>` : ''}</td>
+          <td>${m.qty_change < 0 ? `<b class="danger-text">${qtyText(-m.qty_change, dec)}</b>` : ''}</td>
+          <td>${qtyText(m.balance, dec)}</td>
+          <td><small>${esc(m.who)}</small></td>
+        </tr>`).join('')}</tbody>
+    </table></div>
+    <p class="hint" style="margin-top:9px">
+      مانده از بالا به پایین کم می‌شود چون تازه‌ترین حرکت اول آمده است.
+    </p>`
+    : '<div class="empty"><p>برای این کالا هنوز حرکتی ثبت نشده است.</p></div>'}`, `
+    <button class="btn ghost" data-action="close-modal">بستن</button>`);
+}
+
+function stockItemModal(item = null) {
+  const setup = state.stock.setup || {};
+  openModal(item ? `ویرایش کالا` : 'کالای تازه', `
+    <form data-form="stock-item" data-id="${item?.id || ''}">
+      <div class="row">
+        <div class="field"><label>نام کالا</label>
+          <input class="input" name="name" required value="${esc(item?.name || '')}"
+                 placeholder="مثلاً: پودر باریت حفاری API"></div>
+        <div class="field"><label>کد کالا</label>
+          <input class="input" name="code" value="${esc(item?.code || '')}" placeholder="خودکار">
+          <p class="hint">خالی بگذارید تا خودش شماره بدهد</p></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>واحد سنجش</label>
+          <select class="select" name="uom_id" required>
+            <option value="">— انتخاب —</option>
+            ${(setup.uoms || []).map((uo) => `<option value="${uo.id}" ${item?.uom_id === uo.id ? 'selected' : ''}>${esc(uo.name)}</option>`).join('')}
+          </select></div>
+        <div class="field"><label>گروه کالا</label>
+          <select class="select" name="group_id">
+            <option value="">— بدون گروه —</option>
+            ${(setup.groups || []).map((g) => `<option value="${g.id}" ${item?.group_id === g.id ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}
+          </select></div>
+      </div>
+      <div class="field"><label>شرح</label>
+        <input class="input" name="description" value="${esc(item?.description || '')}"></div>
+      <div class="row">
+        <div class="field"><label>حداقل موجودی</label>
+          <input class="input" name="reorder_level" type="number" step="0.001" min="0"
+                 value="${item?.reorder_level ?? ''}">
+          <p class="hint">زیر این مقدار، هشدار کمبود می‌دهد</p></div>
+        <div class="field"><label>مقدار سفارش</label>
+          <input class="input" name="reorder_qty" type="number" step="0.001" min="0"
+                 value="${item?.reorder_qty ?? ''}"></div>
+      </div>
+      ${item ? `
+      <div class="field"><label class="check">
+        <input type="checkbox" name="is_active" ${item.is_active ? 'checked' : ''}> کالا فعال است
+      </label></div>` : ''}
+      <button class="btn block" type="submit">${item ? 'ذخیره' : 'ساخت کالا'}</button>
+    </form>`);
+}
+
+function stockWarehouseModal(wh = null) {
+  openModal(wh ? 'ویرایش انبار' : 'انبار تازه', `
+    <form data-form="stock-warehouse" data-id="${wh?.id || ''}">
+      <div class="row">
+        <div class="field"><label>نام انبار</label>
+          <input class="input" name="name" required value="${esc(wh?.name || '')}"
+                 placeholder="مثلاً: انبار مواد اولیه"></div>
+        <div class="field"><label>کد</label>
+          <input class="input" name="code" value="${esc(wh?.code || '')}" placeholder="RAW"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>واحد سازمانی</label>
+          <select class="select" name="unit_id">
+            <option value="">— انبار مشترک، بدون واحد —</option>
+            ${unitTree(state.units).map((o) => `<option value="${o.id}" ${wh?.unit_id === o.id ? 'selected' : ''}>${'┄'.repeat(o.depth)}${esc(o.name)}</option>`).join('')}
+          </select>
+          <p class="hint">انبارِ یک واحد را فقط افراد همان واحد و کسی با «دیدن همهٔ انبارها» می‌بینند</p></div>
+        <div class="field"><label>انباردار</label>
+          <select class="select" name="keeper_id">
+            <option value="">— تعیین نشده —</option>
+            ${state.users.filter((x) => x.is_active).map((x) => `<option value="${x.id}" ${wh?.keeper_id === x.id ? 'selected' : ''}>${esc(x.full_name)}</option>`).join('')}
+          </select></div>
+      </div>
+      <div class="field"><label>نشانی</label>
+        <input class="input" name="address" value="${esc(wh?.address || '')}"></div>
+      ${wh ? `
+      <div class="field"><label class="check">
+        <input type="checkbox" name="is_active" ${wh.is_active ? 'checked' : ''}> انبار فعال است
+      </label></div>` : ''}
+      <button class="btn block" type="submit">${wh ? 'ذخیره' : 'ساخت انبار'}</button>
+    </form>`);
+}
+
+/** اقلام سند را از DOM می‌خواند — چون ردیف‌ها پویا اضافه و کم می‌شوند */
+function readStockLines() {
+  const out = [];
+  for (const row of document.querySelectorAll('#stock-lines .stock-line')) {
+    const itemId = row.querySelector('[name="item"]').value;
+    const qty = row.querySelector('[name="qty"]').value;
+    if (!itemId && !qty) continue;
+    out.push({ item_id: itemId, qty });
+  }
+  return out;
+}
+
+async function saveStockEntry(submit) {
+  const form = $('form[data-form="stock-entry"]');
+  if (!form) return;
+  const fd = Object.fromEntries(new FormData(form));
+  const kind = form.dataset.kind;
+  const id = form.dataset.id;
+  const lines = readStockLines();
+  if (!lines.length) { toast('حداقل یک قلم کالا اضافه کنید', 'err'); return; }
+
+  const iso = jalaliToIso(Number(fd.jy), Number(fd.jm), Number(fd.jd));
+  const payload = {
+    kind,
+    entry_date: iso,
+    from_warehouse_id: fd.from_warehouse_id || null,
+    to_warehouse_id: fd.to_warehouse_id || null,
+    party: fd.party || '',
+    ref_no: fd.ref_no || '',
+    note: fd.note || '',
+    lines,
+    submit,
+  };
+  const res = await guard(() => (id ? API.stock.updateEntry(id, payload) : API.stock.createEntry(payload)));
+  if (!res) return;
+  closeModal();
+  toast(submit ? 'سند قطعی شد و در دفتر انبار نشست' : 'پیش‌نویس ذخیره شد', 'ok');
+  await loadStockTab(state.stock.tab);
+  if (state.stock.tab !== 'onhand') await loadStockTab('onhand');
+  render();
 }
 
 // ───────────────────────────── گفت‌وگو ─────────────────────────────
@@ -2506,6 +3052,7 @@ function render() {
     case 'workload': inner = workloadView(); break;
     case 'review': inner = reviewView(); break;
     case 'units': inner = unitsView(); break;
+    case 'stock': inner = stockView(); break;
     case 'unitprod': inner = unitProdView(); break;
     case 'unitreport': inner = unitReportView(); break;
     case 'time': inner = timeView(); break;
@@ -2547,6 +3094,11 @@ async function setView(view) {
   } else if (view === 'team' && can('users.manage')) {
     const d = await guard(() => API.notify.status(), { silent: true });
     if (d) state.notifyStatus = d;
+  } else if (view === 'stock') {
+    await loadStock();
+    await loadStockTab(state.stock.tab);
+    // فهرست کالاها برای ساختن سند لازم است، حتی وقتی زبانهٔ دیگری باز است
+    if (state.stock.tab !== 'items' && can('stock.entry')) await loadStockTab('items');
   } else if (view === 'units') {
     const d = await guard(() => API.units.list(), { silent: true });
     if (d) { state.units = d.units; state.managedUnits = d.managed || []; }
@@ -2636,8 +3188,13 @@ document.addEventListener('click', async (e) => {
     case 'close-modal': closeModal(); break;
 
     case 'demo-reset':
-      if (window.confirm('همهٔ داده‌های نسخهٔ نمایشی روی این دستگاه پاک شود و از صفر شروع کنیم؟')
+      if (window.confirm('همهٔ داده‌های روی این دستگاه پاک شود و دادهٔ نمونه از نو ساخته شود؟')
         && typeof window.karnamaReset === 'function') window.karnamaReset();
+      break;
+
+    case 'demo-reset-empty':
+      if (window.confirm('همه‌چیز پاک شود و فقط حساب مدیر بماند؟ هیچ واحد، کار، کالا یا انباری نخواهد ماند.')
+        && typeof window.karnamaResetEmpty === 'function') window.karnamaResetEmpty();
       break;
 
     case 'filter':
@@ -2789,6 +3346,83 @@ document.addEventListener('click', async (e) => {
       state.unread = 0; closeModal(); render();
       break;
     case 'more-menu': moreMenuModal(); break;
+
+    // ───── انبار ─────
+    case 'stock-tab':
+      state.stock.tab = id;
+      await loadStockTab(id);
+      render();
+      break;
+    case 'stock-new-entry': stockEntryModal('receipt'); break;
+    case 'stock-kind': stockEntryModal(id); break;
+    case 'stock-line-add': {
+      const box = $('#stock-lines');
+      if (box) {
+        box.insertAdjacentHTML('beforeend', stockLineRowHtml({}, box.children.length));
+      }
+      break;
+    }
+    case 'stock-line-del': {
+      const row = e.target.closest('.stock-line');
+      const box = $('#stock-lines');
+      if (row && box && box.children.length > 1) row.remove();
+      else if (row) { row.querySelector('[name="item"]').value = ''; row.querySelector('[name="qty"]').value = ''; }
+      break;
+    }
+    case 'stock-save-draft': await saveStockEntry(false); break;
+    case 'stock-save-submit': await saveStockEntry(true); break;
+    case 'stock-entry-open': {
+      const d = await guard(() => API.stock.entry(id));
+      if (d) stockEntryDetailModal(d.entry);
+      break;
+    }
+    case 'stock-edit-entry': {
+      const d = await guard(() => API.stock.entry(id));
+      if (d) stockEntryModal(d.entry.kind, d.entry);
+      break;
+    }
+    case 'stock-del-entry': {
+      if (!window.confirm('این پیش‌نویس حذف شود؟')) break;
+      const d = await guard(() => API.stock.removeEntry(id));
+      if (!d) break;
+      closeModal();
+      toast('پیش‌نویس حذف شد', 'ok');
+      await loadStockTab(state.stock.tab);
+      render();
+      break;
+    }
+    case 'stock-submit-entry': {
+      const d = await guard(() => API.stock.submitEntry(id));
+      if (!d) break;
+      closeModal();
+      toast('سند قطعی شد و در دفتر انبار نشست', 'ok');
+      await loadStock();
+      await loadStockTab(state.stock.tab);
+      render();
+      break;
+    }
+    case 'stock-cancel-entry': {
+      const reason = window.prompt('دلیل ابطال این سند چیست؟ (در سابقه می‌ماند)');
+      if (reason === null) break;
+      if (reason.trim().length < 5) { toast('دلیل ابطال را کامل‌تر بنویسید', 'err'); break; }
+      const d = await guard(() => API.stock.cancelEntry(id, reason.trim()));
+      if (!d) break;
+      closeModal();
+      toast('سند باطل شد و سطرهای معکوس در دفتر نوشته شد', 'ok');
+      await loadStock();
+      await loadStockTab(state.stock.tab);
+      render();
+      break;
+    }
+    case 'stock-card': await stockCardModal(id); break;
+    case 'stock-new-item': stockItemModal(); break;
+    case 'stock-edit-item':
+      stockItemModal((state.stock.items || []).find((x) => x.id === id));
+      break;
+    case 'stock-new-warehouse': stockWarehouseModal(); break;
+    case 'stock-edit-warehouse':
+      stockWarehouseModal((state.stock.warehouseCards || []).find((x) => x.id === id));
+      break;
 
     // ───── گفت‌وگو ─────
     case 'chat-toggle':
@@ -2981,6 +3615,24 @@ document.addEventListener('input', (e) => {
     chatGrow(e.target);
     return;
   }
+  // جست‌وجوی انبار فقط بدنهٔ جدول را عوض می‌کند. render() کامل، کادر جست‌وجو را
+  // از نو می‌سازد و تمرکز و مکان‌نما می‌پرد — یعنی حرف دوم دیگر تایپ نمی‌شود.
+  if (e.target.dataset.action === 'stock-search') {
+    state.stock.search = e.target.value;
+    const tbody = $('#stock-onhand tbody');
+    if (tbody) tbody.innerHTML = stockOnHandRows();
+    return;
+  }
+  if (e.target.dataset.action === 'stock-warehouse-filter') {
+    state.stock.filterWarehouse = e.target.value;
+    loadStockTab('onhand').then(render);
+    return;
+  }
+  if (e.target.dataset.action === 'stock-entry-status') {
+    state.stock.entryStatus = e.target.value;
+    loadStockTab('entries').then(render);
+    return;
+  }
   if (e.target.dataset.action === 'chat-search') {
     state.chat.search = e.target.value;
     const el = $('#chat .chat-people');
@@ -3075,6 +3727,50 @@ document.addEventListener('submit', async (e) => {
     if (kind === 'login') {
       const res = await guard(() => API.login(String(fd.username).trim(), fd.password));
       if (res) { state.user = res.user; await boot(); }
+    }
+
+    if (kind === 'stock-item') {
+      const rid = form.dataset.id;
+      const payload = {
+        name: fd.name,
+        code: fd.code || '',
+        uom_id: fd.uom_id,
+        group_id: fd.group_id || null,
+        description: fd.description || '',
+        reorder_level: fd.reorder_level === '' ? null : fd.reorder_level,
+        reorder_qty: fd.reorder_qty === '' ? null : fd.reorder_qty,
+      };
+      if (rid) payload.is_active = !!fd.is_active;
+      const res = await guard(() => (rid ? API.stock.updateItem(rid, payload) : API.stock.createItem(payload)));
+      if (res) {
+        closeModal();
+        toast(rid ? 'کالا به‌روز شد' : 'کالا ساخته شد', 'ok');
+        await loadStock();
+        await loadStockTab(state.stock.tab);
+        if (state.stock.tab !== 'items') await loadStockTab('items');
+        render();
+      }
+    }
+
+    if (kind === 'stock-warehouse') {
+      const rid = form.dataset.id;
+      const payload = {
+        name: fd.name,
+        code: fd.code || '',
+        unit_id: fd.unit_id || null,
+        keeper_id: fd.keeper_id || null,
+        address: fd.address || '',
+      };
+      if (rid) payload.is_active = !!fd.is_active;
+      const res = await guard(() => (rid
+        ? API.stock.updateWarehouse(rid, payload) : API.stock.createWarehouse(payload)));
+      if (res) {
+        closeModal();
+        toast(rid ? 'انبار به‌روز شد' : 'انبار ساخته شد', 'ok');
+        await loadStock();
+        await loadStockTab('warehouses');
+        render();
+      }
     }
 
     if (kind === 'chat-send') {
