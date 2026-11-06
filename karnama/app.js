@@ -45,6 +45,7 @@ const state = {
   notifications: [],
   unread: 0,
   railOnly: (() => { try { return localStorage.getItem('karnama-rail') === '1'; } catch { return false; } })(),
+  kpi: { data: null, filter: 'all' },
   stock: {
     tab: 'onhand',
     setup: null,
@@ -105,9 +106,11 @@ async function guard(fn, { silent = false } = {}) {
   }
 }
 
-/** آیا کاربر جاری این دسترسی را دارد؟ */
-const can = (key) => !!state.user && (state.user.role === 'admin'
-  || (state.user.perms || []).includes(key));
+/** آیا کاربر جاری این دسترسی را دارد؟
+    مدیر ارشد هم از همان فهرست خوانده می‌شود، نه با یک «همیشه بله» —
+    وگرنه صفحه‌هایی که خاموش کرده باز هم برایش رسم می‌شوند. سرور هم
+    همین قاعده را دارد، پس رابط و سرور یک حرف می‌زنند. */
+const can = (key) => !!state.user && (state.user.perms || []).includes(key);
 
 
 // ───────────────────────────── ورود ─────────────────────────────
@@ -161,6 +164,9 @@ const NAV = [
 
   { group: 'انبار', icon: '▦' },
   { id: 'stock', label: 'موجودی و اسناد', icon: '▦', need: 'stock.view' },
+
+  { group: 'راهبری', icon: '◎' },
+  { id: 'kpi', label: 'پایشگر شاخص‌ها', icon: '◎', need: 'kpi.view' },
 
   { group: 'زمان و عملکرد', icon: '◷' },
   { id: 'time', label: 'ساعت کاری', icon: '◷', needAny: ['time.log', 'time.view_all'] },
@@ -912,6 +918,7 @@ function memberDashboard(s) {
 }
 
 function managerDashboard(s) {
+  const strip = can('kpi.view') ? kpiStrip() : '';
   const c = s.company;
   return `
     <div class="stat-grid">
@@ -940,6 +947,8 @@ function managerDashboard(s) {
         <div class="foot">${fh(c.approved_hours)} ساعت تأییدشده در این ماه</div>
       </div>
     </div>
+
+    ${strip}
 
     <div class="card">
       <header>
@@ -982,9 +991,34 @@ function managerDashboard(s) {
       </div>
     </div>
 
+    ${can('time.log') ? `
     <div class="card">
       <header><h3>روند ۶ ماه اخیر (ساعات تأییدشدهٔ شما)</h3></header>
       ${trendChart(s.trend)}
+    </div>` : ''}`;
+}
+
+/** نوار پایشگر روی داشبورد — فقط انحراف‌ها، نه فهرست کامل.
+    کسی که صفحهٔ اول را باز می‌کند باید در سه ثانیه بداند کجا می‌لنگد. */
+function kpiStrip() {
+  const d = state.kpi.data;
+  if (!d || !d.indicators?.length) return '';
+  const off = d.indicators.filter((i) => i.status === 'danger' || i.status === 'warn')
+    .sort((a, b) => (a.status === 'danger' ? -1 : 1) - (b.status === 'danger' ? -1 : 1));
+  return `
+    <div class="card">
+      <header>
+        <h3>پایشگر شاخص‌ها</h3>
+        <div class="spacer"></div>
+        <span class="sdot ok">${toFa(d.tally.ok || 0)} به هدف</span>
+        <span class="sdot warn">${toFa(d.tally.warn || 0)} در خطر</span>
+        <span class="sdot danger">${toFa(d.tally.danger || 0)} دور از هدف</span>
+        <button class="btn ghost sm" data-nav="kpi">همهٔ شاخص‌ها</button>
+      </header>
+      ${off.length
+    ? `<div class="kpi-grid">${off.slice(0, 4).map(kpiCard).join('')}</div>
+       ${off.length > 4 ? `<p class="faint" style="margin-top:10px">و ${toFa(off.length - 4)} شاخص دیگر در پایشگر.</p>` : ''}`
+    : '<div class="empty"><p>هیچ شاخصی از هدفش دور نیست.</p></div>'}
     </div>`;
 }
 
@@ -2269,6 +2303,231 @@ async function loadStockTab(tab) {
   }
 }
 
+// ───────────────────── پایشگر شاخص‌ها ─────────────────────
+// صفحهٔ اول با انحراف‌ها شروع می‌شود، نه با فهرست کامل. اگر مدیرعامل
+// مجبور باشد بین سی شاخصِ سبز دنبال دو تای قرمز بگردد، پایشگر کار
+// نمی‌کند. فهرست کامل زیرش هست، دسته‌بندی‌شده در چهار منظر.
+
+const KPI_STATUS = {
+  ok: { label: 'به هدف رسیده', cls: 'ok' },
+  warn: { label: 'در خطر', cls: 'warn' },
+  danger: { label: 'دور از هدف', cls: 'danger' },
+  none: { label: 'بدون عدد', cls: '' },
+};
+
+/** عدد شاخص با واحدش — بدون صفرهای اضافی */
+function kpiNum(v, unit) {
+  if (v === null || v === undefined) return '—';
+  const x = Number(v);
+  const s = Math.abs(x) >= 100 ? Math.round(x).toString() : (Math.round(x * 10) / 10).toString();
+  return `${toFa(s)}${unit ? `<small> ${esc(unit)}</small>` : ''}`;
+}
+
+/** خط روند شش ماه — SVG ساده، چپ‌به‌راست وارونه تا با چیدمان راست‌چین بخواند */
+function kpiSpark(history, status) {
+  const pts = history.map((h) => h.value).filter((v) => v !== null && v !== undefined);
+  if (pts.length < 2) return '<div class="kpi-spark empty"></div>';
+  const min = Math.min(...pts);
+  const max = Math.max(...pts);
+  const span = max - min || 1;
+  const n = history.length;
+  const coords = history.map((h, i) => {
+    if (h.value === null || h.value === undefined) return null;
+    const x = 100 - (i / (n - 1)) * 100;          // راست = قدیمی‌ترین
+    const y = 30 - ((h.value - min) / span) * 26 - 2;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).filter(Boolean);
+  return `<svg class="kpi-spark ${status}" viewBox="0 0 100 30" preserveAspectRatio="none"
+    role="img" aria-label="روند شش ماه">
+    <polyline points="${coords.join(' ')}" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
+
+/** تغییر نسبت به آخرین ماهی که عدد داشت */
+function kpiDelta(ind) {
+  if (ind.value === null || ind.previous === null || ind.previous === undefined) return '';
+  const d = ind.value - ind.previous;
+  if (Math.abs(d) < 1e-9) return '<span class="kpi-delta flat">بدون تغییر</span>';
+  // «خوب» بودنِ تغییر به جهت شاخص بستگی دارد: کم شدن ضایعات خوب است.
+  const good = ind.direction === 'down' ? d < 0 : d > 0;
+  const pct = ind.previous === 0 ? null : Math.abs(d / ind.previous) * 100;
+  const txt = pct === null ? kpiNum(Math.abs(d), '') : `${toFa((Math.round(pct * 10) / 10).toString())}٪`;
+  return `<span class="kpi-delta ${good ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${txt}</span>`;
+}
+
+function kpiCard(ind) {
+  const st = KPI_STATUS[ind.status] || KPI_STATUS.none;
+  const pctOfTarget = ind.target && ind.value !== null
+    ? (ind.direction === 'down'
+      ? (ind.value <= 0 ? 100 : Math.min(200, (ind.target / ind.value) * 100))
+      : (ind.target <= 0 ? 100 : Math.min(200, (ind.value / ind.target) * 100)))
+    : null;
+  return `
+    <div class="kpi-card ${ind.status}" data-kpi="${ind.id}">
+      <div class="kpi-top">
+        <span class="sdot ${st.cls}">${st.label}</span>
+        ${ind.auto ? '<span class="kpi-auto" title="کارنما خودش حساب می‌کند">خودکار</span>' : ''}
+      </div>
+      <b class="kpi-name">${esc(ind.name)}</b>
+      <div class="kpi-val">${kpiNum(ind.value, ind.unit_label)}${kpiDelta(ind)}</div>
+      ${ind.target !== null ? `
+        <div class="kpi-bar"><i class="${ind.status}" style="width:${Math.min(100, pctOfTarget || 0).toFixed(0)}%"></i></div>
+        <small class="kpi-target">هدف: ${kpiNum(ind.target, ind.unit_label)}
+          ${ind.direction === 'down' ? '(کمتر بهتر)' : ''}</small>` : '<small class="kpi-target">هدفی تعیین نشده</small>'}
+      ${kpiSpark(ind.history, ind.status)}
+      <div class="kpi-foot">
+        <small>${esc(ind.unit_name || 'بدون واحد مسئول')}${ind.owner_name ? ` · ${esc(ind.owner_name)}` : ''}</small>
+        <div class="spacer"></div>
+        ${!ind.auto && can('kpi.record') ? `<button class="btn ghost sm" data-action="kpi-value" data-id="${ind.id}">ثبت عدد</button>` : ''}
+        ${can('kpi.manage') ? `<button class="btn ghost sm" data-action="kpi-edit" data-id="${ind.id}">ویرایش</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function kpiView() {
+  const d = state.kpi.data;
+  if (!d) return '<div class="empty"><p>در حال خواندن شاخص‌ها…</p></div>';
+  const inds = d.indicators || [];
+  const off = inds.filter((i) => i.status === 'danger' || i.status === 'warn');
+  const tally = d.tally || {};
+
+  if (!inds.length) {
+    return `
+      <div class="page-head"><h2>پایشگر شاخص‌ها</h2><span class="spacer"></span></div>
+      <div class="empty">
+        <p>هنوز شاخصی تعریف نشده است.</p>
+        <p class="faint">شاخص چیزی است که همیشه پایش می‌کنید — تناژ تولید، ضایعات، ساعت توقف خط.
+           با «کار» فرق دارد: کار تمام می‌شود، شاخص هر ماه دوباره سنجیده می‌شود.</p>
+        ${can('kpi.manage') ? '<button class="btn new" data-action="kpi-new">+ اولین شاخص</button>' : ''}
+      </div>`;
+  }
+
+  const groups = Object.entries(d.perspectives || {})
+    .map(([key, label]) => ({ key, label, items: inds.filter((i) => i.perspective === key) }))
+    .filter((g) => g.items.length);
+
+  return `
+    <div class="page-head">
+      <h2>پایشگر شاخص‌ها</h2>
+      <span class="count">${monthLabel(d.jy, d.jm)} · ${toFa(inds.length)} شاخص</span>
+      <span class="spacer"></span>
+      ${can('kpi.manage') ? '<button class="btn new sm" data-action="kpi-new">+ شاخص تازه</button>' : ''}
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat ok"><div class="stat-head"><span class="stat-ic">✓</span><div class="label">به هدف رسیده</div></div>
+        <div class="value">${toFa(tally.ok || 0)}</div></div>
+      <div class="stat warn"><div class="stat-head"><span class="stat-ic">⚠</span><div class="label">در خطر</div></div>
+        <div class="value">${toFa(tally.warn || 0)}</div></div>
+      <div class="stat danger"><div class="stat-head"><span class="stat-ic">✕</span><div class="label">دور از هدف</div></div>
+        <div class="value">${toFa(tally.danger || 0)}</div></div>
+      <div class="stat"><div class="stat-head"><span class="stat-ic">◌</span><div class="label">بدون عدد این ماه</div></div>
+        <div class="value">${toFa(tally.none || 0)}</div></div>
+    </div>
+
+    <div class="card">
+      <header>
+        <h3>${off.length ? `چه چیزی از هدف دور است — ${toFa(off.length)} شاخص` : 'انحرافی نیست'}</h3>
+      </header>
+      ${off.length
+    ? `<div class="kpi-grid">${off.map(kpiCard).join('')}</div>`
+    : `<div class="empty"><p>همهٔ شاخص‌هایی که این ماه عدد خورده‌اند به هدفشان رسیده‌اند.</p>
+         ${tally.none ? `<p class="faint">${toFa(tally.none)} شاخص هنوز عدد این ماه را نگرفته است.</p>` : ''}</div>`}
+    </div>
+
+    ${groups.map((g) => `
+      <div class="card">
+        <header><h3>${esc(g.label)}</h3><div class="spacer"></div>
+          <small class="faint">${toFa(g.items.length)} شاخص</small></header>
+        <div class="kpi-grid">${g.items.map(kpiCard).join('')}</div>
+      </div>`).join('')}`;
+}
+
+async function reloadKpi() {
+  const d = await guard(() => API.kpi.list({ jy: state.month.jy, jm: state.month.jm }));
+  if (d) { state.kpi.data = d; render(); }
+}
+
+function kpiFind(id) { return (state.kpi.data?.indicators || []).find((i) => i.id === id); }
+
+function kpiValueModal(id) {
+  const ind = kpiFind(id);
+  if (!ind) return;
+  const d = state.kpi.data;
+  openModal(`ثبت عدد — ${esc(ind.name)}`, `
+    <form data-form="kpi-value" data-id="${ind.id}">
+      <p class="faint" style="margin-bottom:12px">دورهٔ ${monthLabel(d.jy, d.jm)}${ind.target !== null
+    ? ` · هدف ${kpiNum(ind.target, ind.unit_label)}` : ''}</p>
+      <label class="field"><span>مقدار${ind.unit_label ? ` (${esc(ind.unit_label)})` : ''}</span>
+        <input class="input" name="value" type="number" step="any" required
+               value="${ind.value === null ? '' : ind.value}"></label>
+      <label class="field"><span>توضیح (اختیاری)</span>
+        <textarea class="input" name="note" rows="2"
+          placeholder="چرا این عدد؟ چه اتفاقی افتاد؟">${esc(ind.note || '')}</textarea></label>
+      <button type="submit" class="btn">ثبت</button>
+    </form>`);
+}
+
+function kpiEditModal(id) {
+  const ind = id ? kpiFind(id) : null;
+  const d = state.kpi.data || {};
+  const persp = d.perspectives || {};
+  const sources = d.sources || [];
+  const units = state.units || [];
+  openModal(ind ? `ویرایش شاخص — ${esc(ind.name)}` : 'شاخص تازه', `
+    <form data-form="kpi-edit" ${ind ? `data-id="${ind.id}"` : ''}>
+      <label class="field"><span>نام شاخص</span>
+        <input class="input" name="name" required value="${esc(ind?.name || '')}"
+               placeholder="مثلاً تناژ تولید ماهانه"></label>
+      <div class="row2">
+        <label class="field"><span>منظر</span>
+          <select class="select" name="perspective">
+            ${Object.entries(persp).map(([k, v]) => `<option value="${k}"
+              ${ind?.perspective === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}
+          </select></label>
+        <label class="field"><span>واحد سنجش</span>
+          <input class="input" name="unit_label" value="${esc(ind?.unit_label || '')}"
+                 placeholder="تن · درصد · ساعت"></label>
+      </div>
+      <div class="row2">
+        <label class="field"><span>هدف</span>
+          <input class="input" name="target" type="number" step="any"
+                 value="${ind?.target ?? ''}"></label>
+        <label class="field"><span>جهت</span>
+          <select class="select" name="direction">
+            <option value="up" ${ind?.direction !== 'down' ? 'selected' : ''}>بیشتر بهتر</option>
+            <option value="down" ${ind?.direction === 'down' ? 'selected' : ''}>کمتر بهتر</option>
+          </select></label>
+      </div>
+      <div class="row2">
+        <label class="field"><span>واحد مسئول</span>
+          <select class="select" name="unit_id">
+            <option value="">—</option>
+            ${units.map((un) => `<option value="${un.id}"
+              ${ind?.unit_id === un.id ? 'selected' : ''}>${esc(un.name)}</option>`).join('')}
+          </select></label>
+        <label class="field"><span>آستانهٔ هشدار (٪ هدف)</span>
+          <input class="input" name="warn_pct" type="number" min="1" max="100"
+                 value="${ind?.warn_pct ?? 90}"></label>
+      </div>
+      ${ind ? '' : `
+      <label class="field"><span>منبع عدد</span>
+        <select class="select" name="source">
+          <option value="manual">دستی — هر ماه کسی عدد را وارد می‌کند</option>
+          ${sources.map((sc) => `<option value="${sc.key}">${esc(sc.label)} (خودکار)</option>`).join('')}
+        </select></label>
+      <p class="faint" style="margin:-4px 0 12px;font-size:11.5px">
+        شاخص خودکار را کارنما از دادهٔ خودش حساب می‌کند و دستی ثبت نمی‌شود.
+        منبع بعد از ساخت تغییر نمی‌کند.</p>`}
+      <div style="display:flex;gap:8px;align-items:center">
+        <button type="submit" class="btn">${ind ? 'ذخیره' : 'بساز'}</button>
+        ${ind && can('kpi.manage')
+    ? `<button type="button" class="btn danger ghost" data-action="kpi-remove" data-id="${ind.id}">حذف</button>` : ''}
+      </div>
+    </form>`);
+}
+
 function stockView() {
   const tabs = STOCK_TABS.filter((t) => can(t.need));
   const tab = state.stock.tab;
@@ -3243,6 +3502,7 @@ function render() {
     case 'workload': inner = workloadView(); break;
     case 'review': inner = reviewView(); break;
     case 'units': inner = unitsView(); break;
+    case 'kpi': inner = kpiView(); break;
     case 'stock': inner = stockView(); break;
     case 'unitprod': inner = unitProdView(); break;
     case 'unitreport': inner = unitReportView(); break;
@@ -3285,6 +3545,18 @@ async function setView(view) {
   } else if (view === 'team' && can('users.manage')) {
     const d = await guard(() => API.notify.status(), { silent: true });
     if (d) state.notifyStatus = d;
+  } else if (view === 'dashboard' && can('kpi.view')) {
+    const d = await guard(() => API.kpi.list({ jy: state.month.jy, jm: state.month.jm }),
+      { silent: true });
+    if (d) state.kpi.data = d;
+  } else if (view === 'kpi') {
+    const d = await guard(() => API.kpi.list({ jy: state.month.jy, jm: state.month.jm }));
+    if (d) state.kpi.data = d;
+    // برای فرم تعریف شاخص، فهرست واحدها و افراد لازم است
+    if (can('kpi.manage') && !state.units.length) {
+      const un = await guard(() => API.units.list(), { silent: true });
+      if (un) state.units = un.units;
+    }
   } else if (view === 'stock') {
     await loadStock();
     await loadStockTab(state.stock.tab);
@@ -3612,6 +3884,22 @@ document.addEventListener('click', async (e) => {
       break;
     }
     case 'stock-card': await stockCardModal(id); break;
+    case 'kpi-new': kpiEditModal(); break;
+    case 'kpi-edit': kpiEditModal(id); break;
+    case 'kpi-value': kpiValueModal(id); break;
+    case 'kpi-remove': {
+      const ind = kpiFind(id);
+      if (!ind) break;
+      // شاخصی که عدد خورده بایگانی می‌شود نه حذف — سرور همین را برمی‌گرداند
+      if (!confirm(`شاخص «${ind.name}» برداشته شود؟ اگر عددی برایش ثبت شده باشد بایگانی می‌شود و سابقه‌اش می‌ماند.`)) break;
+      const res = await guard(() => API.kpi.remove(id));
+      if (res) {
+        closeModal();
+        toast(res.archived ? 'شاخص بایگانی شد — سابقهٔ عددهایش ماند' : 'شاخص حذف شد', 'ok');
+        await reloadKpi();
+      }
+      break;
+    }
     case 'stock-new-item': stockItemModal(); break;
     case 'stock-edit-item':
       stockItemModal((state.stock.items || []).find((x) => x.id === id));
@@ -3924,6 +4212,33 @@ document.addEventListener('submit', async (e) => {
     if (kind === 'login') {
       const res = await guard(() => API.login(String(fd.username).trim(), fd.password));
       if (res) { state.user = res.user; await boot(); }
+    }
+
+    if (kind === 'kpi-value') {
+      const res = await guard(() => API.kpi.setValue(form.dataset.id, {
+        jy: state.month.jy, jm: state.month.jm, value: fd.value, note: fd.note || '',
+      }));
+      if (res) { state.kpi.data = res; closeModal(); toast('عدد ثبت شد', 'ok'); render(); }
+    }
+
+    if (kind === 'kpi-edit') {
+      const rid = form.dataset.id;
+      const payload = {
+        name: fd.name,
+        perspective: fd.perspective,
+        unit_label: fd.unit_label || '',
+        target: fd.target === '' ? null : fd.target,
+        direction: fd.direction,
+        unit_id: fd.unit_id || null,
+        warn_pct: fd.warn_pct,
+      };
+      if (!rid) payload.source = fd.source || 'manual';
+      const res = await guard(() => (rid ? API.kpi.update(rid, payload) : API.kpi.create(payload)));
+      if (res) {
+        closeModal();
+        toast(rid ? 'شاخص به‌روز شد' : 'شاخص ساخته شد', 'ok');
+        await reloadKpi();
+      }
     }
 
     if (kind === 'stock-item') {

@@ -10,7 +10,7 @@
  * دفعهٔ بعد که اپ را ببندید و باز کنید، نسخهٔ تازه بالا می‌آید.
  */
 
-const BUILD = '10';
+const BUILD = '11';
 const CACHE = 'karnama-' + BUILD;
 
 const SHELL = [

@@ -38,6 +38,16 @@ export const CATALOG = [
     ],
   },
   {
+    group: 'kpi',
+    title: 'پایشگر شاخص‌ها',
+    icon: '◎',
+    items: [
+      { key: 'kpi.view', label: 'دیدن پایشگر شاخص‌ها', hint: 'شاخص‌های سازمان و انحراف‌هایشان' },
+      { key: 'kpi.record', label: 'ثبت مقدار ماهانهٔ شاخص' },
+      { key: 'kpi.manage', label: 'تعریف و ویرایش شاخص', hint: 'هدف، منظر، و واحد مسئول را تعیین می‌کند' },
+    ],
+  },
+  {
     group: 'team',
     title: 'کارکنان',
     icon: '☷',
@@ -114,6 +124,7 @@ export const PRESETS = {
       'labels.manage', 'recurrence.manage', 'units.assign',
       'review.do', 'time.log', 'time.view_all', 'time.approve',
       'chat.use', 'chat.group',
+      'kpi.view', 'kpi.record',
       'scores.view_own', 'scores.view_unit'],
   },
   // انبارداری عمداً در قالب کارمند و مدیر واحد نیست: دسترسی به موجودی و سند
@@ -134,7 +145,15 @@ export const PRESETS = {
       'users.view', 'users.manage',
       'chat.use', 'chat.group',
       'stock.view', 'stock.view_all', 'stock.entry', 'stock.submit', 'stock.manage', 'stock.report',
+      'kpi.view', 'kpi.record',
       'scores.view_own', 'scores.view_unit', 'scores.view_all', 'scores.unit', 'reports.unit'],
+  },
+  // مدیرعامل ساعت کاری ثبت نمی‌کند — ساعت دیگران را می‌بیند و تأیید می‌کند،
+  // ولی فرم «ثبت ساعت خودم» برایش بی‌معنی است و صفحه را شلوغ می‌کند.
+  ceo: {
+    label: 'مدیرعامل',
+    hint: 'همهٔ اختیارات، بدون ثبت ساعت کاری برای خودش',
+    keys: ALL_KEYS.filter((k) => k !== 'time.log'),
   },
   full: {
     label: 'دسترسی کامل',
@@ -147,27 +166,38 @@ export const PRESETS = {
 export const JUSTIFY_ABOVE = 85;
 
 export const ROLE_DEFAULTS = {
-  admin: [...ALL_KEYS],
+  // مدیرعامل ساعت کاری خودش را ثبت نمی‌کند. اگر کسی واقعاً بخواهد،
+  // همان تیک را در صفحهٔ دسترسی‌ها روشن می‌کند یا «دسترسی کامل» می‌دهد.
+  admin: PRESETS.ceo.keys,
   manager: PRESETS.manager.keys,
   member: PRESETS.member.keys,
 };
 
 /** فهرست دسترسی مؤثر یک کاربر */
+// مدیر ارشد را نمی‌شود از سامانه بیرون انداخت: این چند کلید همیشه برایش
+// روشن می‌ماند، حتی اگر از فهرست سفارشی‌اش برداشته شوند. بقیهٔ کلیدها —
+// از جمله «ثبت ساعت کاری خودش» — قابل خاموش کردن‌اند، چون مدیرعامل
+// همهٔ صفحه‌های سامانه را لازم ندارد.
+export const ADMIN_FLOOR = ['users.view', 'users.manage', 'users.permissions'];
+
 export function effectivePermissions(user) {
   if (!user) return [];
-  if (user.role === 'admin') return [...ALL_KEYS];
   let list = user.permissions;
   if (typeof list === 'string') {
     try { list = JSON.parse(list); } catch { list = null; }
   }
   if (!Array.isArray(list)) list = ROLE_DEFAULTS[user.role] || ROLE_DEFAULTS.member;
-  return list.filter((k) => ALL_KEYS.includes(k));
+  const out = list.filter((k) => ALL_KEYS.includes(k));
+  if (user.role === 'admin') return [...new Set([...out, ...ADMIN_FLOOR])];
+  return out;
 }
 
 /** آیا کاربر این دسترسی را دارد؟ */
 export function can(user, key) {
   if (!user) return false;
-  if (user.role === 'admin') return true;
+  // مدیر ارشد هم از همان فهرست خوانده می‌شود، نه با یک «همیشه بله».
+  // فهرست خودش ADMIN_FLOOR را دارد، پس از سامانه بیرون نمی‌افتد؛ ولی
+  // می‌تواند صفحه‌هایی را که لازم ندارد — مثل ثبت ساعت — خاموش کند.
   const list = Array.isArray(user.perms) ? user.perms : effectivePermissions(user);
   return list.includes(key);
 }

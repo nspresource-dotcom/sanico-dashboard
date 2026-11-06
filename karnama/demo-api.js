@@ -3,7 +3,7 @@ import { isoToJalali, todayIso, jalaliMonthRange, MONTH_NAMES } from './jalali.j
 import { effectivePermissions, can as canDo, ALL_KEYS, PRESETS, JUSTIFY_ABOVE } from './permissions.js';
 
 // نسخهٔ کلید که بالا می‌رود، دادهٔ قبلی مرورگر دور ریخته می‌شود و همه از صفر شروع می‌کنند
-const KEY = 'karnama-demo-v5';
+const KEY = 'karnama-demo-v6';
 const uid = () => Math.random().toString(36).slice(2, 11);
 const now = () => new Date().toISOString();
 const today = todayIso();
@@ -314,10 +314,44 @@ function seed() {
   const sm = conversation_members.find((m) => m.conversation_id === grp && m.user_id === by('sara'));
   if (sm) sm.last_read_at = at(0, 8, 45);
 
+  // ── شاخص‌های نمونه، با سابقهٔ شش ماه تا روند واقعی دیده شود
+  const indicators = [];
+  const indicator_values = [];
+  const jnow = isoToJalali(todayIso());
+  const addInd = (code, name, perspective, unitLabel, direction, target, source, unitName, series) => {
+    const un = units.find((x) => x.name === unitName);
+    indicators.push({ id: `ind${code}`, company_id: 'c1', code: String(code), name,
+      perspective, unit_label: unitLabel, direction, target, warn_pct: 90,
+      source: source || 'manual', unit_id: un ? un.id : null, owner_id: null,
+      is_active: 1, position: indicators.length + 1, created_by: by('modir'),
+      created_at: now(), updated_at: now() });
+    if (!series) return;
+    let y = jnow.jy; let m = jnow.jm;
+    // سری از قدیم به جدید داده می‌شود؛ رو به عقب نوشته می‌شود، پس وارونه
+    for (const v of [...series].reverse()) {
+      if (v !== null) {
+        indicator_values.push({ id: uid(), indicator_id: `ind${code}`, j_year: y, j_month: m,
+          value: v, note: null, recorded_by: by('modir'), recorded_at: now() });
+      }
+      m -= 1; if (m < 1) { m = 12; y -= 1; }
+    }
+  };
+  addInd(1001, 'تناژ تولید پودر باریت', 'financial', 'تن', 'up', 1200, 'manual', 'تولید',
+    [1145, 1210, 1188, 1025, 1160, 1240]);
+  addInd(1002, 'درصد ضایعات خط آسیاب', 'process', 'درصد', 'down', 3, 'manual', 'تولید',
+    [4.6, 4.1, 3.8, 3.4, 3.1, 2.9]);
+  addInd(1003, 'ساعت توقف ناخواستهٔ خط', 'process', 'ساعت', 'down', 24, 'manual', 'کارخانه',
+    [41, 33, 28, 26, 22, 25]);
+  addInd(1004, 'انطباق محموله با مشخصات API', 'customer', 'درصد', 'up', 98, 'manual', 'کنترل کیفیت',
+    [96.5, 97.2, 98.1, 98.4, 97.9, 98.6]);
+  addInd(1005, 'ساعت کاری تأییدشدهٔ ماه', 'growth', 'ساعت', 'up', 600, 'auto:approved_hours', null, null);
+  addInd(1006, 'اقلام زیر نقطهٔ سفارش', 'process', 'قلم', 'down', 0, 'auto:stock_low', null, null);
+
   return { company, units, users, boards, columns, labels, task_labels, tasks, checklist_items,
     task_links: [], time_logs, performance_scores, recurrences, notifications,
     task_reviews: [], unit_scores: [],
     uoms, item_groups, warehouses, items, stock_entries, stock_entry_items, stock_ledger,
+    indicators, indicator_values,
     conversations, conversation_members, messages,
     comments: [], events: [], board_members: [], session: null };
 }
@@ -705,6 +739,140 @@ function userMonth(userId, jy, jm) {
   };
 }
 
+
+// ───────────── پایشگر شاخص‌ها (آینهٔ سرور) ─────────────
+const KPI_PERSPECTIVES = {
+  financial: 'مالی',
+  customer: 'مشتری و بازار',
+  process: 'فرایند داخلی',
+  growth: 'یادگیری و رشد',
+};
+
+const KPI_AUTO = {
+  'auto:approved_hours': {
+    label: 'ساعت کاری تأییدشدهٔ ماه',
+    unit: 'ساعت',
+    value: (jy, jm) => db.time_logs
+      .filter((l) => l.j_year === jy && l.j_month === jm && l.status === 'approved')
+      .reduce((a, l) => a + Number(l.hours), 0),
+  },
+  'auto:avg_score': {
+    label: 'میانگین امتیاز عملکرد ماه',
+    unit: 'از ۱۰۰',
+    value: (jy, jm) => {
+      const rs = db.task_reviews.filter((r) => r.j_year === jy && r.j_month === jm);
+      if (!rs.length) return null;
+      return Math.round((rs.reduce((a, r) => a + Number(r.score), 0) / rs.length) * 10) / 10;
+    },
+  },
+  'auto:on_time_pct': {
+    label: 'درصد کارهای سروقت ماه',
+    unit: 'درصد',
+    value: (jy, jm) => {
+      const rs = db.task_reviews.filter((r) => r.j_year === jy && r.j_month === jm);
+      if (!rs.length) return null;
+      return Math.round((rs.filter((r) => r.on_time).length / rs.length) * 1000) / 10;
+    },
+  },
+  'auto:tasks_overdue': {
+    label: 'کارهای عقب‌افتاده (اکنون)',
+    unit: 'کار',
+    now: true,
+    value: () => db.tasks.filter((t) => {
+      if (t.archived_at || !t.due_date) return false;
+      const col = db.columns.find((c) => c.id === t.column_id);
+      return col && col.kind !== 'done' && t.due_date < todayIso();
+    }).length,
+  },
+  'auto:stock_low': {
+    label: 'اقلام زیر نقطهٔ سفارش (اکنون)',
+    unit: 'قلم',
+    now: true,
+    value: () => db.items.filter((it) => {
+      if (!it.is_active || it.reorder_level === null || it.reorder_level === undefined) return false;
+      const qty = db.stock_ledger.filter((l) => l.item_id === it.id)
+        .reduce((a, l) => a + Number(l.qty_change), 0);
+      return qty < Number(it.reorder_level);
+    }).length,
+  },
+};
+
+function kpiStatus(ind, value) {
+  if (value === null || value === undefined) return 'none';
+  if (ind.target === null || ind.target === undefined) return 'none';
+  const target = Number(ind.target);
+  const warn = Number(ind.warn_pct) || 90;
+  const pct = ind.direction === 'down'
+    ? (value <= 0 ? 200 : (target / value) * 100)
+    : (target <= 0 ? 100 : (value / target) * 100);
+  if (pct >= 100) return 'ok';
+  if (pct >= warn) return 'warn';
+  return 'danger';
+}
+
+/** ماه درخواستی، وگرنه ماه جاری — همان قاعدهٔ سرور */
+const kpiMonth = (o = {}) => ({ jy: Number(o.jy) || J.jy, jm: Number(o.jm) || J.jm });
+
+function kpiPeriods(jy, jm, count = 6) {
+  const out = []; let y = jy; let m = jm;
+  for (let i = 0; i < count; i += 1) {
+    out.unshift({ jy: y, jm: m });
+    m -= 1; if (m < 1) { m = 12; y -= 1; }
+  }
+  return out;
+}
+
+function kpiPayload({ jy, jm }) {
+  const todayJ = isoToJalali(todayIso());
+  const isCurrent = jy === todayJ.jy && jm === todayJ.jm;
+  const inds = (db.indicators || []).filter((i) => i.is_active)
+    .sort((a, b) => a.position - b.position);
+  const out = inds.map((ind) => {
+    const auto = KPI_AUTO[ind.source];
+    const history = kpiPeriods(jy, jm).map((p) => {
+      let v = null;
+      if (auto) {
+        if (!auto.now) v = auto.value(p.jy, p.jm);
+        else if (isCurrent && p.jy === jy && p.jm === jm) v = auto.value();
+      } else {
+        const r = (db.indicator_values || []).find(
+          (x) => x.indicator_id === ind.id && x.j_year === p.jy && x.j_month === p.jm);
+        v = r ? Number(r.value) : null;
+      }
+      return { jy: p.jy, jm: p.jm, value: v };
+    });
+    const current = history[history.length - 1].value;
+    const prev = [...history.slice(0, -1)].reverse().find((h) => h.value !== null);
+    const un = db.units.find((x) => x.id === ind.unit_id);
+    const ow = db.users.find((x) => x.id === ind.owner_id);
+    const rec = auto ? null : (db.indicator_values || []).find(
+      (x) => x.indicator_id === ind.id && x.j_year === jy && x.j_month === jm);
+    return {
+      id: ind.id, code: ind.code, name: ind.name,
+      perspective: ind.perspective,
+      perspective_label: KPI_PERSPECTIVES[ind.perspective] || ind.perspective,
+      unit_label: ind.unit_label || (auto ? auto.unit : null),
+      direction: ind.direction,
+      target: ind.target === null || ind.target === undefined ? null : Number(ind.target),
+      warn_pct: Number(ind.warn_pct) || 90,
+      source: ind.source, auto: !!auto, auto_label: auto ? auto.label : null,
+      unit_id: ind.unit_id, unit_name: un ? un.name : null,
+      owner_id: ind.owner_id, owner_name: ow ? ow.full_name : null,
+      position: ind.position,
+      value: current, previous: prev ? prev.value : null,
+      note: rec ? rec.note : null,
+      history, status: kpiStatus(ind, current),
+    };
+  });
+  const tally = { ok: 0, warn: 0, danger: 0, none: 0 };
+  out.forEach((i) => { tally[i.status] += 1; });
+  return {
+    jy, jm, indicators: out, tally,
+    perspectives: KPI_PERSPECTIVES,
+    sources: Object.entries(KPI_AUTO).map(([k, v]) => ({ key: k, label: v.label, unit: v.unit })),
+  };
+}
+
 export const API = {
   mode: 'demo',
 
@@ -1066,6 +1234,91 @@ export const API = {
 
   // ───────────────────────── انبار ─────────────────────────
   // همان سه قاعدهٔ سرور: موجودی از دفتر، سند قطعی دست‌نخوردنی، انبار بدون منفی.
+  kpi: {
+    async list(query) {
+      const u = auth(); need(u, 'kpi.view');
+      return wait(kpiPayload(kpiMonth(query)));
+    },
+    async create(d) {
+      const u = auth(); need(u, 'kpi.manage');
+      const name = String(d.name || '').trim();
+      if (name.length < 2) fail('نام شاخص را بنویسید');
+      if (!KPI_PERSPECTIVES[d.perspective]) fail('منظر نامعتبر است');
+      const source = String(d.source || 'manual');
+      if (source !== 'manual' && !KPI_AUTO[source]) fail('منبع شاخص نامعتبر است');
+      const target = d.target === '' || d.target === null || d.target === undefined
+        ? null : Number(d.target);
+      if (target !== null && !Number.isFinite(target)) fail('هدف باید عدد باشد');
+      const warn = Number(d.warn_pct);
+      const code = String(1001 + db.indicators.length);
+      const ind = { id: uid(), company_id: 'c1', code, name,
+        perspective: d.perspective, unit_label: String(d.unit_label || '').trim() || null,
+        direction: d.direction === 'down' ? 'down' : 'up', target,
+        warn_pct: Number.isFinite(warn) && warn > 0 && warn <= 100 ? warn : 90,
+        source, unit_id: d.unit_id || null, owner_id: d.owner_id || null,
+        is_active: 1, position: db.indicators.length + 1,
+        created_by: u.id, created_at: now(), updated_at: now() };
+      db.indicators.push(ind); save();
+      return wait({ indicator: ind });
+    },
+    async update(id, d) {
+      const u = auth(); need(u, 'kpi.manage');
+      const ind = db.indicators.find((x) => x.id === id);
+      if (!ind) fail('شاخص یافت نشد');
+      if (d.name !== undefined) {
+        const nm = String(d.name).trim();
+        if (nm.length < 2) fail('نام شاخص را بنویسید');
+        ind.name = nm;
+      }
+      if (d.perspective !== undefined) {
+        if (!KPI_PERSPECTIVES[d.perspective]) fail('منظر نامعتبر است');
+        ind.perspective = d.perspective;
+      }
+      if (d.unit_label !== undefined) ind.unit_label = String(d.unit_label).trim() || null;
+      if (d.direction !== undefined) ind.direction = d.direction === 'down' ? 'down' : 'up';
+      if (d.target !== undefined) {
+        const t = d.target === '' || d.target === null ? null : Number(d.target);
+        if (t !== null && !Number.isFinite(t)) fail('هدف باید عدد باشد');
+        ind.target = t;
+      }
+      if (d.warn_pct !== undefined) {
+        const w = Number(d.warn_pct);
+        ind.warn_pct = Number.isFinite(w) && w > 0 && w <= 100 ? w : 90;
+      }
+      if (d.unit_id !== undefined) ind.unit_id = d.unit_id || null;
+      if (d.owner_id !== undefined) ind.owner_id = d.owner_id || null;
+      if (d.is_active !== undefined) ind.is_active = d.is_active ? 1 : 0;
+      ind.updated_at = now(); save();
+      return wait({ indicator: ind });
+    },
+    async remove(id) {
+      const u = auth(); need(u, 'kpi.manage');
+      const ind = db.indicators.find((x) => x.id === id);
+      if (!ind) fail('شاخص یافت نشد');
+      const hasValues = db.indicator_values.some((v) => v.indicator_id === id);
+      if (hasValues) { ind.is_active = 0; ind.updated_at = now(); save(); return wait({ ok: true, archived: true }); }
+      db.indicators = db.indicators.filter((x) => x.id !== id); save();
+      return wait({ ok: true, archived: false });
+    },
+    async setValue(id, d) {
+      const u = auth(); need(u, 'kpi.record');
+      const ind = db.indicators.find((x) => x.id === id);
+      if (!ind) fail('شاخص یافت نشد');
+      if (KPI_AUTO[ind.source]) fail('این شاخص خودکار است و عددش دستی ثبت نمی‌شود');
+      const { jy, jm } = kpiMonth(d);
+      const value = Number(d.value);
+      if (!Number.isFinite(value)) fail('مقدار را به عدد بنویسید');
+      const note = String(d.note || '').trim() || null;
+      const ex = db.indicator_values.find((v) => v.indicator_id === id && v.j_year === jy && v.j_month === jm);
+      if (ex) { ex.value = value; ex.note = note; ex.recorded_by = u.id; ex.recorded_at = now(); } else {
+        db.indicator_values.push({ id: uid(), indicator_id: id, j_year: jy, j_month: jm,
+          value, note, recorded_by: u.id, recorded_at: now() });
+      }
+      save();
+      return wait(kpiPayload({ jy, jm }));
+    },
+  },
+
   stock: {
     async setup() {
       const u = auth(); need(u, 'stock.view');
@@ -2049,6 +2302,7 @@ window.karnamaResetEmpty = () => {
       task_reviews: [], unit_scores: [],
       uoms: fresh.uoms, item_groups: [], warehouses: [], items: [],
       stock_entries: [], stock_entry_items: [], stock_ledger: [],
+      indicators: [], indicator_values: [],
       conversations: [], conversation_members: [], messages: [],
       comments: [], events: [], board_members: [], session: null,
     }));
