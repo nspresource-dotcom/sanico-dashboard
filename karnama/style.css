@@ -29,55 +29,57 @@
 }
 
 :root {
-  /* پالت کارفرما: #659287 · #88BDA4 · #B1D3B9 · #E6F2DD
-     یک نکته: روی #659287 متن سفید نسبت کنتراست ۳٫۵ می‌دهد که برای متن
-     ۱۴ پیکسلی کم است. پس «پُرکنندهٔ دکمه» یک پله تیره‌تر از آن گرفته شده
-     (#4F7A70، نسبت ۴٫۹) و خودِ #659287 جای دیگری می‌نشیند که متن رویش
-     نیست: نوار آیتم فعال، نشان برند، و رنگ اولِ نمودار. */
-  --brand: #4F7A70;
-  --brand-ink: #3C625A;
-  --brand-lift: #659287;
-  --brand-soft: #E6F2DD;
-  --brand-soft-2: #B1D3B9;
+  /* پالت از همان طرحی که پسندیدید: خاکستریِ سردِ خنثی + سبز زمردی.
+     سبزِ زیتونیِ قبلی کنار این خاکستری‌ها زرد می‌زد، پس کنار گذاشته شد.
+     یک نکته: روی زمردیِ روشنِ نمونه (#2FBF7C) متن سفید نسبت ۲٫۴ می‌دهد
+     که خواندنی نیست. پس «پُرکنندهٔ دکمه» تیره‌تر است (#12864F، نسبت ۴٫۶)
+     و زمردیِ روشن جایی می‌نشیند که متن رویش نیست: نقطهٔ وضعیت،
+     آیکن، میلهٔ نمودار و نشان برند. رنگ وضعیت‌ها هم به همین دلیل یک
+     پله تیره‌تر از رنگ خامشان است — همه بالای نسبت ۴٫۵. */
+  --brand: #12864F;
+  --brand-ink: #0D6B3F;
+  --brand-lift: #2FBF7C;
+  --brand-soft: #E7F6EE;       /* نعناییِ سرد، نه سبزِ زیتونی */
+  --brand-soft-2: #C6EBD8;
 
-  --accent: #4F7A70;
-  --accent-ink: #3C625A;
-  --accent-soft: #E6F2DD;
+  --accent: #12864F;
+  --accent-ink: #0D6B3F;
+  --accent-soft: #E7F6EE;
 
-  /* سطح‌ها و متن */
-  --page: #EEF0EE;            /* زمینهٔ خنثیِ پشت برگه */
-  --page-2: #F4F6F3;
-  --bg: #FBFCFA;              /* داخل برگه */
+  /* سطح‌ها و متن — خاکستریِ سرد، بدون هیچ ته‌رنگ سبز */
+  --page: #EDEDF2;            /* زمینهٔ پشت برگه */
+  --page-2: #F4F4F8;
+  --bg: #FFFFFF;              /* داخل برگه */
   --surface: #FFFFFF;
-  --surface-2: #F4F8F1;
-  --panel: #F3F4F3;            /* قاب دادهٔ خنثی داخل کارت */
-  --line: #E4EBDF;
-  --line-strong: #CBD8C4;
-  --text: #15211D;
-  --muted: #5B6B65;
-  --faint: #93A29B;
+  --surface-2: #F6F7F9;
+  --panel: #F6F7F9;            /* قاب دادهٔ خنثی داخل کارت */
+  --line: #E8E9EE;
+  --line-strong: #D7D9E0;
+  --text: #1A1D1F;
+  --muted: #6F7378;
+  --faint: #9BA0A6;
 
-  /* وضعیت‌ها — عمداً بیرون از خانوادهٔ سبزِ برند، تا «تأیید» با «برند» قاطی نشود */
-  --ok: #2E8B63;
-  --ok-soft: #E3F3EB;
-  --warn: #C98211;
-  --warn-soft: #FBF2DF;
-  --danger: #CF4A42;
-  --danger-soft: #FBEAE9;
-  --info: #3C7390;
-  --info-soft: #E7F0F5;
+  /* وضعیت‌ها — «در انتظار» آبی است، همان نقشی که در نمونه دارد */
+  --ok: #12864F;
+  --ok-soft: #E7F6EE;
+  --warn: #A06508;
+  --warn-soft: #FDF3E2;
+  --danger: #C8413A;
+  --danger-soft: #FCEBE9;
+  --info: #2563EB;
+  --info-soft: #E8F0FE;
 
-  /* رنگ‌های کمکی نمودار — سه تای اول دقیقاً پالت شما */
-  --c1: #659287;
-  --c2: #88BDA4;
-  --c3: #B1D3B9;
-  --c4: #C98211;
+  /* رنگ‌های کمکی نمودار */
+  --c1: #2FBF7C;
+  --c2: #3B82F6;
+  --c3: #F0A030;
+  --c4: #8B5CF6;
 
   /* رنگ سری‌های نمودار جدا از رنگ برچسب‌هاست: دو سری باید از هم تفکیک
      شوند، و دو سبزِ هم‌خانواده کنار هم روی میله یکی به نظر می‌رسند.
      پس سری دوم کهربایی است — همان نقشی که نارنجی در نمونه دارد. */
-  --ch1: #558A7C;
-  --ch2: #E0A03A;
+  --ch1: #12864F;
+  --ch2: #E09A2E;
 
   /* منوی کنار سفید است. این متغیرها می‌مانند تا جایی که به آن‌ها ارجاع
      هست نشکند، ولی حالا همه روشن‌اند. */
@@ -91,10 +93,10 @@
   --r: 12px;
   --r-sm: 9px;
 
-  --sh-sm: 0 1px 2px rgba(21, 33, 29, .04);
-  --sh: 0 1px 2px rgba(21, 33, 29, .04), 0 1px 3px rgba(21, 33, 29, .03);
-  --sh-md: 0 2px 6px rgba(21, 33, 29, .06), 0 12px 28px -14px rgba(21, 33, 29, .18);
-  --sh-lg: 0 24px 60px -22px rgba(21, 33, 29, .30);
+  --sh-sm: 0 1px 2px rgba(24, 26, 32, .04);
+  --sh: 0 1px 2px rgba(24, 26, 32, .04), 0 1px 3px rgba(24, 26, 32, .03);
+  --sh-md: 0 2px 6px rgba(24, 26, 32, .06), 0 12px 28px -14px rgba(24, 26, 32, .18);
+  --sh-lg: 0 24px 60px -22px rgba(24, 26, 32, .30);
   --sh-page: none;
 }
 
@@ -111,13 +113,13 @@
     --muted: #9CAEC2;
     --faint: #6E8097;
 
-    --brand: #7FB3A4;
-    --brand-ink: #9BC9BB;
-    --brand-lift: #9BC9BB;
-    --brand-soft: #1B2A26;
-    --brand-soft-2: #263B35;
+    --brand: #35C586;
+    --brand-ink: #5BD6A0;
+    --brand-lift: #5BD6A0;
+    --brand-soft: #15271F;
+    --brand-soft-2: #1E3A2D;
 
-    --ok: #43B183;
+    --ok: #35C586;
     --ok-soft: #142C22;
     --warn: #D29A3C;
     --warn-soft: #2C2415;
@@ -149,11 +151,11 @@
   --bg: #101822; --surface: #17212E; --surface-2: #131C27; --panel: #141D28;
   --line: #223041; --line-strong: #324354;
   --text: #E8EEF5; --muted: #9CAEC2; --faint: #6E8097;
-  --brand: #7FB3A4; --brand-ink: #9BC9BB; --brand-lift: #9BC9BB;
-  --brand-soft: #1B2A26; --brand-soft-2: #263B35;
+  --brand: #35C586; --brand-ink: #5BD6A0; --brand-lift: #5BD6A0;
+  --brand-soft: #15271F; --brand-soft-2: #1E3A2D;
   --accent: #7FB3A4; --accent-ink: #9BC9BB; --accent-soft: #1B2A26;
   --ch1: #7FB3A4; --ch2: #E8B45C;
-  --ok: #43B183; --ok-soft: #142C22;
+  --ok: #35C586; --ok-soft: #142C22;
   --warn: #D29A3C; --warn-soft: #2C2415;
   --danger: #DE7872; --danger-soft: #2E1B1A;
   --info: #7BA3CC; --info-soft: #16242F;
@@ -281,7 +283,7 @@ input[type="number"] { direction: ltr; text-align: right; }
   display: grid; grid-template-columns: 54px 212px 1fr;
   min-height: calc(100dvh - 20px); margin: 10px;
   background: var(--bg); border-radius: var(--r-xl); overflow: hidden;
-  box-shadow: 0 1px 2px rgba(21, 33, 29, .04), 0 18px 48px -26px rgba(21, 33, 29, .28);
+  box-shadow: 0 1px 2px rgba(24, 26, 32, .04), 0 18px 48px -26px rgba(24, 26, 32, .26);
 }
 /* پنل برچسب‌دار جمع می‌شود و فقط ریل می‌ماند — روی نمایشگر کوچک‌تر یا
    وقتی کاربر جا می‌خواهد. حالت جمع‌شده در همین مرورگر یادش می‌ماند. */
@@ -519,8 +521,8 @@ input[type="number"] { direction: ltr; text-align: right; }
 /* سرِ کاشی: نشان رنگی + برچسب، مثل کارت‌های نمونه */
 .stat-head { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
 .stat-head .label { margin: 0; }
-.stat.c2 .stat-ic { background: #EAF4EF; color: #3E7A63; }
-.stat.c3 .stat-ic { background: #EFF5EC; color: #5E8A63; }
+.stat.c2 .stat-ic { background: var(--info-soft); color: var(--info); }
+.stat.c3 .stat-ic { background: #F3EEFE; color: #7C3AED; }
 .stat.c4 .stat-ic { background: var(--warn-soft); color: var(--warn); }
 .stat-ic {
   width: 30px; height: 30px; border-radius: 9px; flex: 0 0 auto;
@@ -556,8 +558,8 @@ input[type="number"] { direction: ltr; text-align: right; }
   background: linear-gradient(90deg, var(--brand-lift), var(--brand));
   transition: width .45s cubic-bezier(.4, 0, .2, 1);
 }
-.progress.ok > i { background: linear-gradient(90deg, #58C79C, var(--ok)); }
-.progress.warn > i { background: linear-gradient(90deg, #E0B45A, var(--warn)); }
+.progress.ok > i { background: linear-gradient(90deg, #4FD69B, var(--ok)); }
+.progress.warn > i { background: linear-gradient(90deg, #EFC06A, var(--warn)); }
 
 /* ───────────── جدول ───────────── */
 .table-wrap { overflow-x: auto; margin: 0 -20px -20px; padding: 0 20px 6px; }
@@ -750,8 +752,8 @@ input[type="range"] { accent-color: var(--brand); height: 26px; }
   box-shadow: var(--sh-md); animation: pop .2s ease;
   max-width: 340px;
 }
-.toast.ok { background: #14503B; color: #fff; }
-.toast.err { background: #7A2B27; color: #fff; }
+.toast.ok { background: #0C5538; color: #fff; }
+.toast.err { background: #7C2823; color: #fff; }
 
 /* ───────────── انتخابگر بخش ───────────── */
 .seg {
