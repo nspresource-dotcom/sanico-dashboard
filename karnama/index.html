@@ -27,7 +27,6 @@
   <div class="toasts" id="toasts"></div>
   <script type="module" src="./app.js"></script>
   <script>
-    // نصب روی صفحهٔ اصلی گوشی و باز شدن آفلاین
     if ('serviceWorker' in navigator) {
       addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
     }

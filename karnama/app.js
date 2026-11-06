@@ -44,6 +44,7 @@ const state = {
   workload: null,
   notifications: [],
   unread: 0,
+  railOnly: (() => { try { return localStorage.getItem('karnama-rail') === '1'; } catch { return false; } })(),
   stock: {
     tab: 'onhand',
     setup: null,
@@ -150,7 +151,7 @@ const NAV = [
   { id: 'myday', label: 'امروز من', icon: '◉', need: 'tasks.view' },
   { id: 'dashboard', label: 'داشبورد', icon: '▣' },
 
-  { group: 'کارها' },
+  { group: 'کارها', icon: '▤' },
   { id: 'board', label: 'تخته کارها', icon: '▤', need: 'tasks.view' },
   { id: 'review', label: 'کارتابل بررسی', icon: '✍', need: 'review.do' },
   { id: 'recurring', label: 'کارهای تکراری', icon: '↻', need: 'recurrence.manage' },
@@ -158,16 +159,16 @@ const NAV = [
   // گفت‌وگو صفحه نمی‌شود؛ کشو را باز می‌کند تا کاری که دستتان است از دست نرود
   { id: 'chat', label: 'گفت‌وگو', icon: '✉', need: 'chat.use', drawer: true },
 
-  { group: 'انبار' },
+  { group: 'انبار', icon: '▦' },
   { id: 'stock', label: 'موجودی و اسناد', icon: '▦', need: 'stock.view' },
 
-  { group: 'زمان و عملکرد' },
+  { group: 'زمان و عملکرد', icon: '◷' },
   { id: 'time', label: 'ساعت کاری', icon: '◷', needAny: ['time.log', 'time.view_all'] },
   { id: 'approvals', label: 'تأیید ساعات', icon: '✓', need: 'time.approve' },
   { id: 'scores', label: 'امتیاز عملکرد', icon: '★', needAny: ['scores.view_own', 'scores.view_all'] },
   { id: 'unitreport', label: 'گزارش واحدها', icon: '◳', need: 'reports.unit' },
 
-  { group: 'سازمان' },
+  { group: 'سازمان', icon: '☷' },
   // مدیر واحد هم باید بتواند ایست بهره‌وری واحد خودش را ببیند، حتی اگر واحد نسازد
   { id: 'units', label: 'واحدها', icon: '⌂', needAny: ['units.manage', 'units.assign', 'scores.unit', 'scores.view_unit', 'reports.unit'] },
   { id: 'team', label: 'کارکنان', icon: '☷', needAny: ['users.view', 'users.manage'] },
@@ -193,10 +194,10 @@ function navSections() {
   const out = [];
   let current = null;
   for (const n of NAV) {
-    if (n.group) { current = { group: n.group, items: [] }; out.push(current); continue; }
+    if (n.group) { current = { group: n.group, icon: n.icon, items: [] }; out.push(current); continue; }
     const ok = n.need ? can(n.need) : (n.needAny ? n.needAny.some(can) : true);
     if (!ok) continue;
-    if (!current) { current = { group: null, items: [] }; out.push(current); }
+    if (!current) { current = { group: 'اصلی', icon: '◉', items: [] }; out.push(current); }
     current.items.push(n);
   }
   return out.filter((s) => s.items.length);
@@ -210,14 +211,39 @@ function pendingBadge() {
 function shell(inner) {
   const u = state.user;
   const badge = pendingBadge();
-  const nav = navSections().map((sec) => `
-    ${sec.group ? `<div class="nav-group">${sec.group}</div>` : ''}
-    ${sec.items.map((n) => `
-      <button class="nav-item ${state.view === n.id ? 'active' : ''}" data-nav="${n.id}">
-        <span>${n.icon}</span><span>${n.label}</span>
-        ${n.id === 'approvals' && badge ? `<span class="badge-dot">${toFa(badge)}</span>` : ''}
-        ${n.id === 'chat' ? `<span data-chat-badge>${chatBadgeHtml(state.chat.unread)}</span>` : ''}
-      </button>`).join('')}`).join('');
+  const sections = navSections();
+  const activeSec = sections.find((sec) => sec.items.some((n) => n.id === state.view)) || sections[0];
+
+  const secBadge = (sec) => (sec.items.some((n) => n.id === 'approvals') ? badge : 0)
+    + (sec.items.some((n) => n.id === 'chat') ? state.chat.unread : 0);
+
+  // ریل: هر آیکن یک بخش. زیرمنویش با نگه‌داشتن اشاره‌گر باز می‌شود.
+  const rail = sections.map((sec) => {
+    const b = secBadge(sec);
+    return `
+    <div class="rail-item ${sec === activeSec ? 'active' : ''}">
+      <button class="rail-btn" data-nav="${sec.items[0].id}" title="${esc(sec.group || 'اصلی')}">
+        ${sec.icon}${b ? `<span class="badge-dot">${toFa(b)}</span>` : ''}
+      </button>
+      <div class="rail-flyout">
+        <div class="ttl">${esc(sec.group || 'اصلی')}</div>
+        ${sec.items.map((n) => `
+          <button class="nav-item ${state.view === n.id ? 'active' : ''}" data-nav="${n.id}">
+            <span>${n.icon}</span><span>${n.label}</span>
+            ${n.id === 'approvals' && badge ? `<span class="badge-dot">${toFa(badge)}</span>` : ''}
+            ${n.id === 'chat' ? `<span data-chat-badge>${chatBadgeHtml(state.chat.unread)}</span>` : ''}
+          </button>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  // نوار بالا: صفحه‌های همان بخشی که در ریل انتخاب شده
+  const topnav = (activeSec?.items || []).map((n) => `
+    <button class="${state.view === n.id ? 'active' : ''}" data-nav="${n.id}">
+      <span>${n.icon}</span><span>${n.label}</span>
+      ${n.id === 'approvals' && badge ? `<span class="badge-dot">${toFa(badge)}</span>` : ''}
+      ${n.id === 'chat' ? `<span data-chat-badge>${chatBadgeHtml(state.chat.unread)}</span>` : ''}
+    </button>`).join('');
 
   // روی موبایل مهم‌ترین‌ها پایین صفحه، بقیه در «بیشتر»
   const items = navItems();
@@ -239,30 +265,47 @@ function shell(inner) {
 
   const title = NAV.find((n) => n.id === state.view)?.label || 'کارنما';
 
+  // پنل برچسب‌دار: همان بخش‌ها، این بار با نام و سرگروه
+  const panel = sections.map((sec) => `
+    <div class="nav-group">${esc(sec.group || 'اصلی')}</div>
+    ${sec.items.map((n) => `
+      <button class="nav-item ${state.view === n.id ? 'active' : ''}" data-nav="${n.id}">
+        <span>${n.icon}</span><span>${n.label}</span>
+        ${n.id === 'approvals' && badge ? `<span class="badge-dot">${toFa(badge)}</span>` : ''}
+        ${n.id === 'chat' ? `<span data-chat-badge>${chatBadgeHtml(state.chat.unread)}</span>` : ''}
+      </button>`).join('')}`).join('');
+
   return `
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="mark">ک</div>
-        <div>
-          <div class="name">کارنما</div>
-          <div class="org">${esc(u.company_name || '')}</div>
+  <div class="app ${state.railOnly ? 'rail-only' : ''}">
+    <aside class="rail">
+      <div class="mark" title="کارنما — ${esc(u.company_name || '')}">ک</div>
+      ${rail}
+      <div class="rail-spacer"></div>
+      <button class="rail-btn" data-action="logout" title="خروج">⎋</button>
+    </aside>
+    <aside class="navpanel">
+      <div class="navpanel-head">
+        <div class="nm">
+          <b>کارنما</b>
+          <small>${esc(u.company_name || '')}</small>
         </div>
+        <button class="collapse-btn" data-action="toggle-panel" title="جمع کردن منو">»</button>
       </div>
-      ${nav}
-      <div class="nav-spacer"></div>
-      <div class="sidebar-user">
-        <div class="avatar">${esc(initials(u.full_name))}</div>
+      ${panel}
+      <div class="navpanel-foot">
+        <span class="avatar sm">${esc(initials(u.full_name))}</span>
         <div class="meta">
           <b>${esc(u.full_name)}</b>
           <span>${u.role === 'member' ? esc(u.job_title || 'کارمند') : 'مدیر'}</span>
         </div>
-        <button class="x-btn" data-action="logout" title="خروج" style="margin-inline-start:auto;color:var(--sidebar-ink)">⎋</button>
+        <button class="collapse-btn" data-action="logout" title="خروج">⎋</button>
       </div>
     </aside>
     <div class="main">
       <header class="topbar">
-        <h2>${title}</h2>
+        <span class="section-name">${esc(activeSec?.group || 'اصلی')}</span>
+        <span class="topnav-sep"></span>
+        <nav class="topnav">${topnav}</nav>
         <div class="spacer"></div>
         ${['dashboard', 'time', 'approvals', 'scores'].includes(state.view) ? monthPicker() : ''}
         ${can('chat.use') ? `
@@ -469,12 +512,12 @@ function unitProdView() {
         <span class="small muted">${toFa(d.month.jm)}/${toFa(d.month.jy)}</span>
       </header>
       <div class="kpis">
-        <div class="kpi"><span>کار تأییدشده</span><b>${toFa(s.approved)}</b></div>
-        <div class="kpi"><span>برگشتی</span><b class="${s.returned ? 'danger' : ''}">${toFa(s.returned)}</b></div>
-        <div class="kpi"><span>نرخ بازکاری</span><b class="${s.rework_rate > 20 ? 'danger' : ''}">${toFa(s.rework_rate)}٪</b></div>
+        <div class="kpi ok"><span>کار تأییدشده</span><b>${toFa(s.approved)}</b></div>
+        <div class="kpi ${s.returned ? 'danger' : 'c3'}"><span>برگشتی</span><b class="${s.returned ? 'danger' : ''}">${toFa(s.returned)}</b></div>
+        <div class="kpi ${s.rework_rate > 20 ? 'danger' : 'c3'}"><span>نرخ بازکاری</span><b class="${s.rework_rate > 20 ? 'danger' : ''}">${toFa(s.rework_rate)}٪</b></div>
         <div class="kpi"><span>میانگین امتیاز کارها</span><b>${s.avg_score === null ? '—' : toFa(s.avg_score)}</b></div>
-        <div class="kpi"><span>سر وقت</span><b>${s.on_time_pct === null ? '—' : `${toFa(s.on_time_pct)}٪`}</b></div>
-        <div class="kpi"><span>نفرات</span><b>${toFa(s.headcount)}</b></div>
+        <div class="kpi c2"><span>سر وقت</span><b>${s.on_time_pct === null ? '—' : `${toFa(s.on_time_pct)}٪`}</b></div>
+        <div class="kpi c4"><span>نفرات</span><b>${toFa(s.headcount)}</b></div>
       </div>
     </div>
 
@@ -551,11 +594,82 @@ function unitProdView() {
 }
 
 /** گزارش تفصیلی ماهانهٔ واحدها — با نشانه‌های تورم امتیاز */
+/**
+ * نمودار میله‌ای دو سری — SVG خالص، بدون کتابخانه.
+ *
+ * دو تصمیم که ارزش گفتن دارند:
+ *  • ارتفاع میله از بیشترین مقدارِ همان سری حساب می‌شود، نه از مجموع دو سری.
+ *    «ساعت» و «امتیاز» دو واحد بی‌ربط‌اند؛ اگر روی یک مقیاس بروند، نمودار
+ *    دروغ می‌گوید. پس هر سری مقیاس خودش را دارد و محور عدد ندارد — عدد را
+ *    روی خود میله می‌نویسیم.
+ *  • راست‌به‌چپ: اولین ستون سمت راست می‌نشیند، مثل بقیهٔ صفحه.
+ */
+function barChart(rows, { a, b, labelA, labelB, fmtA, fmtB }) {
+  if (!rows.length) return '';
+  const maxA = Math.max(1, ...rows.map((r) => Number(r[a]) || 0));
+  const maxB = Math.max(1, ...rows.map((r) => Number(r[b]) || 0));
+  const H = 150;
+  const slot = 100 / rows.length;
+
+  const bars = rows.map((r, i) => {
+    // در راست‌به‌چپ ستون اول باید سمت راست باشد
+    const x = 100 - (i + 1) * slot;
+    const va = Number(r[a]) || 0;
+    const vb = Number(r[b]) || 0;
+    const ha = (va / maxA) * H;
+    const hb = (vb / maxB) * H;
+    const w = slot * 0.26;
+    return `
+      <g class="bar-g">
+        <rect x="${(x + slot * 0.2).toFixed(3)}%" y="${(H - ha).toFixed(1)}" width="${w.toFixed(3)}%"
+              height="${Math.max(2, ha).toFixed(1)}" rx="3" fill="var(--ch1)"></rect>
+        <rect x="${(x + slot * 0.52).toFixed(3)}%" y="${(H - hb).toFixed(1)}" width="${w.toFixed(3)}%"
+              height="${Math.max(2, hb).toFixed(1)}" rx="3" fill="var(--ch2)"></rect>
+        <title>${esc(r.label)} — ${esc(labelA)}: ${fmtA(va)} · ${esc(labelB)}: ${fmtB(vb)}</title>
+      </g>`;
+  }).join('');
+
+  const labels = rows.map((r) => `
+    <div class="bar-x" style="flex:1 1 0">
+      <b>${fmtA(Number(r[a]) || 0)}</b>
+      <span>${esc(r.label)}</span>
+    </div>`).join('');
+
+  return `
+    <div class="chart">
+      <div class="chart-legend">
+        <span><i style="background:var(--ch1)"></i>${esc(labelA)}</span>
+        <span><i style="background:var(--ch2)"></i>${esc(labelB)}</span>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 100 ${H}" preserveAspectRatio="none" role="img"
+           aria-label="${esc(labelA)} و ${esc(labelB)} به تفکیک واحد">
+        ${[0, 0.25, 0.5, 0.75, 1].map((g) => `<line x1="0" x2="100" y1="${(H * g).toFixed(1)}"
+          y2="${(H * g).toFixed(1)}" stroke="var(--line)" stroke-width="1"
+          vector-effect="non-scaling-stroke"></line>`).join('')}
+        ${bars}
+      </svg>
+      <div class="chart-x">${labels}</div>
+    </div>`;
+}
+
 function unitReportView() {
   const d = state.unitReport;
   if (!d) return '<div class="card"><div class="empty">در حال بارگذاری…</div></div>';
   const rows = d.units;
+  const chartRows = rows
+    .filter((r) => r.approved_hours || r.approved)
+    .slice(0, 9)
+    .map((r) => ({ label: r.unit.name, hours: r.approved_hours || 0, score: r.unit_score || 0 }));
   return `
+    ${chartRows.length ? `
+    <div class="card">
+      <header><h3>ساعت و امتیاز واحدها</h3><div class="spacer"></div>
+        <span class="small muted">${toFa(d.month.jm)}/${toFa(d.month.jy)}</span></header>
+      ${barChart(chartRows, {
+    a: 'hours', b: 'score', labelA: 'ساعت تأییدشده', labelB: 'امتیاز واحد',
+    fmtA: (v) => fh(v), fmtB: (v) => (v ? toFa(v) : '—'),
+  })}
+    </div>` : ''}
     <div class="card">
       <header><h3>گزارش ماهانهٔ واحدها</h3><div class="spacer"></div>
         <span class="small muted">${toFa(d.month.jm)}/${toFa(d.month.jy)}</span></header>
@@ -750,23 +864,27 @@ function memberDashboard(s) {
   return `
     <div class="stat-grid">
       <div class="stat ok">
-        <div class="label">ساعات تأییدشدهٔ ${monthLabel(s.month.jy, s.month.jm)}</div>
+        <div class="stat-head"><span class="stat-ic">◷</span>
+          <div class="label">ساعات تأییدشدهٔ ${monthLabel(s.month.jy, s.month.jm)}</div></div>
         <div class="value">${fh(me.approved_hours)}<small> ساعت</small></div>
         <div class="progress ${pct >= 100 ? 'ok' : 'warn'}"><i style="width:${pct}%"></i></div>
         <div class="foot">${toFa(pct)}٪ از سقف ${fh(target)} ساعت</div>
       </div>
       <div class="stat warn">
-        <div class="label">در انتظار تأیید مدیر</div>
+        <div class="stat-head"><span class="stat-ic">⏳</span>
+          <div class="label">در انتظار تأیید مدیر</div></div>
         <div class="value">${fh(me.pending_hours)}<small> ساعت</small></div>
         <div class="foot">${me.rejected_hours ? `${fh(me.rejected_hours)} ساعت رد شده` : 'بدون مورد رد شده'}</div>
       </div>
-      <div class="stat">
-        <div class="label">کارهای باز من</div>
+      <div class="stat c2">
+        <div class="stat-head"><span class="stat-ic">▤</span>
+          <div class="label">کارهای باز من</div></div>
         <div class="value">${toFa(me.open_tasks)}</div>
         <div class="foot">${toFa(me.done_tasks)} کار در این ماه انجام شد</div>
       </div>
-      <div class="stat ${me.score === null ? '' : me.score >= 80 ? 'ok' : 'warn'}">
-        <div class="label">امتیاز عملکرد</div>
+      <div class="stat ${me.score === null ? 'c4' : me.score >= 80 ? 'ok' : 'warn'}">
+        <div class="stat-head"><span class="stat-ic">★</span>
+          <div class="label">امتیاز عملکرد</div></div>
         ${scoreCard}
       </div>
     </div>
@@ -797,23 +915,27 @@ function managerDashboard(s) {
   const c = s.company;
   return `
     <div class="stat-grid">
-      <div class="stat">
-        <div class="label">کارکنان فعال</div>
+      <div class="stat c4">
+        <div class="stat-head"><span class="stat-ic">☷</span>
+          <div class="label">کارکنان فعال</div></div>
         <div class="value">${toFa(c.headcount)}</div>
         <div class="foot">${toFa(c.open_tasks)} کار باز در تخته</div>
       </div>
       <div class="stat ${c.pending_logs ? 'warn' : 'ok'}">
-        <div class="label">در انتظار تأیید شما</div>
+        <div class="stat-head"><span class="stat-ic">✓</span>
+          <div class="label">در انتظار تأیید شما</div></div>
         <div class="value">${toFa(c.pending_logs)}<small> رکورد</small></div>
         <div class="foot">${fh(c.pending_hours)} ساعت ثبت‌شده</div>
       </div>
       <div class="stat ${c.overdue_tasks ? 'danger' : 'ok'}">
-        <div class="label">کارهای عقب‌افتاده</div>
+        <div class="stat-head"><span class="stat-ic">⚠</span>
+          <div class="label">کارهای عقب‌افتاده</div></div>
         <div class="value">${toFa(c.overdue_tasks)}</div>
         <div class="foot">${toFa(c.unassigned_tasks)} کار بدون مسئول</div>
       </div>
-      <div class="stat ok">
-        <div class="label">میانگین امتیاز تیم</div>
+      <div class="stat c2">
+        <div class="stat-head"><span class="stat-ic">★</span>
+          <div class="label">میانگین امتیاز تیم</div></div>
         <div class="value">${c.avg_score === null ? '—' : toFa(c.avg_score)}${c.avg_score === null ? '' : '<small> از ۱۰۰</small>'}</div>
         <div class="foot">${fh(c.approved_hours)} ساعت تأییدشده در این ماه</div>
       </div>
@@ -1064,9 +1186,9 @@ function timeView() {
   }, {});
   return `
     <div class="stat-grid">
-      <div class="stat ok"><div class="label">تأییدشده</div><div class="value">${fh(totals.approved || 0)}<small> ساعت</small></div></div>
-      <div class="stat warn"><div class="label">در انتظار</div><div class="value">${fh(totals.pending || 0)}<small> ساعت</small></div></div>
-      <div class="stat danger"><div class="label">رد شده</div><div class="value">${fh(totals.rejected || 0)}<small> ساعت</small></div></div>
+      <div class="stat ok"><div class="stat-head"><span class="stat-ic">✓</span><div class="label">تأییدشده</div></div><div class="value">${fh(totals.approved || 0)}<small> ساعت</small></div></div>
+      <div class="stat warn"><div class="stat-head"><span class="stat-ic">⏳</span><div class="label">در انتظار</div></div><div class="value">${fh(totals.pending || 0)}<small> ساعت</small></div></div>
+      <div class="stat danger"><div class="stat-head"><span class="stat-ic">✕</span><div class="label">رد شده</div></div><div class="value">${fh(totals.rejected || 0)}<small> ساعت</small></div></div>
       <div class="stat"><div class="label">تعداد روزهای ثبت‌شده</div><div class="value">${toFa(new Set(logs.map((l) => l.work_date)).size)}</div></div>
     </div>
 
@@ -2150,9 +2272,23 @@ async function loadStockTab(tab) {
 function stockView() {
   const tabs = STOCK_TABS.filter((t) => can(t.need));
   const tab = state.stock.tab;
+  // شمارش هر برگه روی خودِ دکمه می‌نشیند: پیش از کلیک معلوم است آن‌طرف چه خبر است.
+  const counts = {
+    onhand: (state.stock.onhand || []).length,
+    entries: (state.stock.entries || []).length,
+    items: (state.stock.items || []).length,
+    warehouses: (state.stock.warehouses || []).length,
+  };
+  const low = (state.stock.low || []).length;
   return `
+    <div class="page-head">
+      <h2>انبار</h2>
+      <span class="count">${toFa(counts.items || counts.onhand)} کالا در ${toFa(counts.warehouses)} انبار</span>
+      ${low ? `<span class="sdot warn">${toFa(low)} قلم زیر نقطهٔ سفارش</span>` : '<span class="sdot ok">موجودی‌ها بالای نقطهٔ سفارش است</span>'}
+      <span class="spacer"></span>
+    </div>
     <div class="seg" style="margin-bottom:14px">
-      ${tabs.map((t) => `<button class="${tab === t.id ? 'active' : ''}" data-action="stock-tab" data-id="${t.id}">${t.label}</button>`).join('')}
+      ${tabs.map((t) => `<button class="${tab === t.id ? 'active' : ''}" data-action="stock-tab" data-id="${t.id}">${t.label}${counts[t.id] ? ` <i class="n">${toFa(counts[t.id])}</i>` : ''}</button>`).join('')}
     </div>
     ${tab === 'onhand' ? stockOnHandTab()
     : tab === 'entries' ? stockEntriesTab()
@@ -2231,8 +2367,8 @@ function stockOnHandTab() {
       </header>
       <div class="kpis">
         <div class="kpi"><b>${toFa(kinds.size)}</b><span>قلم کالا</span></div>
-        <div class="kpi"><b>${toFa(whs.length)}</b><span>انبار</span></div>
-        <div class="kpi ${low.length ? 'danger' : ''}"><b>${toFa(low.length)}</b><span>زیر حداقل</span></div>
+        <div class="kpi c2"><b>${toFa(whs.length)}</b><span>انبار</span></div>
+        <div class="kpi ${low.length ? 'danger' : 'ok'}"><b>${toFa(low.length)}</b><span>زیر حداقل</span></div>
       </div>
       ${rows.length ? `
       <div class="table-wrap"><table id="stock-onhand">
@@ -2268,20 +2404,35 @@ function stockEntriesTab() {
 function stockEntryRow(e) {
   const k = STOCK_KINDS[e.kind] || { icon: '•', label: e.kind };
   const st = STOCK_STATUS[e.status] || { label: e.status, cls: '' };
+  const dot = e.status === 'submitted' ? 'ok' : (e.status === 'cancelled' ? 'danger' : 'warn');
+  // مقصدِ کالا، نه نام فیلدها: «از انبار الف ← به انبار ب» همان چیزی است که
+  // انباردار دنبالش می‌گردد و باید بدون باز کردن سند دیده شود.
   const route = e.kind === 'transfer'
     ? `${esc(e.from_warehouse || '—')} ← ${esc(e.to_warehouse || '—')}`
     : (e.kind === 'issue' ? `از ${esc(e.from_warehouse || '—')}` : `به ${esc(e.to_warehouse || '—')}`);
+  const shown = e.lines.slice(0, 4);
   return `
     <div class="entry-row ${e.status}">
-      <span class="entry-kind">${k.icon}</span>
-      <div class="entry-mid">
-        <b>${k.label} #${toFa(e.code)}</b>
-        <small>${route} · ${formatJalali(e.entry_date)}${e.party ? ` · ${esc(e.party)}` : ''}${e.ref_no ? ` · ${esc(e.ref_no)}` : ''}</small>
-        <small class="faint">${toFa(e.lines.length)} قلم: ${e.lines.slice(0, 3).map((l) => esc(l.item_name)).join('، ')}${e.lines.length > 3 ? ' …' : ''}</small>
-      </div>
-      <div class="entry-end">
-        <span class="chip ${st.cls}">${st.label}</span>
+      <div class="entry-main">
+        <span class="sdot ${dot}">${st.label}</span>
+        <b class="entry-code">${k.label} #${toFa(e.code)}</b>
+        <div class="entry-kv"><span>تاریخ</span><b>${formatJalali(e.entry_date)}</b></div>
+        <div class="entry-kv"><span>${e.kind === 'receipt' ? 'تأمین‌کننده' : 'طرف'}</span><b>${esc(e.party || '—')}</b></div>
+        ${e.ref_no ? `<div class="entry-kv"><span>شمارهٔ مرجع</span><b>${esc(e.ref_no)}</b></div>` : ''}
         <button class="btn ghost sm" data-action="stock-entry-open" data-id="${e.id}">جزئیات</button>
+      </div>
+      <div class="entry-side">
+        <div class="entry-side-top">
+          <b>${route}</b>
+          <small>${toFa(e.lines.length)} قلم</small>
+        </div>
+        <ul class="entry-lines">
+          ${shown.map((l) => `<li>
+            <span>${esc(l.item_name)}</span>
+            <b>${qtyText(l.qty, l.uom_decimals)}<small>${esc(l.uom_name || '')}</small></b>
+          </li>`).join('')}
+          ${e.lines.length > 4 ? `<li class="more">و ${toFa(e.lines.length - 4)} قلم دیگر</li>` : ''}
+        </ul>
       </div>
     </div>`;
 }
@@ -2467,7 +2618,7 @@ async function stockCardModal(itemId) {
   openModal(`کاردکس — ${esc(d.item.name)}`, `
     <div class="kpis" style="margin-bottom:12px">
       <div class="kpi"><b>${qtyText(d.balance, dec)}</b><span>موجودی کل (${esc(d.item.uom_name)})</span></div>
-      <div class="kpi"><b>${toFa(d.moves.length)}</b><span>حرکت ثبت‌شده</span></div>
+      <div class="kpi c2"><b>${toFa(d.moves.length)}</b><span>حرکت ثبت‌شده</span></div>
     </div>
     ${d.moves.length ? `
     <div class="table-wrap"><table>
@@ -3386,6 +3537,12 @@ document.addEventListener('click', async (e) => {
       state.unread = 0; closeModal(); render();
       break;
     case 'more-menu': moreMenuModal(); break;
+
+    case 'toggle-panel':
+      state.railOnly = !state.railOnly;
+      try { localStorage.setItem('karnama-rail', state.railOnly ? '1' : '0'); } catch { /* */ }
+      render();
+      break;
 
     // ───── انبار ─────
     case 'stock-tab':
