@@ -144,32 +144,62 @@ function loginView() {
 // ───────────────────────────── پوسته ─────────────────────────────
 
 // هر بخش پنل با یک دسترسی باز می‌شود؛ اگر کاربر آن را نداشته باشد، بخش برایش نمایش داده نمی‌شود.
+// ترتیب و گروه، هر دو عمدی‌اند. چهارده آیتم پشت سر هم فهرست نیست، دیوار است؛
+// با سرگروه، چشم اول گروه را پیدا می‌کند و بعد آیتم را.
 const NAV = [
   { id: 'myday', label: 'امروز من', icon: '◉', need: 'tasks.view' },
   { id: 'dashboard', label: 'داشبورد', icon: '▣' },
+
+  { group: 'کارها' },
   { id: 'board', label: 'تخته کارها', icon: '▤', need: 'tasks.view' },
   { id: 'review', label: 'کارتابل بررسی', icon: '✍', need: 'review.do' },
+  { id: 'recurring', label: 'کارهای تکراری', icon: '↻', need: 'recurrence.manage' },
+  { id: 'workload', label: 'بار کاری تیم', icon: '⚖', need: 'tasks.view_all' },
   // گفت‌وگو صفحه نمی‌شود؛ کشو را باز می‌کند تا کاری که دستتان است از دست نرود
   { id: 'chat', label: 'گفت‌وگو', icon: '✉', need: 'chat.use', drawer: true },
-  { id: 'stock', label: 'انبار', icon: '▦', need: 'stock.view' },
-  // مدیر واحد هم باید بتواند ایست بهره‌وری واحد خودش را ببیند، حتی اگر واحد نسازد
-  { id: 'units', label: 'واحدها', icon: '⌂', needAny: ['units.manage', 'units.assign', 'scores.unit', 'scores.view_unit', 'reports.unit'] },
-  { id: 'unitreport', label: 'گزارش واحدها', icon: '◳', need: 'reports.unit' },
-  { id: 'workload', label: 'بار کاری تیم', icon: '⚖', need: 'tasks.view_all' },
+
+  { group: 'انبار' },
+  { id: 'stock', label: 'موجودی و اسناد', icon: '▦', need: 'stock.view' },
+
+  { group: 'زمان و عملکرد' },
   { id: 'time', label: 'ساعت کاری', icon: '◷', needAny: ['time.log', 'time.view_all'] },
   { id: 'approvals', label: 'تأیید ساعات', icon: '✓', need: 'time.approve' },
-  { id: 'team', label: 'کارکنان', icon: '☷', needAny: ['users.view', 'users.manage'] },
   { id: 'scores', label: 'امتیاز عملکرد', icon: '★', needAny: ['scores.view_own', 'scores.view_all'] },
-  { id: 'recurring', label: 'کارهای تکراری', icon: '↻', need: 'recurrence.manage' },
+  { id: 'unitreport', label: 'گزارش واحدها', icon: '◳', need: 'reports.unit' },
+
+  { group: 'سازمان' },
+  // مدیر واحد هم باید بتواند ایست بهره‌وری واحد خودش را ببیند، حتی اگر واحد نسازد
+  { id: 'units', label: 'واحدها', icon: '⌂', needAny: ['units.manage', 'units.assign', 'scores.unit', 'scores.view_unit', 'reports.unit'] },
+  { id: 'team', label: 'کارکنان', icon: '☷', needAny: ['users.view', 'users.manage'] },
   { id: 'profile', label: 'حساب من', icon: '⚙' },
 ];
 
+/** فقط آیتم‌های واقعی — نشانگرهای گروه از قلم می‌افتند */
 function navItems() {
   return NAV.filter((n) => {
+    if (n.group) return false;
     if (n.need) return can(n.need);
     if (n.needAny) return n.needAny.some(can);
     return true;
   });
+}
+
+/**
+ * منوی کنار با سرگروه. گروهی که هیچ آیتم قابل‌دیدنی ندارد اصلاً چاپ نمی‌شود —
+ * وگرنه کاربری که دسترسی انبار ندارد، سرگروه «انبار» را خالی می‌بیند و
+ * فکر می‌کند چیزی خراب است.
+ */
+function navSections() {
+  const out = [];
+  let current = null;
+  for (const n of NAV) {
+    if (n.group) { current = { group: n.group, items: [] }; out.push(current); continue; }
+    const ok = n.need ? can(n.need) : (n.needAny ? n.needAny.some(can) : true);
+    if (!ok) continue;
+    if (!current) { current = { group: null, items: [] }; out.push(current); }
+    current.items.push(n);
+  }
+  return out.filter((s) => s.items.length);
 }
 
 function pendingBadge() {
@@ -180,12 +210,14 @@ function pendingBadge() {
 function shell(inner) {
   const u = state.user;
   const badge = pendingBadge();
-  const nav = navItems().map((n) => `
-    <button class="nav-item ${state.view === n.id ? 'active' : ''}" data-nav="${n.id}">
-      <span>${n.icon}</span><span>${n.label}</span>
-      ${n.id === 'approvals' && badge ? `<span class="badge-dot">${toFa(badge)}</span>` : ''}
-      ${n.id === 'chat' ? `<span data-chat-badge>${chatBadgeHtml(state.chat.unread)}</span>` : ''}
-    </button>`).join('');
+  const nav = navSections().map((sec) => `
+    ${sec.group ? `<div class="nav-group">${sec.group}</div>` : ''}
+    ${sec.items.map((n) => `
+      <button class="nav-item ${state.view === n.id ? 'active' : ''}" data-nav="${n.id}">
+        <span>${n.icon}</span><span>${n.label}</span>
+        ${n.id === 'approvals' && badge ? `<span class="badge-dot">${toFa(badge)}</span>` : ''}
+        ${n.id === 'chat' ? `<span data-chat-badge>${chatBadgeHtml(state.chat.unread)}</span>` : ''}
+      </button>`).join('')}`).join('');
 
   // روی موبایل مهم‌ترین‌ها پایین صفحه، بقیه در «بیشتر»
   const items = navItems();
@@ -239,6 +271,14 @@ function shell(inner) {
         </button>` : ''}
         <button class="bell ${state.unread ? 'has' : ''}" data-action="bell" title="اعلان‌ها">
           🔔${state.unread ? `<i>${toFa(state.unread)}</i>` : ''}
+        </button>
+        <button class="user-chip" data-nav="profile" title="حساب من">
+          <span class="avatar sm">${esc(initials(u.full_name))}</span>
+          <span class="who">
+            <b>${esc(u.full_name)}</b>
+            <small>${esc(u.job_title || u.company_name || '')}</small>
+          </span>
+          <span class="caret">⌄</span>
         </button>
       </header>
       <div class="content">${inner}</div>
@@ -347,7 +387,7 @@ function unitsView() {
       <header>
         <h3>واحدهای سازمانی</h3>
         <div class="spacer"></div>
-        ${canEdit ? '<button class="btn sm" data-action="new-unit">+ واحد جدید</button>' : ''}
+        ${canEdit ? '<button class="btn new sm" data-action="new-unit">+ واحد جدید</button>' : ''}
       </header>
       <p class="hint" style="margin:-8px 0 14px">
         کار اول به یک واحد سپرده می‌شود، بعد مدیر واحد بین افراد تقسیمش می‌کند.
@@ -783,7 +823,7 @@ function managerDashboard(s) {
       <header>
         <h3>عملکرد تیم — ${monthLabel(s.month.jy, s.month.jm)}</h3>
         <div class="spacer"></div>
-        <button class="btn sm" data-action="new-task">+ کار جدید</button>
+        <button class="btn new sm" data-action="new-task">+ کار جدید</button>
       </header>
       <div class="table-wrap">
         <table>
@@ -892,7 +932,7 @@ function boardView() {
           ${state.labels.map((l) => `<option value="${l.id}" ${state.filterLabel === l.id ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}
         </select>` : ''}
         <div class="spacer" style="flex:1"></div>
-        ${can('tasks.create') ? '<button class="btn sm" data-action="new-task">+ کار جدید</button>' : ''}
+        ${can('tasks.create') ? '<button class="btn new sm" data-action="new-task">+ کار جدید</button>' : ''}
         ${can('columns.manage') ? '<button class="btn ghost sm" data-action="new-column">+ ستون</button>' : ''}
         ${can('labels.manage') ? '<button class="btn ghost sm" data-action="manage-labels">برچسب‌ها</button>' : ''}
       </div>
@@ -1140,7 +1180,7 @@ function teamView() {
       <header>
         <h3>کارکنان و پنل‌ها</h3>
         <div class="spacer"></div>
-        ${can('users.manage') ? '<button class="btn sm" data-action="new-user">+ ساخت پنل برای فرد جدید</button>' : ''}
+        ${can('users.manage') ? '<button class="btn new sm" data-action="new-user">+ ساخت پنل برای فرد جدید</button>' : ''}
       </header>
       <p class="hint" style="margin:-8px 0 14px">
         برای هر نفر یک نام کاربری و رمز می‌سازید و با تیک‌زدن مشخص می‌کنید کدام بخش‌های پنل برایش باز باشد.
@@ -1283,7 +1323,7 @@ function recurringView() {
       <header>
         <h3>کارهای تکرارشونده</h3>
         <div class="spacer"></div>
-        <button class="btn sm" data-action="new-recurrence">+ کار تکراری</button>
+        <button class="btn new sm" data-action="new-recurrence">+ کار تکراری</button>
       </header>
       <p class="hint" style="margin:-8px 0 14px">
         کار روتین را یک‌بار تعریف کنید؛ سامانه هر روز/هفته/ماه خودش آن را می‌سازد و به فرد مربوط می‌سپارد.
@@ -2181,7 +2221,7 @@ function stockOnHandTab() {
       <header>
         <h3>موجودی لحظه‌ای</h3>
         <div class="spacer"></div>
-        ${can('stock.entry') ? '<button class="btn sm" data-action="stock-new-entry">+ سند انبار</button>' : ''}
+        ${can('stock.entry') ? '<button class="btn new sm" data-action="stock-new-entry">+ سند انبار</button>' : ''}
         <select class="select sm" data-action="stock-warehouse-filter" style="max-width:190px">
           <option value="">همهٔ انبارها</option>
           ${whs.map((w) => `<option value="${w.id}" ${state.stock.filterWarehouse === w.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}
@@ -2212,7 +2252,7 @@ function stockEntriesTab() {
       <header>
         <h3>اسناد انبار</h3>
         <div class="spacer"></div>
-        ${can('stock.entry') ? '<button class="btn sm" data-action="stock-new-entry">+ سند انبار</button>' : ''}
+        ${can('stock.entry') ? '<button class="btn new sm" data-action="stock-new-entry">+ سند انبار</button>' : ''}
         <select class="select sm" data-action="stock-entry-status" style="max-width:170px">
           <option value="">همهٔ اسناد</option>
           <option value="draft" ${state.stock.entryStatus === 'draft' ? 'selected' : ''}>پیش‌نویس</option>
@@ -2253,7 +2293,7 @@ function stockItemsTab() {
       <header>
         <h3>کالاها</h3>
         <div class="spacer"></div>
-        ${can('stock.manage') ? '<button class="btn sm" data-action="stock-new-item">+ کالای تازه</button>' : ''}
+        ${can('stock.manage') ? '<button class="btn new sm" data-action="stock-new-item">+ کالای تازه</button>' : ''}
       </header>
       ${list.length ? `
       <div class="table-wrap"><table>
@@ -2284,7 +2324,7 @@ function stockWarehousesTab() {
       <header>
         <h3>انبارها</h3>
         <div class="spacer"></div>
-        ${can('stock.manage') ? '<button class="btn sm" data-action="stock-new-warehouse">+ انبار تازه</button>' : ''}
+        ${can('stock.manage') ? '<button class="btn new sm" data-action="stock-new-warehouse">+ انبار تازه</button>' : ''}
       </header>
       ${list.length ? `<div class="wh-grid">${list.map((w) => `
         <div class="wh-card">
@@ -2823,7 +2863,7 @@ function chatRenderAll() {
           <aside class="chat-side">
             ${pane === 'new' || pane === 'newgroup' ? '' : `
             <div class="chat-side-top">
-              <button class="btn sm block" data-action="chat-new">✎ گفت‌وگوی تازه</button>
+              <button class="btn new sm block" data-action="chat-new">✎ گفت‌وگوی تازه</button>
             </div>`}
             <div class="chat-list">${pane === 'new' || pane === 'newgroup' ? chatDirectoryHtml() : chatListHtml()}</div>
           </aside>
