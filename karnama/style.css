@@ -1388,6 +1388,7 @@ tr.row-muted > td { opacity: .55; text-decoration: line-through; }
   padding: 2px 7px; border-radius: 7px;
   background: var(--brand-soft); color: var(--brand-ink);
 }
+.kpi-auto.wait { background: var(--warn-soft); color: var(--warn); }
 .kpi-name { font-size: 13.5px; line-height: 1.45; }
 .kpi-val {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
@@ -1415,3 +1416,28 @@ tr.row-muted > td { opacity: .55; text-decoration: line-through; }
 
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 520px) { .row2 { grid-template-columns: 1fr; } }
+
+/* ───────────── داشبورد مدیرعامل ───────────── */
+.dash-seg { display: flex; flex-wrap: wrap; }
+/* شمارش تب وقتی انحراف دارد قرمز می‌شود: پیش از کلیک معلوم است کجا می‌لنگد */
+.seg button .n.hot { background: var(--danger-soft); color: var(--danger); }
+.seg button .n.pale { background: var(--warn-soft); color: var(--warn); }
+.seg button.active .n.hot,
+.seg button.active .n.pale { background: rgba(255, 255, 255, .25); color: #fff; }
+
+.peek-list { list-style: none; display: flex; flex-direction: column; }
+.peek-list li {
+  display: flex; align-items: center; gap: 9px; padding: 10px 2px;
+  border-bottom: 1px solid var(--line); font-size: 13px;
+}
+.peek-list li:last-child { border-bottom: 0; }
+.peek-list b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.peek-list small { flex: 0 0 auto; font-size: 11px; }
+.dnum {
+  flex: 0 0 auto; min-width: 30px; text-align: center; padding: 3px 8px; border-radius: 8px;
+  background: var(--brand-soft); color: var(--brand-ink);
+  font-weight: 800; font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.peek-list .arrow { flex: 0 0 auto; font-size: 11px; font-weight: 700; }
+.peek-list .arrow.worse { color: var(--danger); }
+.peek-list .arrow.better { color: var(--ok); }

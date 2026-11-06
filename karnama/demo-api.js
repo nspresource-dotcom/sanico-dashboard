@@ -3,7 +3,7 @@ import { isoToJalali, todayIso, jalaliMonthRange, MONTH_NAMES } from './jalali.j
 import { effectivePermissions, can as canDo, ALL_KEYS, PRESETS, JUSTIFY_ABOVE } from './permissions.js';
 
 // نسخهٔ کلید که بالا می‌رود، دادهٔ قبلی مرورگر دور ریخته می‌شود و همه از صفر شروع می‌کنند
-const KEY = 'karnama-demo-v6';
+const KEY = 'karnama-demo-v7';
 const uid = () => Math.random().toString(36).slice(2, 11);
 const now = () => new Date().toISOString();
 const today = todayIso();
@@ -318,10 +318,10 @@ function seed() {
   const indicators = [];
   const indicator_values = [];
   const jnow = isoToJalali(todayIso());
-  const addInd = (code, name, perspective, unitLabel, direction, target, source, unitName, series) => {
+  const addInd = (code, name, domain, perspective, unitLabel, direction, target, source, unitName, series) => {
     const un = units.find((x) => x.name === unitName);
     indicators.push({ id: `ind${code}`, company_id: 'c1', code: String(code), name,
-      perspective, unit_label: unitLabel, direction, target, warn_pct: 90,
+      domain, perspective, unit_label: unitLabel, direction, target, warn_pct: 90,
       source: source || 'manual', unit_id: un ? un.id : null, owner_id: null,
       is_active: 1, position: indicators.length + 1, created_by: by('modir'),
       created_at: now(), updated_at: now() });
@@ -336,16 +336,30 @@ function seed() {
       m -= 1; if (m < 1) { m = 12; y -= 1; }
     }
   };
-  addInd(1001, 'تناژ تولید پودر باریت', 'financial', 'تن', 'up', 1200, 'manual', 'تولید',
+  addInd(1001, 'تناژ تولید پودر باریت', 'production', 'financial', 'تن', 'up', 1200, 'manual', 'تولید',
     [1145, 1210, 1188, 1025, 1160, 1240]);
-  addInd(1002, 'درصد ضایعات خط آسیاب', 'process', 'درصد', 'down', 3, 'manual', 'تولید',
+  addInd(1002, 'درصد ضایعات خط آسیاب', 'production', 'process', 'درصد', 'down', 3, 'manual', 'تولید',
     [4.6, 4.1, 3.8, 3.4, 3.1, 2.9]);
-  addInd(1003, 'ساعت توقف ناخواستهٔ خط', 'process', 'ساعت', 'down', 24, 'manual', 'کارخانه',
+  addInd(1003, 'ساعت توقف ناخواستهٔ خط', 'production', 'process', 'ساعت', 'down', 24, 'manual', 'کارخانه',
     [41, 33, 28, 26, 22, 25]);
-  addInd(1004, 'انطباق محموله با مشخصات API', 'customer', 'درصد', 'up', 98, 'manual', 'کنترل کیفیت',
+  addInd(1004, 'راندمان کلی تجهیزات (OEE)', 'production', 'process', 'درصد', 'up', 75, 'manual', 'کارخانه',
+    [62, 65, 68, 71, 73, 69]);
+  addInd(1005, 'انطباق محموله با مشخصات API', 'sales', 'customer', 'درصد', 'up', 98, 'manual', 'کنترل کیفیت',
     [96.5, 97.2, 98.1, 98.4, 97.9, 98.6]);
-  addInd(1005, 'ساعت کاری تأییدشدهٔ ماه', 'growth', 'ساعت', 'up', 600, 'auto:approved_hours', null, null);
-  addInd(1006, 'اقلام زیر نقطهٔ سفارش', 'process', 'قلم', 'down', 0, 'auto:stock_low', null, null);
+  addInd(1006, 'تحویل سروقت به مشتری', 'sales', 'customer', 'درصد', 'up', 95, 'manual', null,
+    [88, 91, 93, 90, 94, 92]);
+  addInd(1007, 'محمولهٔ برگشتی از مشتری', 'sales', 'customer', 'محموله', 'down', 0, 'manual', 'کنترل کیفیت',
+    [3, 2, 1, 2, 0, 1]);
+  addInd(1008, 'موجودی نقد پایان ماه', 'finance', 'financial', 'میلیون تومان', 'up', 5000,
+    'external:accounting', null, null);
+  addInd(1009, 'چک‌های سررسید ماه آینده', 'finance', 'financial', 'میلیون تومان', 'down', 3000,
+    'external:accounting', null, null);
+  addInd(1010, 'مطالبات وصول‌نشده', 'finance', 'financial', 'میلیون تومان', 'down', 2000,
+    'external:accounting', null, null);
+  addInd(1011, 'بهای تمام‌شدهٔ هر تن', 'finance', 'financial', 'هزار تومان', 'down', 4200,
+    'external:accounting', null, null);
+  addInd(1012, 'اقلام زیر نقطهٔ سفارش', 'stock', 'process', 'قلم', 'down', 0, 'auto:stock_low', null, null);
+  addInd(1013, 'ساعت کاری تأییدشدهٔ ماه', 'hr', 'growth', 'ساعت', 'up', 600, 'auto:approved_hours', null, null);
 
   return { company, units, users, boards, columns, labels, task_labels, tasks, checklist_items,
     task_links: [], time_logs, performance_scores, recurrences, notifications,
@@ -741,6 +755,18 @@ function userMonth(userId, jy, jm) {
 
 
 // ───────────── پایشگر شاخص‌ها (آینهٔ سرور) ─────────────
+const KPI_DOMAINS = {
+  production: 'تولید',
+  finance: 'مالی',
+  sales: 'فروش و مشتری',
+  stock: 'انبار و تدارکات',
+  hr: 'منابع انسانی',
+  quality: 'کیفیت',
+  other: 'سایر',
+};
+
+const KPI_EXTERNAL = { 'external:accounting': 'نرم‌افزار حسابداری' };
+
 const KPI_PERSPECTIVES = {
   financial: 'مالی',
   customer: 'مشتری و بازار',
@@ -843,12 +869,15 @@ function kpiPayload({ jy, jm }) {
     });
     const current = history[history.length - 1].value;
     const prev = [...history.slice(0, -1)].reverse().find((h) => h.value !== null);
+    const prevStatus = prev ? kpiStatus(ind, prev.value) : 'none';
     const un = db.units.find((x) => x.id === ind.unit_id);
     const ow = db.users.find((x) => x.id === ind.owner_id);
     const rec = auto ? null : (db.indicator_values || []).find(
       (x) => x.indicator_id === ind.id && x.j_year === jy && x.j_month === jm);
     return {
       id: ind.id, code: ind.code, name: ind.name,
+      domain: ind.domain || 'other',
+      domain_label: KPI_DOMAINS[ind.domain] || KPI_DOMAINS.other,
       perspective: ind.perspective,
       perspective_label: KPI_PERSPECTIVES[ind.perspective] || ind.perspective,
       unit_label: ind.unit_label || (auto ? auto.unit : null),
@@ -856,20 +885,30 @@ function kpiPayload({ jy, jm }) {
       target: ind.target === null || ind.target === undefined ? null : Number(ind.target),
       warn_pct: Number(ind.warn_pct) || 90,
       source: ind.source, auto: !!auto, auto_label: auto ? auto.label : null,
+      external: !!KPI_EXTERNAL[ind.source], external_label: KPI_EXTERNAL[ind.source] || null,
       unit_id: ind.unit_id, unit_name: un ? un.name : null,
       owner_id: ind.owner_id, owner_name: ow ? ow.full_name : null,
       position: ind.position,
-      value: current, previous: prev ? prev.value : null,
+      value: current, previous: prev ? prev.value : null, prev_status: prevStatus,
       note: rec ? rec.note : null,
       history, status: kpiStatus(ind, current),
     };
   });
   const tally = { ok: 0, warn: 0, danger: 0, none: 0 };
   out.forEach((i) => { tally[i.status] += 1; });
+  const byDomain = {};
+  for (const i of out) {
+    const dm = i.domain || 'other';
+    byDomain[dm] = byDomain[dm] || { ok: 0, warn: 0, danger: 0, none: 0, total: 0 };
+    byDomain[dm][i.status] += 1;
+    byDomain[dm].total += 1;
+  }
   return {
-    jy, jm, indicators: out, tally,
+    jy, jm, indicators: out, tally, by_domain: byDomain,
     perspectives: KPI_PERSPECTIVES,
+    domains: KPI_DOMAINS,
     sources: Object.entries(KPI_AUTO).map(([k, v]) => ({ key: k, label: v.label, unit: v.unit })),
+    external_sources: Object.entries(KPI_EXTERNAL).map(([k, v]) => ({ key: k, label: v })),
   };
 }
 
@@ -1244,15 +1283,18 @@ export const API = {
       const name = String(d.name || '').trim();
       if (name.length < 2) fail('نام شاخص را بنویسید');
       if (!KPI_PERSPECTIVES[d.perspective]) fail('منظر نامعتبر است');
+      const domain = String(d.domain || 'other');
+      if (!KPI_DOMAINS[domain]) fail('دامنه نامعتبر است');
       const source = String(d.source || 'manual');
-      if (source !== 'manual' && !KPI_AUTO[source]) fail('منبع شاخص نامعتبر است');
+      if (source !== 'manual' && !KPI_AUTO[source] && !KPI_EXTERNAL[source]) fail('منبع شاخص نامعتبر است');
       const target = d.target === '' || d.target === null || d.target === undefined
         ? null : Number(d.target);
       if (target !== null && !Number.isFinite(target)) fail('هدف باید عدد باشد');
       const warn = Number(d.warn_pct);
       const code = String(1001 + db.indicators.length);
       const ind = { id: uid(), company_id: 'c1', code, name,
-        perspective: d.perspective, unit_label: String(d.unit_label || '').trim() || null,
+        domain, perspective: d.perspective,
+        unit_label: String(d.unit_label || '').trim() || null,
         direction: d.direction === 'down' ? 'down' : 'up', target,
         warn_pct: Number.isFinite(warn) && warn > 0 && warn <= 100 ? warn : 90,
         source, unit_id: d.unit_id || null, owner_id: d.owner_id || null,
@@ -1269,6 +1311,10 @@ export const API = {
         const nm = String(d.name).trim();
         if (nm.length < 2) fail('نام شاخص را بنویسید');
         ind.name = nm;
+      }
+      if (d.domain !== undefined) {
+        if (!KPI_DOMAINS[d.domain]) fail('دامنه نامعتبر است');
+        ind.domain = d.domain;
       }
       if (d.perspective !== undefined) {
         if (!KPI_PERSPECTIVES[d.perspective]) fail('منظر نامعتبر است');
@@ -2274,6 +2320,12 @@ export const API = {
         open_tasks: open.length,
         overdue_tasks: open.filter((t) => t.due_date && t.due_date < today).length,
         unassigned_tasks: open.filter((t) => !t.assignee_id).length,
+        review_queue: open.filter((t) => {
+          const col = db.columns.find((c) => c.id === t.column_id);
+          return col && col.kind === 'review';
+        }).length,
+        draft_entries: allow(u, 'stock.view')
+          ? db.stock_entries.filter((e) => e.status === 'draft').length : 0,
         approved_hours: team.reduce((a, t) => a + t.approved_hours, 0),
         done_tasks: team.reduce((a, t) => a + t.done_tasks, 0),
         avg_score: scored.length ? Math.round((scored.reduce((a, b) => a + b, 0) / scored.length) * 10) / 10 : null,

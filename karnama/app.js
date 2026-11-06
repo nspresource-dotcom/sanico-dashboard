@@ -46,6 +46,7 @@ const state = {
   unread: 0,
   railOnly: (() => { try { return localStorage.getItem('karnama-rail') === '1'; } catch { return false; } })(),
   kpi: { data: null, filter: 'all' },
+  dash: { tab: 'today' },
   stock: {
     tab: 'onhand',
     setup: null,
@@ -854,7 +855,106 @@ function reviewView() {
 function dashboardView() {
   const s = state.stats;
   if (!s) return `<div class="card"><div class="empty">در حال بارگذاری…</div></div>`;
-  return s.team ? managerDashboard(s) : memberDashboard(s);
+  if (!s.team) return memberDashboard(s);
+  return `${dashTabs()}${dashBody(s)}`;
+}
+
+/** تب‌های داشبورد — همان‌طور که مدیرعامل فکر می‌کند: «تولید چطور بود؟»
+    نه «منظر فرایند داخلی چطور است». منظرها زیر پوست سیستم می‌مانند
+    برای وقتی که شاخص تعریف می‌شود. */
+function dashDomains() {
+  const d = state.kpi.data;
+  const names = d?.domains || {};
+  const counts = d?.by_domain || {};
+  // فقط دامنه‌هایی که شاخص دارند تب می‌گیرند — تب خالی بدتر از نبودن تب است
+  return Object.entries(names)
+    .filter(([key]) => counts[key]?.total)
+    .map(([key, label]) => ({ key, label, c: counts[key] }));
+}
+
+function dashTabs() {
+  const tabs = [{ key: 'today', label: 'وضعیت امروز', c: null }, ...(can('kpi.view') ? dashDomains() : [])];
+  if (tabs.length < 2) return '';
+  const cur = tabs.some((t) => t.key === state.dash.tab) ? state.dash.tab : 'today';
+  state.dash.tab = cur;
+  return `
+    <div class="seg dash-seg" style="margin-bottom:15px">
+      ${tabs.map((t) => {
+    if (!t.c) return `<button class="${cur === t.key ? 'active' : ''}" data-action="dash-tab" data-id="${t.key}">${esc(t.label)}</button>`;
+    // عدد روی تب باید یک حرف بزند: قرمز یعنی انحراف، کهربایی یعنی عدد
+    // ثبت نشده، خاکستری یعنی همه چیز سر جایش است. عددِ بی‌رنگ گمراه می‌کند.
+    const off = t.c.danger + t.c.warn;
+    const cls = off ? 'hot' : (t.c.none ? 'pale' : '');
+    const num = off || t.c.none || t.c.total;
+    return `<button class="${cur === t.key ? 'active' : ''}" data-action="dash-tab" data-id="${t.key}"
+      title="${esc(t.label)}: ${toFa(t.c.total)} شاخص، ${toFa(off)} با انحراف، ${toFa(t.c.none)} بدون عدد">
+        ${esc(t.label)}<i class="n ${cls}">${toFa(num)}</i>
+      </button>`;
+  }).join('')}
+    </div>`;
+}
+
+function dashBody(s) {
+  const tab = state.dash.tab;
+  if (tab === 'today' || !can('kpi.view')) return managerDashboard(s);
+  return domainTab(tab, s);
+}
+
+/** یک تب دامنه‌ای: اول انحراف‌هایش، بعد بقیه. همان قاعدهٔ صفحهٔ اول. */
+function domainTab(key, s) {
+  const d = state.kpi.data;
+  const label = d?.domains?.[key] || '';
+  const items = (d?.indicators || []).filter((i) => i.domain === key);
+  const off = items.filter((i) => i.status === 'danger' || i.status === 'warn');
+  const rest = items.filter((i) => i.status !== 'danger' && i.status !== 'warn');
+  const waiting = items.filter((i) => i.external && i.value === null);
+  return `
+    <div class="page-head">
+      <h2>${esc(label)}</h2>
+      <span class="count">${monthLabel(d.jy, d.jm)} · ${toFa(items.length)} شاخص</span>
+      <span class="spacer"></span>
+      ${can('kpi.manage') ? `<button class="btn new sm" data-action="kpi-new" data-id="${key}">+ شاخص ${esc(label)}</button>` : ''}
+    </div>
+
+    ${waiting.length ? `<div class="warn-card">
+      <b>⚠ ${toFa(waiting.length)} شاخص منتظر اتصال به ${esc(waiting[0].external_label)} است</b>
+      <p>تا وصل نشده، عددشان را می‌شود دستی وارد کرد.</p>
+    </div>` : ''}
+
+    ${off.length ? `
+      <div class="card">
+        <header><h3>از هدف دور است — ${toFa(off.length)} شاخص</h3></header>
+        <div class="kpi-grid">${off.map(kpiCard).join('')}</div>
+      </div>` : `
+      <div class="card"><div class="empty"><p>${items.every((i) => i.value === null)
+    ? `هنوز عددی برای شاخص‌های ${esc(label)} ثبت نشده، پس انحرافی هم سنجیده نشده.`
+    : `در ${esc(label)} انحرافی نیست.`}</p></div></div>`}
+
+    ${rest.length ? `
+      <div class="card">
+        <header><h3>بقیهٔ شاخص‌ها</h3><div class="spacer"></div>
+          <small class="faint">${toFa(rest.length)} شاخص</small></header>
+        <div class="kpi-grid">${rest.map(kpiCard).join('')}</div>
+      </div>` : ''}
+
+    ${key === 'stock' ? stockPeek() : ''}`;
+}
+
+/** تب انبار یک چیز بیشتر از شاخص دارد: کالاهایی که واقعاً کم آورده‌اند. */
+function stockPeek() {
+  const low = state.stock.low || [];
+  if (!can('stock.view')) return '';
+  return `
+    <div class="card">
+      <header><h3>اقلام زیر نقطهٔ سفارش</h3><div class="spacer"></div>
+        <button class="btn ghost sm" data-nav="stock">رفتن به انبار</button></header>
+      ${low.length ? `<ul class="peek-list">${low.map((l) => `<li>
+        <b>${esc(l.name)}</b>
+        <span class="spacer"></span>
+        <span class="sdot danger">${qtyText(l.qty)} از ${qtyText(l.reorder_level)}</span>
+      </li>`).join('')}</ul>`
+    : '<div class="empty"><p>همهٔ اقلام بالای نقطهٔ سفارش‌اند.</p></div>'}
+    </div>`;
 }
 
 function memberDashboard(s) {
@@ -918,9 +1018,11 @@ function memberDashboard(s) {
 }
 
 function managerDashboard(s) {
-  const strip = can('kpi.view') ? kpiStrip() : '';
+  const strip = `${decisionsCard(s)}${changedCard()}${can('kpi.view') ? kpiStrip() : ''}`;
   const c = s.company;
   return `
+    ${strip}
+
     <div class="stat-grid">
       <div class="stat c4">
         <div class="stat-head"><span class="stat-ic">☷</span>
@@ -947,8 +1049,6 @@ function managerDashboard(s) {
         <div class="foot">${fh(c.approved_hours)} ساعت تأییدشده در این ماه</div>
       </div>
     </div>
-
-    ${strip}
 
     <div class="card">
       <header>
@@ -1000,6 +1100,71 @@ function managerDashboard(s) {
 
 /** نوار پایشگر روی داشبورد — فقط انحراف‌ها، نه فهرست کامل.
     کسی که صفحهٔ اول را باز می‌کند باید در سه ثانیه بداند کجا می‌لنگد. */
+
+/** تصمیم‌هایی که روی میز خودِ مدیرعامل مانده‌اند.
+    فرق دارد با آمار سازمان: اینجا فقط چیزهایی می‌آید که تا او کاری
+    نکند، معطل می‌مانند. اگر هیچ‌کدام نباشد، کارت اصلاً رسم نمی‌شود. */
+function decisionsCard(s) {
+  const c = s.company || {};
+  const rows = [
+    { n: c.pending_logs, label: 'ساعت کاری در انتظار تأیید شما', nav: 'approvals',
+      need: 'time.approve', sub: c.pending_hours ? `${fh(c.pending_hours)} ساعت` : '' },
+    { n: c.review_queue, label: 'کار در ستون بررسی', nav: 'review', need: 'review.do' },
+    { n: c.unassigned_tasks, label: 'کار بدون مسئول', nav: 'board', need: 'tasks.view_all' },
+    { n: c.draft_entries, label: 'سند انبار پیش‌نویس و قطعی‌نشده', nav: 'stock', need: 'stock.view' },
+  ].filter((r) => r.n && can(r.need));
+  if (!rows.length) {
+    return `<div class="card"><div class="empty">
+      <p>هیچ تصمیمی منتظر شما نیست.</p></div></div>`;
+  }
+  return `
+    <div class="card">
+      <header><h3>منتظر تصمیم شما</h3></header>
+      <ul class="peek-list">
+        ${rows.map((r) => `<li>
+          <span class="dnum">${toFa(r.n)}</span>
+          <b>${esc(r.label)}</b>
+          ${r.sub ? `<small class="faint">${r.sub}</small>` : ''}
+          <span class="spacer"></span>
+          <button class="btn ghost sm" data-nav="${r.nav}">رسیدگی</button>
+        </li>`).join('')}
+      </ul>
+    </div>`;
+}
+
+/** چه چیزی از ماه قبل عوض شده — نه کل وضعیت، فقط تغییرِ وضعیت.
+    شاخصی که ماه پیش سبز بود و حالا قرمز است خبر است؛ شاخصی که
+    دو ماه است قرمز مانده، خبر نیست و جایش در فهرست انحراف‌هاست. */
+function changedCard() {
+  const d = state.kpi.data;
+  if (!d?.indicators?.length) return '';
+  const rank = { ok: 0, warn: 1, danger: 2 };
+  const moved = d.indicators.filter((i) => {
+    if (i.status === 'none' || i.prev_status === 'none') return false;
+    return i.status !== i.prev_status;
+  });
+  if (!moved.length) return '';
+  const worse = moved.filter((i) => rank[i.status] > rank[i.prev_status]);
+  const better = moved.filter((i) => rank[i.status] < rank[i.prev_status]);
+  const line = (i, dir) => `<li>
+    <span class="arrow ${dir}">${dir === 'worse' ? '▼' : '▲'}</span>
+    <b>${esc(i.name)}</b>
+    <small class="faint">${esc(i.domain_label)}${i.unit_name ? ` · ${esc(i.unit_name)}` : ''}</small>
+    <span class="spacer"></span>
+    <span class="sdot ${i.status === 'ok' ? 'ok' : i.status === 'warn' ? 'warn' : 'danger'}">
+      ${kpiNum(i.value, i.unit_label)}</span>
+  </li>`;
+  return `
+    <div class="card">
+      <header><h3>نسبت به ماه قبل چه عوض شده</h3><div class="spacer"></div>
+        <small class="faint">${toFa(moved.length)} شاخص جابه‌جا شد</small></header>
+      <ul class="peek-list">
+        ${worse.map((i) => line(i, 'worse')).join('')}
+        ${better.map((i) => line(i, 'better')).join('')}
+      </ul>
+    </div>`;
+}
+
 function kpiStrip() {
   const d = state.kpi.data;
   if (!d || !d.indicators?.length) return '';
@@ -2368,6 +2533,7 @@ function kpiCard(ind) {
       <div class="kpi-top">
         <span class="sdot ${st.cls}">${st.label}</span>
         ${ind.auto ? '<span class="kpi-auto" title="کارنما خودش حساب می‌کند">خودکار</span>' : ''}
+        ${ind.external ? `<span class="kpi-auto wait" title="از ${esc(ind.external_label)} خواهد آمد">منتظر اتصال</span>` : ''}
       </div>
       <b class="kpi-name">${esc(ind.name)}</b>
       <div class="kpi-val">${kpiNum(ind.value, ind.unit_label)}${kpiDelta(ind)}</div>
@@ -2469,11 +2635,14 @@ function kpiValueModal(id) {
     </form>`);
 }
 
-function kpiEditModal(id) {
+function kpiEditModal(id, presetDomain = null) {
   const ind = id ? kpiFind(id) : null;
   const d = state.kpi.data || {};
   const persp = d.perspectives || {};
+  const doms = d.domains || {};
   const sources = d.sources || [];
+  const externals = d.external_sources || [];
+  const dom = ind?.domain || presetDomain || (state.dash.tab !== 'today' ? state.dash.tab : 'production');
   const units = state.units || [];
   openModal(ind ? `ویرایش شاخص — ${esc(ind.name)}` : 'شاخص تازه', `
     <form data-form="kpi-edit" ${ind ? `data-id="${ind.id}"` : ''}>
@@ -2481,11 +2650,18 @@ function kpiEditModal(id) {
         <input class="input" name="name" required value="${esc(ind?.name || '')}"
                placeholder="مثلاً تناژ تولید ماهانه"></label>
       <div class="row2">
-        <label class="field"><span>منظر</span>
+        <label class="field"><span>تب داشبورد</span>
+          <select class="select" name="domain">
+            ${Object.entries(doms).map(([k, v]) => `<option value="${k}"
+              ${dom === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}
+          </select></label>
+        <label class="field"><span>منظر (کارت امتیازی متوازن)</span>
           <select class="select" name="perspective">
             ${Object.entries(persp).map(([k, v]) => `<option value="${k}"
               ${ind?.perspective === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}
           </select></label>
+      </div>
+      <div class="row2">
         <label class="field"><span>واحد سنجش</span>
           <input class="input" name="unit_label" value="${esc(ind?.unit_label || '')}"
                  placeholder="تن · درصد · ساعت"></label>
@@ -2516,10 +2692,12 @@ function kpiEditModal(id) {
         <select class="select" name="source">
           <option value="manual">دستی — هر ماه کسی عدد را وارد می‌کند</option>
           ${sources.map((sc) => `<option value="${sc.key}">${esc(sc.label)} (خودکار)</option>`).join('')}
+          ${externals.map((ex) => `<option value="${ex.key}">از ${esc(ex.label)} (هنوز وصل نشده)</option>`).join('')}
         </select></label>
       <p class="faint" style="margin:-4px 0 12px;font-size:11.5px">
         شاخص خودکار را کارنما از دادهٔ خودش حساب می‌کند و دستی ثبت نمی‌شود.
-        منبع بعد از ساخت تغییر نمی‌کند.</p>`}
+        منبع بعد از ساخت تغییر نمی‌کند. شاخصی که منبعش سامانهٔ بیرونی است،
+        تا روز اتصال دستی هم پر می‌شود.</p>`}
       <div style="display:flex;gap:8px;align-items:center">
         <button type="submit" class="btn">${ind ? 'ذخیره' : 'بساز'}</button>
         ${ind && can('kpi.manage')
@@ -3884,7 +4062,11 @@ document.addEventListener('click', async (e) => {
       break;
     }
     case 'stock-card': await stockCardModal(id); break;
-    case 'kpi-new': kpiEditModal(); break;
+    case 'dash-tab':
+      state.dash.tab = id;
+      render();
+      break;
+    case 'kpi-new': kpiEditModal(null, id || null); break;
     case 'kpi-edit': kpiEditModal(id); break;
     case 'kpi-value': kpiValueModal(id); break;
     case 'kpi-remove': {
@@ -4225,6 +4407,7 @@ document.addEventListener('submit', async (e) => {
       const rid = form.dataset.id;
       const payload = {
         name: fd.name,
+        domain: fd.domain,
         perspective: fd.perspective,
         unit_label: fd.unit_label || '',
         target: fd.target === '' ? null : fd.target,
