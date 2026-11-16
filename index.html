@@ -204,6 +204,8 @@ body.rial td.num{font-size:.78rem}
   direction:ltr;text-align:right}
 .mbx .mun{font-size:.67rem;color:var(--muted);margin-top:auto}
 .mbx .msf{font-size:.67rem;color:var(--amber);font-weight:600}
+.mbx.all{background:var(--mint-s2)}
+.mbx.all .mnm{color:var(--deep)}
 .mbx.od{background:var(--rose-s)} .mbx.od .mvl{color:var(--rose)}
 .mbx.od:hover{background:var(--rose-s)}
 .mbx.cur{border-color:var(--mint)}
@@ -606,7 +608,7 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۴۴";
+var BUILD = "۴۵";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -1423,44 +1425,65 @@ async function widget(w,pre){
    ریز سطرهای هر ماه همراه خودِ همین داده می‌آید (ستون items در ویو)،
    پس کلیک روی یک ماه هیچ درخواست تازه‌ای به سرور نمی‌زند و فوری باز می‌شود. */
 function monthbox(w,c,rows){
-  var tot=rows.reduce(function(a,r){ return a+Number(r[c.value]||0); },0);
-  var cnt=rows.reduce(function(a,r){ return a+Number(r[c.count]||0); },0);
+  var tot=0, cnt=0, soft=0, all=[];
+  rows.forEach(function(r){
+    tot  += Number(r[c.value]||0);
+    cnt  += Number(r[c.count]||0);
+    soft += Number(r.soft_rial||0);
+    all   = all.concat(r[c.items]||[]);
+  });
+  /* فهرست کل به ترتیب سررسید، نه به ترتیب ماه‌به‌ماه */
+  all.sort(function(a,b){
+    return String(a.due_jalali||"9999").localeCompare(String(b.due_jalali||"9999")); });
+
+  /* باکس «همه» در کنار ماه‌ها می‌نشیند و دقیقاً مثل آن‌ها باز و بسته می‌شود */
+  var cards=[];
+  if(c.allbox!==false)
+    cards.push({ lab:(c.alllabel||"همهٔ تعهدات باز"), n:cnt, v:tot, soft:soft,
+                 items:all, cls:" all", search:true });
+  rows.forEach(function(r){
+    cards.push({ lab:faD(r[c.label]), n:Number(r[c.count]||0), v:Number(r[c.value]||0),
+                 soft:Number(r.soft_rial||0), items:r[c.items]||[],
+                 cls:(r.is_overdue?" od":(r.is_current?" cur":"")) });
+  });
+
   var uid="mb"+String(w.id||"x").replace(/[^a-zA-Z0-9]/g,"").slice(0,10);
 
   var h='<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>'+
         esc(w.title)+'</h3><p class="hint">جمع '+bn(tot)+' '+unitLabel()+' در '+
         fa(rows.length)+' ماه ('+fa(cnt)+' تعهد باز)'+
-        ' — روی هر ماه بزنید تا ریز تعهدهایش باز شود</p></div></div><div class="mgrid">';
+        ' — روی هر باکس بزنید تا ریز آن پایینش باز شود</p></div></div><div class="mgrid">';
 
-  rows.forEach(function(r,i){
-    var v=Number(r[c.value]||0), soft=Number(r.soft_rial||0);
-    h+='<button class="mbx'+(r.is_overdue?" od":(r.is_current?" cur":""))+'" '+
-       'data-mbox="'+uid+'" data-mi="'+i+'">'+
-       '<span class="mtop"><span class="mnm">'+esc(faD(r[c.label]))+'</span>'+
-       '<span class="mct">'+fa(r[c.count]||0)+'</span></span>'+
-       '<span class="mvl">'+bn(v)+'</span>'+
+  cards.forEach(function(k,i){
+    h+='<button class="mbx'+k.cls+'" data-mbox="'+uid+'" data-mi="'+i+'">'+
+       '<span class="mtop"><span class="mnm">'+esc(k.lab)+'</span>'+
+       '<span class="mct">'+fa(k.n)+'</span></span>'+
+       '<span class="mvl">'+bn(k.v)+'</span>'+
        '<span class="mun">'+unitLabel()+'</span>'+
-       (soft>0?'<span class="msf">شامل '+bn(soft)+' محتمل</span>':"")+
+       (k.soft>0?'<span class="msf">شامل '+bn(k.soft)+' محتمل</span>':"")+
        '</button>';
   });
   h+='</div>';
 
-  rows.forEach(function(r,i){
+  cards.forEach(function(k,i){
     h+='<div class="mdet" id="'+uid+'-'+i+'" style="display:none"><div class="mdh">'+
-       esc(faD(r[c.label]))+'<span class="sm">'+fa(r[c.count]||0)+' تعهد — جمع '+
-       bn(Number(r[c.value]||0))+' '+unitLabel()+'</span></div>'+
-       monthRows(c.columns||[], r[c.items]||[])+'</div>';
+       esc(k.lab)+'<span class="sm">'+fa(k.n)+' تعهد — جمع '+
+       bn(k.v)+' '+unitLabel()+'</span></div>'+
+       monthRows(c.columns||[], k.items, k.search)+'</div>';
   });
   return h+'</div>';
 }
 
-function monthRows(cols,items){
+function monthRows(cols,items,search){
   if(!items.length) return '<p class="hint" style="margin:0">ردیفی ثبت نشده است.</p>';
-  var h='<div class="scroll"><table><thead><tr>';
+  var h=search?'<input id="srch" class="srch" '+
+        'placeholder="جست‌وجو در شرح، دسته یا طرف حساب…">':"";
+  h+='<div class="scroll"><table><thead><tr>';
   cols.forEach(function(x){ h+='<th class="'+(x.n?"num":(x.pill?"mid":""))+'">'+esc(x.t)+'</th>'; });
-  h+='</tr></thead><tbody>';
+  h+='</tr></thead><tbody'+(search?' id="rowsbody"':"")+'>';
   items.forEach(function(r){
-    h+='<tr>';
+    var k=((r.description||"")+" "+(r.category||"")+" "+(r.counterparty||"")).toLowerCase();
+    h+='<tr data-k="'+esc(k)+'">';
     cols.forEach(function(x){
       var v=r[x.k];
       if(x.n) h+='<td class="num'+(Number(v)<0?" neg":"")+'">'+bn(v)+'</td>';
