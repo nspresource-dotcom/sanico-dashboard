@@ -618,7 +618,7 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۴۶";
+var BUILD = "۴۷";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -1490,7 +1490,7 @@ function monthbox(w,c,rows){
        esc(k.lab)+'<span class="sm">'+fa(k.n)+' تعهد — جمع '+
        bn(k.v)+' '+unitLabel()+'</span></div>'+
        cashLine(k)+
-       monthRows(c.columns||[], k.items, k.search)+'</div>';
+       monthRows(c.itemcols||c.columns||[], k.items, k.search)+'</div>';
   });
   return h+'</div>';
 }
