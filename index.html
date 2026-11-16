@@ -208,6 +208,7 @@ body.rial td.num{font-size:.78rem}
 .mbx .msh{font-size:.69rem;color:var(--rose);font-weight:800}
 .mbx .msp{font-size:.69rem;color:var(--blue);font-weight:800}
 .mbx.sh{border-color:var(--rose)}
+.mbx .mnt{font-size:.67rem;color:var(--muted);line-height:1.5}
 .mbx.ph{background:transparent;border:1px dashed var(--line)}
 .mbx.ph:hover{background:var(--grey-s)}
 .mbx .mvl.ph{color:var(--muted)}
@@ -623,7 +624,7 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۴۹";
+var BUILD = "۵۰";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -1498,6 +1499,7 @@ function monthbox(w,c,rows){
     cards.push({ lab:faD(r[c.label]), n:Number(r[c.count]||0), v:Number(r[c.value]||0),
                  soft:Number(r.soft_rial||0), items:r[c.items]||[],
                  ph:!!r.is_placeholder, note:r.note||"", note2:r.items_note||"",
+                 off:Number(r.offset_rial||0),
                  sh:sh,  shLab:"کسری",
                  /* مازاد: چیزی که بعد از پرداخت تعهدات آن ماه باقی می‌ماند */
                  sp:hasCash?Math.max(0,close):0, spLab:"مازاد",
@@ -1523,7 +1525,10 @@ function monthbox(w,c,rows){
        (k.ph ? '<span class="mvl ph">—</span>'+
                '<span class="mun">'+esc(k.note)+'</span>'
              : '<span class="mvl">'+bn(k.v)+'</span>'+
-               '<span class="mun">'+unitLabel()+'</span>')+
+               '<span class="mun">'+unitLabel()+'</span>'+
+               (k.off>0?'<span class="mnt">پس از تهاتر '+bn(k.off)+
+                        ' ارزش افزودهٔ فروش</span>':"")+
+               (k.note?'<span class="mnt">'+esc(faD(k.note))+'</span>':""))+
        (k.soft>0?'<span class="msf">شامل '+bn(k.soft)+' محتمل</span>':"")+
        (k.sh>0?'<span class="msh">'+k.shLab+' '+bn(k.sh)+'</span>':"")+
        (k.sp>0?'<span class="msp">'+k.spLab+' '+bn(k.sp)+'</span>':"")+
