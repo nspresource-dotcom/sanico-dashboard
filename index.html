@@ -208,6 +208,9 @@ body.rial td.num{font-size:.78rem}
 .mbx .msh{font-size:.69rem;color:var(--rose);font-weight:800}
 .mbx .msp{font-size:.69rem;color:var(--blue);font-weight:800}
 .mbx.sh{border-color:var(--rose)}
+.mbx.ph{background:transparent;border:1px dashed var(--line)}
+.mbx.ph:hover{background:var(--grey-s)}
+.mbx .mvl.ph{color:var(--muted)}
 .mbx.all{background:var(--mint-s2)}
 .mbx.all .mnm{color:var(--deep)}
 .mcash{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:13px}
@@ -620,7 +623,7 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۴۸";
+var BUILD = "۴۹";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -1017,6 +1020,10 @@ document.addEventListener("click", function(ev){
   if(f){ ev.preventDefault(); ev.stopPropagation();
     var p=f.getAttribute("data-full").split("|");
     fullList(p[0],p[1],p[2],p[3]); return; }
+  var bx = ev.target.closest && ev.target.closest("[data-boxes]");
+  if(bx){ ev.preventDefault(); ev.stopPropagation();
+    var g=bx.getAttribute("data-boxes").split("|");
+    boxList(g[0],g[1]); return; }
   var rw = ev.target.closest && ev.target.closest("[data-rows]");
   if(rw){ ev.preventDefault(); ev.stopPropagation();
     var q=rw.getAttribute("data-rows").split("|");
@@ -1090,6 +1097,28 @@ function rowsTable(kind,rows,sumKey){
 }
 
 /* صفحهٔ کامل ردیف‌های واقعی — با فیلتر اختیاری */
+/* ---------- باز کردن یک کارت صفحه اصلی به شکل باکس‌های تفکیک‌شده ----------
+   همان رندر باکس‌های ماهانه است؛ ویو باید box_name / line_count / total_rial
+   و ستون items را بدهد. */
+async function boxList(view,title){
+  $("ptl").textContent=title||"جزئیات"; $("psb").textContent="به تفکیک";
+  showCrumb();
+  $("body").innerHTML='<div class="spin">در حال خواندن…</div>';
+  window.scrollTo(0,0);
+  var r=await db.from(view).select("*").order("box_code",{ascending:true});
+  if(r.error){ $("body").innerHTML='<div class="card"><p class="hint" style="margin:0">'+
+    esc("خواندن داده ممکن نشد: "+r.error.message)+'</p></div>'; return; }
+  var rows=r.data||[];
+  if(!rows.length){ $("body").innerHTML='<div class="card"><p class="hint" style="margin:0">'+
+    'ردیفی برای نمایش نیست.</p></div>'; return; }
+  var cfg={ label:"box_name", value:"total_rial", count:"line_count", items:"items",
+            allbox:false, groupword:"بخش", unitword:"ردیف",
+            itemcols:[{k:"period",t:"دوره"},{k:"description",t:"شرح"},
+                      {k:"subcategory",t:"زیردسته"},{k:"counterparty",t:"طرف حساب"},
+                      {k:"total_rial",t:"مبلغ",n:1}] };
+  $("body").innerHTML = monthbox({id:"bx-"+view, title:title||"جزئیات"}, cfg, rows);
+}
+
 async function detailList(view,col,val,title){
   $("ptl").textContent=title; $("psb").textContent="ردیف به ردیف";
   showCrumb();
@@ -1274,8 +1303,9 @@ function kpiCard(w){
                ' − ورودی قطعی '+bn(ctx.inflow_certain)+' − موجودی '+bn(ctx.cash);
   }
   /* اگر کارت ردیف‌های خودش را دارد، مستقیم همان‌ها باز می‌شود */
-  var open = c.rows ? ' data-rows="'+esc(c.rows)+'"'
-                    : ' data-go="'+esc(c.link||"home")+'"';
+  var open = c.boxes ? ' data-boxes="'+esc(c.boxes)+'"'
+           : c.rows  ? ' data-rows="'+esc(c.rows)+'"'
+                     : ' data-go="'+esc(c.link||"home")+'"';
   return '<button class="kpi '+cls+'"'+open+'>'+
     '<div class="bd">'+
       '<div class="hd"><span class="lab">'+esc(w.title)+
@@ -1287,7 +1317,7 @@ function kpiCard(w){
       '<div class="val">'+shown+'<span class="unit">'+esc(c.unit?unitLabel():"")+'</span>'+delta.tag+'</div>'+
     '</div>'+
     '<div class="ft"><span>'+delta.note+'</span>'+
-      ((c.link||c.rows)?'<span class="go">جزئیات ←</span>':'<span></span>')+'</div>'+
+      ((c.link||c.rows||c.boxes)?'<span class="go">جزئیات ←</span>':'<span></span>')+'</div>'+
     '</button>';
 }
 
@@ -1464,29 +1494,36 @@ function monthbox(w,c,rows){
   }
   rows.forEach(function(r){
     var sh=Number(r.shortfall_rial||0), close=Number(r.close_rial||0);
+    var hasCash = r.open_rial!==undefined && r.open_rial!==null;
     cards.push({ lab:faD(r[c.label]), n:Number(r[c.count]||0), v:Number(r[c.value]||0),
                  soft:Number(r.soft_rial||0), items:r[c.items]||[],
+                 ph:!!r.is_placeholder, note:r.note||"", note2:r.items_note||"",
                  sh:sh,  shLab:"کسری",
                  /* مازاد: چیزی که بعد از پرداخت تعهدات آن ماه باقی می‌ماند */
-                 sp:Math.max(0,close), spLab:"مازاد",
-                 open:Number(r.open_rial||0), inflow:Number(r.inflow_rial||0),
-                 close:close,
-                 cls:(sh>0?" sh":"")+(r.is_overdue?" od":(r.is_current?" cur":"")) });
+                 sp:hasCash?Math.max(0,close):0, spLab:"مازاد",
+                 open:hasCash?Number(r.open_rial):undefined,
+                 inflow:Number(r.inflow_rial||0), close:close,
+                 cls:(r.is_placeholder?" ph":"")+(sh>0?" sh":"")+
+                     (r.is_overdue?" od":(r.is_current?" cur":"")) });
   });
 
   var uid="mb"+String(w.id||"x").replace(/[^a-zA-Z0-9]/g,"").slice(0,10);
+  var gw=c.groupword||"ماه", iw=c.unitword||"تعهد باز";
 
   var h='<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>'+
         esc(w.title)+'</h3><p class="hint">جمع '+bn(tot)+' '+unitLabel()+' در '+
-        fa(rows.length)+' ماه ('+fa(cnt)+' تعهد باز)'+
+        fa(rows.length)+' '+esc(gw)+' ('+fa(cnt)+' '+esc(iw)+')'+
         ' — روی هر باکس بزنید تا ریز آن پایینش باز شود</p></div></div><div class="mgrid">';
 
   cards.forEach(function(k,i){
     h+='<button class="mbx'+k.cls+'" data-mbox="'+uid+'" data-mi="'+i+'">'+
        '<span class="mtop"><span class="mnm">'+esc(k.lab)+'</span>'+
-       '<span class="mct">'+fa(k.n)+'</span></span>'+
-       '<span class="mvl">'+bn(k.v)+'</span>'+
-       '<span class="mun">'+unitLabel()+'</span>'+
+       (k.ph?"":'<span class="mct">'+fa(k.n)+'</span>')+'</span>'+
+       /* باکس رزروشده: عدد عمداً خالی است تا بعداً از شیت خودش پر شود */
+       (k.ph ? '<span class="mvl ph">—</span>'+
+               '<span class="mun">'+esc(k.note)+'</span>'
+             : '<span class="mvl">'+bn(k.v)+'</span>'+
+               '<span class="mun">'+unitLabel()+'</span>')+
        (k.soft>0?'<span class="msf">شامل '+bn(k.soft)+' محتمل</span>':"")+
        (k.sh>0?'<span class="msh">'+k.shLab+' '+bn(k.sh)+'</span>':"")+
        (k.sp>0?'<span class="msp">'+k.spLab+' '+bn(k.sp)+'</span>':"")+
@@ -1496,8 +1533,10 @@ function monthbox(w,c,rows){
 
   cards.forEach(function(k,i){
     h+='<div class="mdet" id="'+uid+'-'+i+'" style="display:none"><div class="mdh">'+
-       esc(k.lab)+'<span class="sm">'+fa(k.n)+' تعهد — جمع '+
-       bn(k.v)+' '+unitLabel()+'</span></div>'+
+       esc(k.lab)+'<span class="sm">'+
+       (k.ph ? esc(k.note2||k.note)
+             : fa(k.n)+' '+esc(iw)+' — جمع '+bn(k.v)+' '+unitLabel())+
+       '</span></div>'+
        cashLine(k)+
        monthRows(c.itemcols||c.columns||[], k.items, k.search)+'</div>';
   });
