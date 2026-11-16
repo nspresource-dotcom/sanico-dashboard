@@ -28,6 +28,7 @@
   --mint:#54cf96; --mint2:#86e0b7; --mint-s:#e7f5ec; --mint-s2:#d5ecdf;
   --amber:#b4791f; --amber-s:#fbf0da; --rose:#c43a3f; --rose-s:#fbe6e6;
   --grey-s:#eef1ef;
+  --blue:#2563a8; --blue-s:#e6eef9;
   --r:18px; --r-sm:12px;
   --sh:0 1px 2px rgba(22,48,42,.04), 0 10px 26px rgba(22,48,42,.05);
 }
@@ -37,7 +38,7 @@
   --deep:#3fae86; --deep2:#58c79c;
   --mint:#54cf96; --mint2:#2f8f68; --mint-s:#17291f; --mint-s2:#1d3528;
   --amber:#e0a954; --amber-s:#2c2415; --rose:#e87b7f; --rose-s:#2d1a1b;
-  --grey-s:#1a2621; --sh:none;
+  --grey-s:#1a2621; --blue:#6aa9e4; --blue-s:#132234; --sh:none;
 }}
 :root[data-theme="dark"]{
   --canvas:#0d1411; --card:#141d19; --rail:#111a16;
@@ -45,7 +46,7 @@
   --deep:#3fae86; --deep2:#58c79c;
   --mint:#54cf96; --mint2:#2f8f68; --mint-s:#17291f; --mint-s2:#1d3528;
   --amber:#e0a954; --amber-s:#2c2415; --rose:#e87b7f; --rose-s:#2d1a1b;
-  --grey-s:#1a2621; --sh:none;
+  --grey-s:#1a2621; --blue:#6aa9e4; --blue-s:#132234; --sh:none;
 }
 *,*::before,*::after{box-sizing:inherit}
 html,body{margin:0;padding:0}
@@ -205,6 +206,7 @@ body.rial td.num{font-size:.78rem}
 .mbx .mun{font-size:.67rem;color:var(--muted)}
 .mbx .msf{font-size:.67rem;color:var(--amber);font-weight:600}
 .mbx .msh{font-size:.69rem;color:var(--rose);font-weight:800}
+.mbx .msp{font-size:.69rem;color:var(--blue);font-weight:800}
 .mbx.sh{border-color:var(--rose)}
 .mbx.all{background:var(--mint-s2)}
 .mbx.all .mnm{color:var(--deep)}
@@ -213,7 +215,7 @@ body.rial td.num{font-size:.78rem}
   font-size:.75rem;font-weight:700;direction:ltr;text-align:right;
   display:flex;flex-direction:column;gap:2px;min-width:92px}
 .mcash i{font-style:normal;font-size:.66rem;font-weight:500;color:var(--muted);direction:rtl}
-.mcash .eq{background:var(--mint-s);color:var(--deep)}
+.mcash .eq{background:var(--blue-s);color:var(--blue)}
 .mcash .eq.bad{background:var(--rose-s);color:var(--rose)}
 .mcash .shb{background:var(--rose-s);color:var(--rose)}
 .mbx.od{background:var(--rose-s)} .mbx.od .mvl{color:var(--rose)}
@@ -618,7 +620,7 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۴۷";
+var BUILD = "۴۸";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -1451,18 +1453,24 @@ function monthbox(w,c,rows){
   /* باکس «همه» در کنار ماه‌ها می‌نشیند و دقیقاً مثل آن‌ها باز و بسته می‌شود */
   var cards=[];
   if(c.allbox!==false)
+  {
+    var lastClose = rows.length ? Number(rows[rows.length-1].close_rial||0) : 0;
     cards.push({ lab:(c.alllabel||"همهٔ تعهدات باز"), n:cnt, v:tot, soft:soft,
-                 items:all, cls:" all", search:true, sh:peak, shLab:"حداکثر کسری",
+                 items:all, cls:" all", search:true,
+                 sh:peak, shLab:"حداکثر کسری",
+                 sp:(peak>0?0:Math.max(0,lastClose)), spLab:"مازاد پایان دوره",
                  open:(rows.length?Number(rows[0].open_rial||0):0),
-                 inflow:inflow,
-                 close:(rows.length?Number(rows[rows.length-1].close_rial||0):0) });
+                 inflow:inflow, close:lastClose });
+  }
   rows.forEach(function(r){
-    var sh=Number(r.shortfall_rial||0);
+    var sh=Number(r.shortfall_rial||0), close=Number(r.close_rial||0);
     cards.push({ lab:faD(r[c.label]), n:Number(r[c.count]||0), v:Number(r[c.value]||0),
                  soft:Number(r.soft_rial||0), items:r[c.items]||[],
-                 sh:sh, shLab:"کسری",
+                 sh:sh,  shLab:"کسری",
+                 /* مازاد: چیزی که بعد از پرداخت تعهدات آن ماه باقی می‌ماند */
+                 sp:Math.max(0,close), spLab:"مازاد",
                  open:Number(r.open_rial||0), inflow:Number(r.inflow_rial||0),
-                 close:Number(r.close_rial||0),
+                 close:close,
                  cls:(sh>0?" sh":"")+(r.is_overdue?" od":(r.is_current?" cur":"")) });
   });
 
@@ -1481,6 +1489,7 @@ function monthbox(w,c,rows){
        '<span class="mun">'+unitLabel()+'</span>'+
        (k.soft>0?'<span class="msf">شامل '+bn(k.soft)+' محتمل</span>':"")+
        (k.sh>0?'<span class="msh">'+k.shLab+' '+bn(k.sh)+'</span>':"")+
+       (k.sp>0?'<span class="msp">'+k.spLab+' '+bn(k.sp)+'</span>':"")+
        '</button>';
   });
   h+='</div>';
