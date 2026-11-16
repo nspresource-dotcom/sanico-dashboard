@@ -202,10 +202,20 @@ body.rial td.num{font-size:.78rem}
   background:var(--card);color:var(--muted);flex:0 0 auto}
 .mbx .mvl{font-size:1.18rem;font-weight:800;letter-spacing:-.03em;color:var(--deep);
   direction:ltr;text-align:right}
-.mbx .mun{font-size:.67rem;color:var(--muted);margin-top:auto}
+.mbx .mun{font-size:.67rem;color:var(--muted)}
 .mbx .msf{font-size:.67rem;color:var(--amber);font-weight:600}
+.mbx .msh{font-size:.69rem;color:var(--rose);font-weight:800}
+.mbx.sh{border-color:var(--rose)}
 .mbx.all{background:var(--mint-s2)}
 .mbx.all .mnm{color:var(--deep)}
+.mcash{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:13px}
+.mcash span{background:var(--grey-s);border-radius:11px;padding:7px 11px;
+  font-size:.75rem;font-weight:700;direction:ltr;text-align:right;
+  display:flex;flex-direction:column;gap:2px;min-width:92px}
+.mcash i{font-style:normal;font-size:.66rem;font-weight:500;color:var(--muted);direction:rtl}
+.mcash .eq{background:var(--mint-s);color:var(--deep)}
+.mcash .eq.bad{background:var(--rose-s);color:var(--rose)}
+.mcash .shb{background:var(--rose-s);color:var(--rose)}
 .mbx.od{background:var(--rose-s)} .mbx.od .mvl{color:var(--rose)}
 .mbx.od:hover{background:var(--rose-s)}
 .mbx.cur{border-color:var(--mint)}
@@ -608,7 +618,7 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۴۵";
+var BUILD = "۴۶";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -1425,12 +1435,14 @@ async function widget(w,pre){
    ریز سطرهای هر ماه همراه خودِ همین داده می‌آید (ستون items در ویو)،
    پس کلیک روی یک ماه هیچ درخواست تازه‌ای به سرور نمی‌زند و فوری باز می‌شود. */
 function monthbox(w,c,rows){
-  var tot=0, cnt=0, soft=0, all=[];
+  var tot=0, cnt=0, soft=0, inflow=0, peak=0, all=[];
   rows.forEach(function(r){
-    tot  += Number(r[c.value]||0);
-    cnt  += Number(r[c.count]||0);
-    soft += Number(r.soft_rial||0);
-    all   = all.concat(r[c.items]||[]);
+    tot    += Number(r[c.value]||0);
+    cnt    += Number(r[c.count]||0);
+    soft   += Number(r.soft_rial||0);
+    inflow += Number(r.inflow_rial||0);
+    peak    = Math.max(peak, Number(r.shortfall_rial||0));
+    all     = all.concat(r[c.items]||[]);
   });
   /* فهرست کل به ترتیب سررسید، نه به ترتیب ماه‌به‌ماه */
   all.sort(function(a,b){
@@ -1440,11 +1452,18 @@ function monthbox(w,c,rows){
   var cards=[];
   if(c.allbox!==false)
     cards.push({ lab:(c.alllabel||"همهٔ تعهدات باز"), n:cnt, v:tot, soft:soft,
-                 items:all, cls:" all", search:true });
+                 items:all, cls:" all", search:true, sh:peak, shLab:"حداکثر کسری",
+                 open:(rows.length?Number(rows[0].open_rial||0):0),
+                 inflow:inflow,
+                 close:(rows.length?Number(rows[rows.length-1].close_rial||0):0) });
   rows.forEach(function(r){
+    var sh=Number(r.shortfall_rial||0);
     cards.push({ lab:faD(r[c.label]), n:Number(r[c.count]||0), v:Number(r[c.value]||0),
                  soft:Number(r.soft_rial||0), items:r[c.items]||[],
-                 cls:(r.is_overdue?" od":(r.is_current?" cur":"")) });
+                 sh:sh, shLab:"کسری",
+                 open:Number(r.open_rial||0), inflow:Number(r.inflow_rial||0),
+                 close:Number(r.close_rial||0),
+                 cls:(sh>0?" sh":"")+(r.is_overdue?" od":(r.is_current?" cur":"")) });
   });
 
   var uid="mb"+String(w.id||"x").replace(/[^a-zA-Z0-9]/g,"").slice(0,10);
@@ -1461,6 +1480,7 @@ function monthbox(w,c,rows){
        '<span class="mvl">'+bn(k.v)+'</span>'+
        '<span class="mun">'+unitLabel()+'</span>'+
        (k.soft>0?'<span class="msf">شامل '+bn(k.soft)+' محتمل</span>':"")+
+       (k.sh>0?'<span class="msh">'+k.shLab+' '+bn(k.sh)+'</span>':"")+
        '</button>';
   });
   h+='</div>';
@@ -1469,9 +1489,23 @@ function monthbox(w,c,rows){
     h+='<div class="mdet" id="'+uid+'-'+i+'" style="display:none"><div class="mdh">'+
        esc(k.lab)+'<span class="sm">'+fa(k.n)+' تعهد — جمع '+
        bn(k.v)+' '+unitLabel()+'</span></div>'+
+       cashLine(k)+
        monthRows(c.columns||[], k.items, k.search)+'</div>';
   });
   return h+'</div>';
+}
+
+/* حساب نقدی ماه، تا معلوم باشد عدد قرمز از کجا درآمده */
+function cashLine(k){
+  if(k.open===undefined) return "";
+  var cls=k.close<0?" bad":"";
+  return '<div class="mcash">'+
+    '<span><i>مانده ابتدا</i>'+bn(k.open)+'</span>'+
+    '<span><i>ورودی قطعی</i>'+bn(k.inflow)+'</span>'+
+    '<span><i>تعهد</i>−'+bn(k.v)+'</span>'+
+    '<span class="eq'+cls+'"><i>مانده پایان</i>'+bn(k.close)+'</span>'+
+    (k.sh>0?'<span class="shb"><i>'+k.shLab+'</i>'+bn(k.sh)+'</span>':"")+
+    '</div>';
 }
 
 function monthRows(cols,items,search){
