@@ -11,13 +11,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="سایا نیک">
 <link rel="apple-touch-icon" href="./IMG_9351.png">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- فونت گوگل دیگر جلوی نمایش صفحه را نمی‌گیرد: با media="print" بارگذاری
-     می‌شود و بعد از رسیدن به all تبدیل می‌شود. اگر گوگل کند یا در دسترس
-     نباشد، صفحه بلافاصله با فونت نصب‌شده روی خود دستگاه بالا می‌آید. -->
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet" media="print" onload="this.media='all'">
+<!-- فونت از خود سایت سرو می‌شود تا روی سرور داخلی بدون اینترنت هم درست نمایش داده شود -->
 <style>
+@font-face{font-family:'Vazirmatn';src:url('./shared/fonts/vazirmatn.woff2') format('woff2');font-weight:100 900;font-display:swap}
 :root{
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
@@ -552,6 +548,8 @@ td.neg{color:var(--rose)}
   </aside>
 </div>
 
+<script src="./shared/config.js"></script>
+<script src="./shared/supa.js" data-base="./"></script>
 <script>
 /* ---------- بارگذاری کتابخانه سوپابیس ----------
    قبلاً این فایل با یک <script src> معمولی از jsdelivr گرفته می‌شد. آن حالت
@@ -563,32 +561,8 @@ td.neg{color:var(--rose)}
    دو منبع گرفته می‌شود — هرکدام اول رسید برنده است. منبع اول خودِ دامنه
    سوپابیس است (همان دامنه‌ای که داشبورد برای داده هم به آن وصل می‌شود، پس
    اگر اپ کار کند این هم کار می‌کند) و دومی jsdelivr به‌عنوان پشتیبان. */
-window.__lib = (function(){
-  var PRIMARY = [
-    "https://zlzjzzqrkbsqornnimlx.supabase.co/functions/v1/lib/supabase.js",
-    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"
-  ];
-  var BACKUP = ["https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"];
-
-  function race(list){
-    return new Promise(function(resolve, reject){
-      var left = list.length, won = false;
-      list.forEach(function(src){
-        var s = document.createElement("script");
-        s.src = src; s.async = true;
-        s.onload = function(){
-          if(won) return;
-          if(window.supabase && window.supabase.createClient){
-            won = true; window.__libFrom = src; resolve(window.supabase);
-          } else if(--left === 0){ reject(new Error("no client")); }
-        };
-        s.onerror = function(){ if(!won && --left === 0) reject(new Error("load failed")); };
-        document.head.appendChild(s);
-      });
-    });
-  }
-  return race(PRIMARY).catch(function(){ return race(BACKUP); });
-})();
+/* کتابخانه و نشانی سرور از shared/config.js و shared/supa.js می‌آید (قابل انتقال به سرور داخلی) */
+window.__lib = window.SayaLib;
 
 /* ---------- زمان‌سنجی ----------
    تا الان کندی را از روی لاگ سرور حدس می‌زدیم. این چند خط، زمان واقعی
@@ -613,8 +587,8 @@ function perfLine(){
   }catch(e){ return ""; }
 }
 
-var SUPABASE_URL = "https://zlzjzzqrkbsqornnimlx.supabase.co";
-var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
+var SUPABASE_URL = window.SAYA_CONFIG.SUPABASE_URL;
+var SUPABASE_ANON_KEY = window.SAYA_CONFIG.SUPABASE_KEY;
 
 /* db تا رسیدن کتابخانه خالی است. هر جایی که کاربر ممکن است قبل از آن
    دکمه‌ای بزند، اول ensureDb را صدا می‌زند. */
@@ -628,7 +602,7 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۵۳";
+var BUILD = "۵۴";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 

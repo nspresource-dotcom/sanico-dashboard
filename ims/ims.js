@@ -4,7 +4,7 @@
    - هیچ امتیاز عددی وجود ندارد: وظیفه، وظیفه است. «فراتر از وظیفه» فقط دیده و قدردانی می‌شود.
    - گزارش شبه‌حادثه و عدم انطباق هرگز جریمه ندارد؛ هدف یادگیری است.
    - قواعد کلیدی (تأیید، مدرک، علت ریشه‌ای، اثربخشی) در پایگاه داده هم اجبار شده‌اند، نه فقط در رابط. */
-var SUPABASE_URL = "https://zlzjzzqrkbsqornnimlx.supabase.co", SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
+/* نشانی و کلید از shared/config.js می‌آید */
 var $ = function (id) { return document.getElementById(id); }, db = null;
 var I = { page: "desk", me: "", role: null, ed: false, proc: [], tasks: [], nc: [], kn: [], org: [], acc: [], log: [], f: { p: "", a: "", s: "", k: "" } };
 
@@ -56,12 +56,7 @@ function mapOpts(m, val) { return Object.keys(m).map(function (k) { return '<opt
 function stdBoxes(id, arr) { return '<div class="stds" id="' + id + '">' + ["Q", "S", "E"].map(function (s) { return '<label><input type="checkbox" value="' + s + '"' + ((arr || []).indexOf(s) >= 0 ? " checked" : "") + '> ' + STD[s] + '</label>'; }).join("") + '</div>'; }
 function stdRead(id) { var r = []; Array.prototype.forEach.call(document.querySelectorAll("#" + id + " input:checked"), function (c) { r.push(c.value); }); return r.length ? r : ["Q"]; }
 
-async function ensureDb() {
-  if (db) return db;
-  await new Promise(function (res, rej) { var s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
-    s.onload = res; s.onerror = function () { var b = document.createElement("script"); b.src = "https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"; b.onload = res; b.onerror = rej; document.head.appendChild(b); }; document.head.appendChild(s); });
-  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); return db;
-}
+async function ensureDb() { if (!db) db = await window.sayaClient(); return db; }
 async function load() {
   var r = await Promise.all([db.from("ims_processes").select("*").order("sort"), db.from("ims_tasks").select("*").order("id", { ascending: false }).limit(2000),
     db.from("ims_nc").select("*").order("id", { ascending: false }).limit(1000), db.from("ims_knowledge").select("*").order("id", { ascending: false }).limit(2000),

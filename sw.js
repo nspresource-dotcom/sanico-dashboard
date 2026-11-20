@@ -14,7 +14,7 @@
 
 /* نسخه کش با هر انتشار عوض می‌شود — وگرنه مرورگر اصلاً نمی‌فهمد
    نسخه تازه‌ای هست و کاربر روی نسخه قدیمی گیر می‌کند. */
-const BUILD = '53';
+const BUILD = '54';
 const CACHE = 'sayanik-' + BUILD;
 const SHELL = ['./', './index.html', './manifest.json'];
 
@@ -24,7 +24,7 @@ const SHELL_TIMEOUT = 2500;
 /** کتابخانه‌های ثابت که از دامنه سوپابیس سرو می‌شوند: این‌ها داده نیستند،
  *  کد برنامه‌اند و آدرسشان نسخه‌دار است، پس ذخیره‌شان بی‌خطر است. */
 const isStaticLib = url =>
-  url.hostname.endsWith('supabase.co') && url.pathname.startsWith('/functions/v1/lib/');
+  url.pathname.startsWith('/functions/v1/lib/');
 
 /** پوستهٔ برنامه: صفحه، آیکن‌ها، manifest — نه داده. */
 const isShell = url =>
@@ -72,7 +72,8 @@ self.addEventListener('fetch', e => {
   }
 
   // داده‌های Supabase هرگز ذخیره نمی‌شوند — عدد مالی باید زنده باشد
-  if (url.hostname.endsWith('supabase.co')) return;
+  // (روی سرور داخلی نشانی Supabase دامنهٔ دیگری است؛ برای همین با مسیر تشخیص داده می‌شود نه نام دامنه)
+  if (url.hostname.endsWith('supabase.co') || /^\/(rest|auth|storage|realtime|functions)\/v1\//.test(url.pathname)) return;
 
   /* پوستهٔ برنامه: اول شبکه، ولی فقط تا ۲٫۵ ثانیه.
      قبلاً اول از حافظه می‌داد و نتیجه‌اش این شد که کاربر روی نسخه

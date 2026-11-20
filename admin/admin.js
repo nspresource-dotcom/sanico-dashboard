@@ -1,6 +1,6 @@
 /* کنسول مدیریت دسترسی: چه داشبوردی برای چه کسی و با چه سطحی فعال باشد.
    داده: app_dashboards، app_access، app_access_log (Supabase). فقط نقش admin در داشبورد «admin» می‌تواند وارد شود. */
-var SUPABASE_URL = "https://zlzjzzqrkbsqornnimlx.supabase.co", SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
+/* نشانی و کلید از shared/config.js می‌آید */
 var $ = function (id) { return document.getElementById(id); }, db = null;
 var X = { page: "matrix", me: "", users: [], dash: [], acc: [], log: [], profiles: [] };
 var ROLES = { viewer: "مشاهده", editor: "ثبت و ویرایش", admin: "مدیر" };
@@ -14,12 +14,7 @@ function esc(s) { return String(s === null || s === undefined ? "" : s).replace(
 function toast(t) { var el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(el._t); el._t = setTimeout(function () { el.classList.remove("on"); }, 2600); }
 function when(iso) { if (!iso) return "—"; return formatJalali(String(iso).slice(0, 10)) + " " + toFa(new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit" })); }
 
-async function ensureDb() {
-  if (db) return db;
-  await new Promise(function (res, rej) { var s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
-    s.onload = res; s.onerror = function () { var b = document.createElement("script"); b.src = "https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"; b.onload = res; b.onerror = rej; document.head.appendChild(b); }; document.head.appendChild(s); });
-  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); return db;
-}
+async function ensureDb() { if (!db) db = await window.sayaClient(); return db; }
 
 /* ---------- داده ---------- */
 async function load() {

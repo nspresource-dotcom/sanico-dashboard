@@ -1,7 +1,7 @@
 /* پنل منابع انسانی سایا نیک — مرحلهٔ اول: چارت سازمانی، پرسنل و واحدها.
    افراد از حساب‌هایی انتخاب می‌شوند که در «کنسول مدیریت دسترسی» ساخته شده‌اند.
    مراحل بعد (کارهای ارجاعی، اهداف و عملکرد ماهانه) روی همین چارت سوار می‌شوند. */
-var SUPABASE_URL = "https://zlzjzzqrkbsqornnimlx.supabase.co", SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
+/* نشانی و کلید از shared/config.js می‌آید */
 var $ = function (id) { return document.getElementById(id); }, db = null;
 var H = { page: "chart", me: "", role: null, edit: false, units: [], pos: [], people: [], acc: [], log: [], sel: null, form: null };
 var HPAGES = [
@@ -17,12 +17,7 @@ function toast(t) { var el = $("toast"); el.textContent = t; el.classList.add("o
 function when(iso) { if (!iso) return "—"; return formatJalali(String(iso).slice(0, 10)) + " " + toFa(new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit" })); }
 function parseJ(s) { var p = toEn(String(s || "")).split(/[\/\-.]/).map(Number); if (p.length !== 3 || !p[0]) return null; if (p[0] < 100) p[0] += 1400; return jalaliToIso(p[0], p[1], p[2]); }
 
-async function ensureDb() {
-  if (db) return db;
-  await new Promise(function (res, rej) { var s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js";
-    s.onload = res; s.onerror = function () { var b = document.createElement("script"); b.src = "https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"; b.onload = res; b.onerror = rej; document.head.appendChild(b); }; document.head.appendChild(s); });
-  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); return db;
-}
+async function ensureDb() { if (!db) db = await window.sayaClient(); return db; }
 async function load() {
   var a = await db.from("hr_units").select("*").order("sort"), b = await db.from("hr_positions").select("*").order("sort").order("id"),
       c = await db.from("hr_people").select("*"), d = await db.rpc("hr_accounts"), e = await db.from("hr_log").select("*").order("at", { ascending: false }).limit(200);

@@ -2,30 +2,11 @@
    داده: Supabase (جدول‌های bf_*) — محاسبه: engine.js (همان منطق فایل امکان‌سنجی)
    همهٔ مبالغ داخلی به تومان ذخیره می‌شوند. */
 
-var SUPABASE_URL = "https://zlzjzzqrkbsqornnimlx.supabase.co";
-var SUPABASE_ANON_KEY = "sb_publishable_SC84u5DIOQgSgNI43KE6NQ_wWGGTg69";
 var BUILD = "۱";
 var $ = function (id) { return document.getElementById(id); };
 var db = null;
-
-window.__lib = (function () {
-  var PRIMARY = [SUPABASE_URL + "/functions/v1/lib/supabase.js",
-    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"];
-  var BACKUP = ["https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"];
-  function race(list) {
-    return new Promise(function (res, rej) {
-      var left = list.length, won = false;
-      list.forEach(function (src) {
-        var s = document.createElement("script"); s.src = src; s.async = true;
-        s.onload = function () { if (won) return; if (window.supabase && window.supabase.createClient) { won = true; res(window.supabase); } else if (--left === 0) rej(); };
-        s.onerror = function () { if (!won && --left === 0) rej(); };
-        document.head.appendChild(s);
-      });
-    });
-  }
-  return race(PRIMARY).catch(function () { return race(BACKUP); });
-})();
-async function ensureDb() { if (db) return db; var lib = await window.__lib; if (!db) db = lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); return db; }
+/* نشانی، کلید و بارگذاری کتابخانه: shared/config.js و shared/supa.js */
+async function ensureDb() { if (!db) db = await window.sayaClient(); return db; }
 
 /* ---------- وضعیت ---------- */
 var A = {
