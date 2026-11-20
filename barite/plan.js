@@ -209,7 +209,7 @@ var CONF = { ok: ["p3", "تأییدشده"], est: ["p2", "برآورد"], guess:
 var SRC_KEYS = { stock: ["qty", "tons", "price", "freight", "rec", "wpct", "wprice", "sg", "psg"], bourse: ["tons", "priceRial", "comm", "freight", "rec", "wpct", "wprice", "sg", "psg"],
   mines: ["tons", "contract", "freight", "rec", "wpct", "wprice", "sg", "psg"], buys: ["tons", "price", "freight", "rec", "wpct", "wprice", "sg", "psg"], fg: ["qty", "tons", "cost", "price"] };
 var UNITS = { invest: "تومان", horizon: "ماه", price: "تومان بر تن", proc: "تومان بر تن خوراک", bag: "تومان", bagSize: "تن", overhead: "تومان در ماه", capacity: "تن در ماه",
-  loanRate: "٪ سالانه", loanMonths: "ماه", tax: "٪", disc: "٪ سالانه", vatRate: "٪", targetSg: "وزن مخصوص", cash0: "تومان", dso: "روز",
+  loanRate: "٪ سالانه", loanMonths: "ماه", tax: "٪", disc: "٪ سالانه", vatRate: "٪", targetSg: "وزن مخصوص", cash0: "تومان", dso: "روز", ratedTph: "تن خوراک در ساعت",
   qty: "تن", tons: "تن در ماه", cost: "تومان بر تن", freight: "تومان بر تن", rec: "٪", wpct: "٪ خوراک", wprice: "تومان بر تن", sg: "وزن مخصوص", psg: "وزن مخصوص", priceRial: "ریال بر کیلو", comm: "در هزار", contract: "تومان در ماه" };
 function metaOf(k) { S.meta = S.meta || {}; return S.meta[k] || {}; }
 function asmRow(path, f, obj, idx) {
@@ -224,7 +224,7 @@ function pAssume() {
   var g = S.g, i = 0, cnt = { ok: 0, est: 0, guess: 0, none: 0 };
   var head = '<div class="scroll"><table class="asm"><thead><tr><th class="mid">#</th><th>مفروض</th><th>مقدار</th><th>واحد</th><th>اعتبار</th><th>توضیح و منبع</th></tr></thead><tbody>';
   var rows = G_FIELDS.map(function (f) { return asmRow("g", f, g, ++i); }).join("") +
-    asmRow("g", ["cash0", "موجودی نقد در شروع", "m"], g, ++i) + asmRow("g", ["dso", "دورهٔ وصول مطالبات", "n"], g, ++i);
+    asmRow("g", ["cash0", "موجودی نقد در شروع", "m"], g, ++i) + asmRow("g", ["dso", "دورهٔ وصول مطالبات", "n"], g, ++i) + asmRow("g", ["ratedTph", "ظرفیت اسمی آسیاب (برای OEE)", "n"], g, ++i);
   rows += '<tr><td class="mid">' + toFa(++i) + '</td><td><b>تاریخ شروع تولید (ماه ۱ مدل)</b></td><td class="vcell"><input id="sdate" value="' + (g.startDate ? toFa(formatJalali(g.startDate)) : "") + '" placeholder="۱۴۰۵/۱۰/۰۱"' + (A.admin ? "" : " disabled") + '></td><td>تاریخ شمسی</td><td></td><td class="hint">برای مقایسهٔ برنامه با واقعی</td></tr>';
   var h = liveBar() + '<div class="gap">همهٔ عددهای ورودی مدل اینجاست؛ همان برگهٔ «مفروضات» گوگل‌شیت، به‌علاوهٔ عددهای کلیدی هر منبع خوراک. هر مفروض یک «اعتبار» دارد (تأییدشده، برآورد، فرضی) تا معلوم باشد تصمیم روی چه پایه‌ای گرفته می‌شود. بعد از تغییر «ذخیره» بزنید؛ هر تغییر با نام و تاریخ در تاریخچه می‌ماند و شیت هم در به‌روزرسانی بعدی همین عددها را می‌گیرد.</div>';
   h += '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>مفروضات کلی کارخانه</h3></div></div>' + head + rows + '</tbody></table></div></div>';

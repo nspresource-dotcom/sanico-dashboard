@@ -32,7 +32,7 @@ var A = {
   page: "home", sub: "prod", admin: false, me: null, name: "",
   model: null,          // نسخهٔ ذخیره‌شده در پایگاه داده
   dirty: false,         // مدل در حال ویرایش با نسخهٔ ذخیره‌شده فرق دارد
-  prod: [], sales: [], purch: [], exp: [], scen: [], watch: [], tasks: [], mlog: [],
+  prod: [], sales: [], purch: [], exp: [], scen: [], watch: [], tasks: [], mlog: [], rituals: [],
   loadedAt: null
 };
 var UNIT = "toman";
@@ -140,7 +140,7 @@ function render() {
   $("unit").textContent = uN();
   $("stamps").innerHTML = stamps();
   $("promoN").textContent = fmt(A.act.T.cash) + " " + uN();
-  var f = { home: pHome, daily: pDaily, pva: pPva, watch: pWatch, gates: pGates, cash: pCash, assume: pAssume, model: pModel, sources: pSources, loans: pLoans, sens: pSens, scen: pScen, guide: pGuide }[p.k];
+  var f = { home: pHome, daily: pDaily, pva: pPva, watch: pWatch, gates: pGates, cash: pCash, assume: pAssume, model: pModel, sources: pSources, loans: pLoans, sens: pSens, scen: pScen, guide: pGuide }[p.k] || EXTRA_PAGES[p.k];
   $("view").innerHTML = f();
   bind();
   strip();
@@ -237,8 +237,8 @@ function srcBars() {
 
 /* ---------- ثبت روزانه ---------- */
 var FORMS = {
-  prod: { t: "bf_production", title: "تولید", list: "prod", f: [["d", "تاریخ", "date"], ["source", "منبع خوراک", "src"], ["feed_t", "خوراک فراوری‌شده (تن)", "n"], ["product_t", "پودر تولیدشده (تن)", "n"], ["waste_t", "باطله (تن)", "n"], ["sg", "عیار محصول (وزن مخصوص)", "n"], ["downtime_h", "توقف خط (ساعت)", "n"], ["note", "توضیح", "t"]],
-    cols: [["d", "تاریخ", "date"], ["source", "منبع"], ["feed_t", "خوراک", "t"], ["product_t", "پودر", "t"], ["_rec", "بازیافت", "p"], ["sg", "عیار"], ["downtime_h", "توقف", "t"], ["note", "توضیح"]] },
+  prod: { t: "bf_production", title: "تولید", list: "prod", f: [["d", "تاریخ", "date"], ["source", "منبع خوراک", "src"], ["feed_t", "خوراک فراوری‌شده (تن)", "n"], ["product_t", "پودر تولیدشده (تن)", "n"], ["waste_t", "باطله (تن)", "n"], ["sg", "عیار محصول (وزن مخصوص)", "n"], ["planned_h", "ساعت کار برنامه‌ریزی‌شده", "n"], ["downtime_h", "توقف خط (ساعت)", "n"], ["offspec_t", "خارج از مشخصه (تن)", "n"], ["note", "توضیح", "t"]],
+    cols: [["d", "تاریخ", "date"], ["source", "منبع"], ["feed_t", "خوراک", "t"], ["product_t", "پودر", "t"], ["_rec", "بازیافت", "p"], ["sg", "عیار"], ["planned_h", "ساعت برنامه", "t"], ["downtime_h", "توقف", "t"], ["offspec_t", "خارج از مشخصه", "t"], ["note", "توضیح"]] },
   sales: { t: "bf_sales", title: "فروش", list: "sales", f: [["d", "تاریخ", "date"], ["kind", "نوع", "sel", ["پودر", "باطله"]], ["customer", "خریدار", "t"], ["tons", "مقدار (تن)", "n"], ["price_t", "قیمت هر تن", "m"], ["amount", "مبلغ کل (خالی = مقدار × قیمت)", "m"], ["received", "وصول‌شده تا کنون", "m"], ["returned_t", "مرجوعی (تن)", "n"], ["note", "توضیح", "t"]],
     cols: [["d", "تاریخ", "date"], ["kind", "نوع"], ["customer", "خریدار"], ["tons", "تن", "t"], ["price_t", "قیمت هر تن", "m"], ["amount", "مبلغ", "m"], ["received", "وصولی", "m"], ["_ar", "مانده", "m"], ["returned_t", "مرجوعی", "t"]] },
   purch: { t: "bf_purchases", title: "خرید خوراک", list: "purch", f: [["d", "تاریخ", "date"], ["source", "منبع", "src"], ["tons", "مقدار (تن)", "n"], ["amount", "مبلغ خرید با کارمزد", "m"], ["freight", "کرایه حمل کل", "m"], ["paid", "پرداخت‌شده تا کنون", "m"], ["note", "توضیح", "t"]],
