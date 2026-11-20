@@ -32,7 +32,7 @@ var A = {
   page: "home", sub: "prod", admin: false, me: null, name: "",
   model: null,          // نسخهٔ ذخیره‌شده در پایگاه داده
   dirty: false,         // مدل در حال ویرایش با نسخهٔ ذخیره‌شده فرق دارد
-  prod: [], sales: [], purch: [], exp: [], scen: [],
+  prod: [], sales: [], purch: [], exp: [], scen: [], watch: [], tasks: [],
   loadedAt: null
 };
 var UNIT = "toman";
@@ -42,6 +42,8 @@ var PAGES = [
   { k: "home", t: "وضعیت کارخانه", ic: "⌂", h: "یک نگاه به برنامه و عملکرد" },
   { k: "daily", t: "ثبت روزانه", ic: "✎", h: "تولید، فروش، خرید خوراک و هزینه‌ها" },
   { k: "pva", t: "برنامه در برابر واقعی", ic: "⇄", h: "مقایسهٔ ماه‌به‌ماه با مدل" },
+  { k: "watch", t: "پایش ۱۹ بُعد", ic: "◉", h: "هشدار زودهنگام برنامهٔ رشد ۵ ساله" },
+  { k: "gates", t: "دروازه‌ها و اقدام‌ها", ic: "✓", h: "۹۰ روز اول، دروازهٔ سال اول و فرض‌ها" },
   { k: "cash", t: "جریان نقدی", ic: "◔", h: "پیش‌بینی ماهانهٔ نقدینگی طرح" },
   { k: "model", t: "مدل و اهرم‌ها", ic: "⚙", h: "فرض‌های اصلی مدل" },
   { k: "sources", t: "منابع خوراک", ic: "◆", h: "موجودی، بورس، معدن و تأمین‌کننده‌ها" },
@@ -158,7 +160,7 @@ function render() {
   $("unit").textContent = uN();
   $("stamps").innerHTML = stamps();
   $("promoN").textContent = fmt(A.act.T.cash) + " " + uN();
-  var f = { home: pHome, daily: pDaily, pva: pPva, cash: pCash, model: pModel, sources: pSources, loans: pLoans, sens: pSens, scen: pScen, guide: pGuide }[p.k];
+  var f = { home: pHome, daily: pDaily, pva: pPva, watch: pWatch, gates: pGates, cash: pCash, model: pModel, sources: pSources, loans: pLoans, sens: pSens, scen: pScen, guide: pGuide }[p.k];
   $("view").innerHTML = f();
   bind();
   strip();
@@ -209,7 +211,7 @@ function findings() {
   } else out.push(["info", "هنوز تولیدی ثبت نشده؛ از «ثبت روزانه» شروع کنید تا مقایسه با برنامه فعال شود."]);
   if (T.ar > 0) out.push(["warn", "مطالبات وصول‌نشده از فروش: " + fmtB(T.ar) + " " + uN() + "."]);
   if (!g.startDate) out.push(["info", "تاریخ شروع تولید در «مدل و اهرم‌ها» ثبت نشده؛ بدون آن مقایسهٔ ماه‌به‌ماه ممکن نیست."]);
-  return out;
+  return out.concat(planFindings());
 }
 
 /* ---------- صفحهٔ خانه ---------- */
@@ -257,8 +259,8 @@ function srcBars() {
 var FORMS = {
   prod: { t: "bf_production", title: "تولید", list: "prod", f: [["d", "تاریخ", "date"], ["source", "منبع خوراک", "src"], ["feed_t", "خوراک فراوری‌شده (تن)", "n"], ["product_t", "پودر تولیدشده (تن)", "n"], ["waste_t", "باطله (تن)", "n"], ["sg", "عیار محصول (وزن مخصوص)", "n"], ["downtime_h", "توقف خط (ساعت)", "n"], ["note", "توضیح", "t"]],
     cols: [["d", "تاریخ", "date"], ["source", "منبع"], ["feed_t", "خوراک", "t"], ["product_t", "پودر", "t"], ["_rec", "بازیافت", "p"], ["sg", "عیار"], ["downtime_h", "توقف", "t"], ["note", "توضیح"]] },
-  sales: { t: "bf_sales", title: "فروش", list: "sales", f: [["d", "تاریخ", "date"], ["kind", "نوع", "sel", ["پودر", "باطله"]], ["customer", "خریدار", "t"], ["tons", "مقدار (تن)", "n"], ["price_t", "قیمت هر تن", "m"], ["amount", "مبلغ کل (خالی = مقدار × قیمت)", "m"], ["received", "وصول‌شده تا کنون", "m"], ["note", "توضیح", "t"]],
-    cols: [["d", "تاریخ", "date"], ["kind", "نوع"], ["customer", "خریدار"], ["tons", "تن", "t"], ["price_t", "قیمت هر تن", "m"], ["amount", "مبلغ", "m"], ["received", "وصولی", "m"], ["_ar", "مانده", "m"]] },
+  sales: { t: "bf_sales", title: "فروش", list: "sales", f: [["d", "تاریخ", "date"], ["kind", "نوع", "sel", ["پودر", "باطله"]], ["customer", "خریدار", "t"], ["tons", "مقدار (تن)", "n"], ["price_t", "قیمت هر تن", "m"], ["amount", "مبلغ کل (خالی = مقدار × قیمت)", "m"], ["received", "وصول‌شده تا کنون", "m"], ["returned_t", "مرجوعی (تن)", "n"], ["note", "توضیح", "t"]],
+    cols: [["d", "تاریخ", "date"], ["kind", "نوع"], ["customer", "خریدار"], ["tons", "تن", "t"], ["price_t", "قیمت هر تن", "m"], ["amount", "مبلغ", "m"], ["received", "وصولی", "m"], ["_ar", "مانده", "m"], ["returned_t", "مرجوعی", "t"]] },
   purch: { t: "bf_purchases", title: "خرید خوراک", list: "purch", f: [["d", "تاریخ", "date"], ["source", "منبع", "src"], ["tons", "مقدار (تن)", "n"], ["amount", "مبلغ خرید با کارمزد", "m"], ["freight", "کرایه حمل کل", "m"], ["paid", "پرداخت‌شده تا کنون", "m"], ["note", "توضیح", "t"]],
     cols: [["d", "تاریخ", "date"], ["source", "منبع"], ["tons", "تن", "t"], ["amount", "مبلغ", "m"], ["freight", "حمل", "m"], ["_pt", "هر تن تحویلی", "m"], ["paid", "پرداختی", "m"], ["note", "توضیح"]] },
   exp: { t: "bf_expenses", title: "هزینه", list: "exp", f: [["d", "تاریخ", "date"], ["category", "دسته", "sel", ["حقوق و دستمزد", "برق و انرژی", "بسته‌بندی", "تعمیر و نگهداری", "حمل فروش", "اجاره", "مالیات و عوارض", "اداری و سربار", "سایر"]], ["amount", "مبلغ", "m"], ["note", "توضیح", "t"]],
@@ -318,7 +320,7 @@ async function addRow() {
     else if (f[2] === "m") o[f[0]] = v.trim() === "" ? null : num(v) / um();
     else if (f[2] === "n") o[f[0]] = v.trim() === "" ? null : num(v);
     else o[f[0]] = v.trim() || null; });
-  if (A.sub === "sales") { if (o.amount === null) o.amount = (o.tons || 0) * (o.price_t || 0); if (o.received === null) o.received = 0; if (o.price_t === null) o.price_t = o.tons ? o.amount / o.tons : 0; }
+  if (A.sub === "sales") { if (o.amount === null) o.amount = (o.tons || 0) * (o.price_t || 0); if (o.received === null) o.received = 0; if (o.returned_t === null) o.returned_t = 0; if (o.price_t === null) o.price_t = o.tons ? o.amount / o.tons : 0; }
   if (A.sub === "prod" && !o.feed_t && !o.product_t) bad = "مقدار خوراک یا پودر را وارد کنید.";
   if (A.sub === "purch") { o.amount = o.amount || 0; o.freight = o.freight || 0; o.paid = o.paid || 0; }
   if (A.sub === "exp" && !o.amount) bad = "مبلغ را وارد کنید.";
@@ -357,7 +359,7 @@ function pCash() {
   var h = '<div class="grid g3" style="margin-bottom:14px">' +
     kpi("بیشترین نقدینگی موردنیاز", fmtB(C.C.peak), uN(), "ماه اوج " + toFa(C.C.peakM), "", "▼") +
     kpi("جریان تجمعی پایان طرح", fmtB(C.C.endCum), uN(), "ماه " + toFa(H), C.C.endCum < 0 ? "neg" : "pos", "Σ") +
-    kpi("ماه‌های با جریان منفی", toFa(C.C.neg), "ماه", C.C.firstNeg ? "اولین: ماه " + toFa(C.C.firstNeg) : "هیچ ماه منفی‌ای نیست", C.C.neg ? "warn" : "pos", "!") + '</div>';
+    kpi("ماه‌های با جریان منفی", toFa(C.C.neg), "ماه", C.C.firstNeg ? "اولین: ماه " + toFa(C.C.firstNeg) : "هیچ ماه منفی‌ای نیست", C.C.neg ? "warn" : "pos", "!") + '</div>' + dsoCard() + forecast13();
   h += '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>جریان نقدی ماهانه و تجمعی</h3><p class="hint">ستون‌ها: خالص هر ماه · خط: تجمعی سهامدار</p></div></div>' +
     lineChart([{ n: "خالص ماهانه", c: "var(--mint)", bar: 1, v: E.eq.slice(1, H + 1) }, { n: "تجمعی", c: "var(--deep)", v: E.cum.slice(1, H + 1) }], { x0: 1 }) + '</div>';
   h += '<div class="card"><div class="scroll"><table><thead><tr><th>ماه</th><th class="num">ورود مواد (تن)</th><th class="num">فراوری (تن)</th><th class="num">انبار (تن)</th><th class="num">پودر (تن)</th><th class="num">درآمد</th><th class="num">هزینه</th><th class="num">سربار</th><th class="num">مالیات</th><th class="num">تسهیلات</th><th class="num">خالص</th><th class="num">تجمعی</th></tr></thead><tbody>' +
@@ -385,7 +387,7 @@ function pModel() {
     G_FIELDS.map(function (f) { return fieldHtml("g", f, g); }).join("") + '</div></div>';
   h += '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>راه‌اندازی و نقدینگی</h3></div></div><div class="frm">' +
     '<div><label>تاریخ شروع تولید (ماه ۱ مدل)</label><input id="sdate" value="' + (g.startDate ? toFa(formatJalali(g.startDate)) : "") + '" placeholder="مثل ۱۴۰۵/۱۰/۰۱"' + (A.admin ? "" : " disabled") + '></div>' +
-    fieldHtml("g", ["cash0", "موجودی نقد در شروع (تومان)", "m"], g) + '</div></div>';
+    fieldHtml("g", ["cash0", "موجودی نقد در شروع (تومان)", "m"], g) + fieldHtml("g", ["dso", "دورهٔ وصول مطالبات (روز) — برای پیش‌بینی نقد", "n"], g) + '</div></div>';
   if (A.admin) h += '<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn sm" id="saveM">ذخیرهٔ مدل</button><button class="btn sm ghost" id="saveS">ذخیره به‌عنوان سناریو</button></div>';
   return h;
 }
@@ -422,6 +424,7 @@ function pSens() {
     ["بازیافت همهٔ منابع ±۱۰٪ نسبی", allSrc(function (s) { s.rec *= .9; }), allSrc(function (s) { s.rec *= 1.1; })],
     ["تناژ ماهانهٔ بورس ±۲۰٪", function (x) { x.bourse.forEach(function (s) { s.tons *= .8; }); }, function (x) { x.bourse.forEach(function (s) { s.tons *= 1.2; }); }],
     ["قیمت خرید بورس ±۱۰٪", function (x) { x.bourse.forEach(function (s) { s.priceRial *= 1.1; }); }, function (x) { x.bourse.forEach(function (s) { s.priceRial *= .9; }); }],
+    ["قیمت خوراک همهٔ منابع ±۵٪", allSrc(function (s) { if (s.price) s.price *= 1.05; if (s.priceRial) s.priceRial *= 1.05; if (s.contract) s.contract *= 1.05; }), allSrc(function (s) { if (s.price) s.price *= .95; if (s.priceRial) s.priceRial *= .95; if (s.contract) s.contract *= .95; })],
     ["قیمت فروش باطله ±۵۰٪", allSrc(function (s) { s.wprice = (+s.wprice || 0) * .5; }), allSrc(function (s) { s.wprice = (+s.wprice || 0) * 1.5; })],
     ["سربار ماهانه ±۲۰٪", function (x) { x.g.overhead *= 1.2; }, function (x) { x.g.overhead *= .8; }],
     ["هزینهٔ فراوری ±۲۰٪", function (x) { x.g.proc *= 1.2; }, function (x) { x.g.proc *= .8; }],
@@ -437,6 +440,7 @@ function pSens() {
     kpi("قیمت سربه‌سر عملیاتی", fmtB(C0.be), uN() + " بر تن", "زیر این، زیان نقدی ماهانه", "", "⚖") +
     kpi("قیمت لازم برای برگشت در مدت طرح", A.pp ? fmtB(A.pp) : "—", uN() + " بر تن", "مدت طرح " + toFa(S.g.horizon) + " ماه", "", "⇡") +
     kpi("بهای خالص میانگین هر تن", fmtB(C0.R.avgCost), uN(), "پس از کسر فروش باطله", "", "◆") + '</div></div>';
+  h += valueTree();
   return h;
 }
 
@@ -460,6 +464,7 @@ function pGuide() {
 
 /* ---------- اتصال رویدادها ---------- */
 function bind() {
+  bindPlan();
   Array.prototype.forEach.call(document.querySelectorAll("[data-go]"), function (b) { b.onclick = function () { go(b.dataset.go); }; });
   Array.prototype.forEach.call(document.querySelectorAll("[data-sub]"), function (b) { b.onclick = function () { A.sub = b.dataset.sub; render(); }; });
   Array.prototype.forEach.call(document.querySelectorAll("input.money"), function (el) { el.addEventListener("input", function () { reformat(el); }); });
@@ -509,7 +514,7 @@ async function loadAll() {
   A.model = r.data || { data: fresh() };
   if (!A.dirty) S = JSON.parse(JSON.stringify(A.model.data));
   ["loans", "fg", "stock", "mines", "buys", "bourse"].forEach(function (k) { if (!S[k]) S[k] = []; });
-  await Promise.all([loadTable("prod"), loadTable("sales"), loadTable("purch"), loadTable("exp"), loadScen()]);
+  await Promise.all([loadTable("prod"), loadTable("sales"), loadTable("purch"), loadTable("exp"), loadScen(), loadPlan()]);
   A.loadedAt = new Date();
 }
 

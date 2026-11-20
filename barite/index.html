@@ -356,6 +356,24 @@ input[disabled],select[disabled]{opacity:.75}
 .pill-btn{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:.78rem;font-weight:700;color:var(--deep)}
 .phint{color:var(--muted);font-size:.78rem;margin:2px 0 0}
 #stamps{margin-bottom:6px}
+.wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.wcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 15px;box-shadow:var(--sh);border-top:4px solid var(--line)}
+.wcard.ok{border-top-color:var(--mint)}.wcard.warn{border-top-color:var(--amber)}.wcard.bad{border-top-color:var(--rose)}
+.wh{display:flex;align-items:center;gap:8px;margin-bottom:8px}.wh b{flex:1;font-size:.9rem}
+.wn{width:24px;height:24px;border-radius:8px;background:var(--grey-s);display:grid;place-items:center;font-size:.72rem;font-weight:800;color:var(--ink2)}
+.auto{font-size:.62rem;background:var(--blue-s);color:var(--blue);border-radius:999px;padding:2px 7px;font-weight:700}
+.wi{font-size:.75rem;color:var(--muted);margin:0 0 6px}.wv{font-size:.82rem;font-weight:700;margin:0 0 6px;color:var(--ink)}
+.wt{font-size:.74rem;color:var(--deep);background:var(--mint-s);border-radius:9px;padding:6px 9px;margin:0}
+.wnote{font-size:.75rem;color:var(--ink2);margin:8px 0 0}.wnote span{color:var(--muted)}
+.wedit{display:flex;gap:6px;margin-top:10px}.wedit select{width:auto;padding:7px}.wedit input{padding:7px 10px;font-size:.78rem}
+.task{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.task:last-child{border-bottom:0}.task.done .tck{color:var(--muted);text-decoration:line-through}
+.tck{display:flex;align-items:center;gap:9px;font-size:.84rem;margin:0;color:var(--ink);flex:1;min-width:260px}
+.tck input{width:18px;height:18px;padding:0;flex:0 0 18px}
+.tk{font-size:.64rem;font-weight:800;border-radius:999px;padding:2px 8px;background:var(--grey-s);color:var(--ink2);white-space:nowrap}
+.tk.gate{background:var(--amber-s);color:var(--amber)}.tk.asm{background:var(--blue-s);color:var(--blue)}
+.tmeta{display:flex;gap:6px;align-items:center;font-size:.74rem;color:var(--muted)}.tmeta input{width:150px;padding:6px 9px;font-size:.76rem}
+
 
 </style>
 </head>
@@ -396,6 +414,7 @@ input[disabled],select[disabled]{opacity:.75}
 <div id="toast" class="toast"></div>
 <script src="jalali.js"></script>
 <script src="engine.js"></script>
+<script src="plan.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
