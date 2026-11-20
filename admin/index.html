@@ -397,6 +397,7 @@ table.asm td{padding:7px 8px;vertical-align:middle}table.asm .vcell input{min-wi
 .mx select.r-admin{background:var(--deep);color:#fff}.mx select.r-editor{background:var(--mint-s);color:var(--deep)}.mx select.r-viewer{background:var(--blue-s);color:var(--blue)}
 .mx .who b{display:block}.mx .who span{font-size:.72rem;color:var(--muted);direction:ltr;display:inline-block}
 .addrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.addrow input,.addrow select{width:auto;flex:1;min-width:160px}
+.apps-h{font-size:.72rem;font-weight:700;color:var(--muted);padding:10px 14px 4px}
 .dcard{display:flex;gap:12px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;flex-wrap:wrap}
 .dcard b{font-size:.92rem}.dcard p{margin:4px 0 0;font-size:.76rem;color:var(--muted)}
 .toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,30px);opacity:0;background:var(--ink);color:var(--card);padding:10px 18px;border-radius:12px;font-size:.84rem;transition:.25s;z-index:80;pointer-events:none}
@@ -417,7 +418,7 @@ table.asm td{padding:7px 8px;vertical-align:middle}table.asm .vcell input{min-wi
   <aside class="side" id="side">
     <div class="brand" style="cursor:default"><div class="logo">س</div><div><h1>سایا نیک</h1><div class="phint">کنسول مدیریت</div></div></div>
     <nav id="nav"></nav>
-    <div class="bot"><a class="nav" href="../barite/"><span class="ic" id="icB"></span>داشبورد تصمیم کارخانه</a><a class="nav" href="../"><span class="ic" id="icF"></span>داشبورد مالی پروژه</a><button class="nav" id="logout"><span class="ic" id="icL"></span>خروج</button></div>
+    <div class="bot"><div id="apps"></div><button class="nav" id="logout"><span class="ic" id="icL"></span>خروج</button></div>
   </aside>
   <div class="scrim hide" id="scrim"></div>
   <main class="main">
@@ -435,6 +436,7 @@ table.asm td{padding:7px 8px;vertical-align:middle}table.asm .vcell input{min-wi
 <script src="../barite/jalali.js"></script>
 <script>var PAGES=[],NAV_GROUPS=[],GRP_ORDER=[];</script>
 <script src="../barite/nav.js"></script>
+<script src="../shared/apps.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

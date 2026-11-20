@@ -136,7 +136,7 @@ function render() {
 }
 $("burger").onclick = function () { $("side").classList.add("open"); $("scrim").classList.remove("hide"); };
 $("scrim").onclick = function () { $("side").classList.remove("open"); $("scrim").classList.add("hide"); };
-$("icB").innerHTML = icon("factory"); $("icF").innerHTML = icon("back"); $("icL").innerHTML = icon("power");
+$("icL").innerHTML = icon("power");
 $("logout").onclick = async function () { await ensureDb(); await db.auth.signOut(); location.reload(); };
 $("go").onclick = async function () { await ensureDb(); var r = await db.auth.signInWithPassword({ email: $("em").value.trim().toLowerCase(), password: $("pw").value.trim() });
   if (r.error) { $("anote").className = "note err"; $("anote").textContent = "ورود ناموفق — " + r.error.message; return; } start(); };
@@ -150,6 +150,7 @@ async function start() {
   if (!a.data) { $("boot").innerHTML = '<div class="empty">حساب ' + esc(X.me) + ' مدیر دسترسی نیست.<br><br><button class="more" id="lo2">خروج</button></div>'; $("lo2").onclick = async function () { await db.auth.signOut(); location.reload(); }; return; }
   await load();
   var me = X.users.filter(function (u) { return u.email === X.me; })[0]; $("meNm").textContent = (me && me.full_name) || X.me; $("meAv").textContent = ((me && me.full_name) || X.me).trim().charAt(0);
+  SayaApps.render(db, $("apps"), "admin", "../");
   $("boot").classList.add("hide"); $("app").classList.remove("hide"); render();
 }
 start();

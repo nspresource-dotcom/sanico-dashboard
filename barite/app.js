@@ -525,7 +525,7 @@ async function start() {
   A.role = role; A.admin = role === "editor" || role === "admin";
   var p = await db.from("profiles").select("full_name").eq("id", A.me.id).maybeSingle();
   A.name = (p.data && p.data.full_name) || A.me.email;
-  var aa = await db.rpc("is_app_admin"); if (aa.data) $("adminLink").classList.remove("hide");
+  SayaApps.render(db, $("apps"), "barite", "../");
   $("meNm").textContent = A.name; $("meRl").textContent = { admin: "مدیر", editor: "ویرایش", viewer: "مشاهده" }[role]; $("meAv").textContent = (A.name || "؟").trim().charAt(0);
   try { await loadAll(); } catch (e) { $("boot").innerHTML = '<div class="empty">داده بارگذاری نشد: ' + esc(e.message || e) + '</div>'; return; }
   var h = (location.hash || "").slice(1); h = PAGE_ALIAS[h] || h; if (PAGES.some(function (x) { return x.k === h; })) A.page = h;
