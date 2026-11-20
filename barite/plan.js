@@ -225,6 +225,7 @@ function pAssume() {
   var head = '<div class="scroll"><table class="asm"><thead><tr><th class="mid">#</th><th>مفروض</th><th>مقدار</th><th>واحد</th><th>اعتبار</th><th>توضیح و منبع</th></tr></thead><tbody>';
   var rows = G_FIELDS.map(function (f) { return asmRow("g", f, g, ++i); }).join("") +
     asmRow("g", ["cash0", "موجودی نقد در شروع", "m"], g, ++i) + asmRow("g", ["dso", "دورهٔ وصول مطالبات", "n"], g, ++i);
+  rows += '<tr><td class="mid">' + toFa(++i) + '</td><td><b>تاریخ شروع تولید (ماه ۱ مدل)</b></td><td class="vcell"><input id="sdate" value="' + (g.startDate ? toFa(formatJalali(g.startDate)) : "") + '" placeholder="۱۴۰۵/۱۰/۰۱"' + (A.admin ? "" : " disabled") + '></td><td>تاریخ شمسی</td><td></td><td class="hint">برای مقایسهٔ برنامه با واقعی</td></tr>';
   var h = liveBar() + '<div class="gap">همهٔ عددهای ورودی مدل اینجاست؛ همان برگهٔ «مفروضات» گوگل‌شیت، به‌علاوهٔ عددهای کلیدی هر منبع خوراک. هر مفروض یک «اعتبار» دارد (تأییدشده، برآورد، فرضی) تا معلوم باشد تصمیم روی چه پایه‌ای گرفته می‌شود. بعد از تغییر «ذخیره» بزنید؛ هر تغییر با نام و تاریخ در تاریخچه می‌ماند و شیت هم در به‌روزرسانی بعدی همین عددها را می‌گیرد.</div>';
   h += '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>مفروضات کلی کارخانه</h3></div></div>' + head + rows + '</tbody></table></div></div>';
   TYPES.forEach(function (t) { S[t].forEach(function (s, j) { if (s.on === false) return; var path = t + ":" + j, n = 0;

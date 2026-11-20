@@ -38,21 +38,6 @@ var A = {
 var UNIT = "toman";
 try { UNIT = localStorage.getItem("bf_unit") || "toman"; } catch (e) {}
 
-var PAGES = [
-  { k: "home", t: "وضعیت کارخانه", ic: "⌂", h: "یک نگاه به برنامه و عملکرد" },
-  { k: "daily", t: "ثبت روزانه", ic: "✎", h: "تولید، فروش، خرید خوراک و هزینه‌ها" },
-  { k: "pva", t: "برنامه در برابر واقعی", ic: "⇄", h: "مقایسهٔ ماه‌به‌ماه با مدل" },
-  { k: "watch", t: "پایش ۱۹ بُعد", ic: "◉", h: "هشدار زودهنگام برنامهٔ رشد ۵ ساله" },
-  { k: "gates", t: "دروازه‌ها و اقدام‌ها", ic: "✓", h: "۹۰ روز اول، دروازهٔ سال اول و فرض‌ها" },
-  { k: "cash", t: "جریان نقدی", ic: "◔", h: "پیش‌بینی ماهانهٔ نقدینگی طرح" },
-  { k: "assume", t: "مفروضات", ic: "≡", h: "همهٔ عددهای ورودی مدل، با منبع و اعتبار هر کدام" },
-  { k: "model", t: "مدل و اهرم‌ها", ic: "⚙", h: "فرض‌های اصلی مدل" },
-  { k: "sources", t: "منابع خوراک", ic: "◆", h: "موجودی، بورس، معدن و تأمین‌کننده‌ها" },
-  { k: "loans", t: "تسهیلات", ic: "▣", h: "وام‌ها و اقساط" },
-  { k: "sens", t: "تحلیل حساسیت", ic: "↯", h: "کدام متغیر بیشترین اثر را دارد" },
-  { k: "scen", t: "سناریوها", ic: "☰", h: "نسخه‌های ذخیره‌شدهٔ مدل" },
-  { k: "guide", t: "راهنما", ic: "?", h: "این داشبورد چطور کار می‌کند" }
-];
 
 /* ---------- قالب‌بندی ---------- */
 var NF = new Intl.NumberFormat("fa-IR"), NF1 = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 1 }), NF2 = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2 });
@@ -135,13 +120,7 @@ function lineChart(series, opts) {
 }
 
 /* ---------- پوسته ---------- */
-function buildNav() {
-  $("nav").innerHTML = PAGES.map(function (p) {
-    return '<button class="nav' + (A.page === p.k ? " on" : "") + '" data-p="' + p.k + '"><span class="ic">' + p.ic + '</span>' + p.t + '</button>';
-  }).join("");
-  Array.prototype.forEach.call($("nav").querySelectorAll(".nav"), function (b) { b.onclick = function () { go(b.dataset.p); }; });
-}
-function go(p) { A.page = p; buildNav(); closeSide(); render(); window.scrollTo(0, 0); try { history.replaceState(null, "", "#" + p); } catch (e) {} }
+function go(p) { p = PAGE_ALIAS[p] || p; A.page = p; buildNav(); closeSide(); render(); window.scrollTo(0, 0); try { history.replaceState(null, "", "#" + p); } catch (e) {} }
 function closeSide() { $("side").classList.remove("open"); $("scrim").classList.add("hide"); }
 $("burger").onclick = function () { $("side").classList.add("open"); $("scrim").classList.remove("hide"); };
 $("scrim").onclick = closeSide;
@@ -157,7 +136,7 @@ function render() {
   if (!S) return;
   A.calc = calc(); A.act = actuals();
   var p = PAGES.filter(function (x) { return x.k === A.page; })[0] || PAGES[0];
-  $("ptitle").textContent = p.t; $("phint").textContent = p.h;
+  $("ptitle").textContent = p.t; $("phint").textContent = crumb() + " · " + p.h;
   $("unit").textContent = uN();
   $("stamps").innerHTML = stamps();
   $("promoN").textContent = fmt(A.act.T.cash) + " " + uN();
@@ -187,7 +166,7 @@ function strip() {
 /* ---------- کارت‌ها ---------- */
 function kpi(lab, val, unit, foot, cls, chip, hz) {
   return '<div class="kpi ' + (cls || "") + '"><div class="bd"><div class="hd"><span class="lab">' + lab + (hz ? ' <span class="hz">' + hz + '</span>' : '') +
-    '</span><span class="chip">' + (chip || "◆") + '</span></div><div class="val">' + val + (unit ? '<span class="unit">' + unit + '</span>' : '') +
+    '</span><span class="chip">' + chipHtml(chip || "◆") + '</span></div><div class="val">' + val + (unit ? '<span class="unit">' + unit + '</span>' : '') +
     '</div></div><div class="ft"><span>' + (foot || "") + '</span></div></div>';
 }
 function ins(kind, txt) { var m = { warn: ["d-warn", "!"], bad: ["d-bad", "✕"], good: ["d-good", "✓"], info: ["d-info", "i"] }[kind];
@@ -467,7 +446,7 @@ function pGuide() {
 function bind() {
   bindPlan(); bindAssume();
   Array.prototype.forEach.call(document.querySelectorAll("[data-go]"), function (b) { b.onclick = function () { go(b.dataset.go); }; });
-  Array.prototype.forEach.call(document.querySelectorAll("[data-sub]"), function (b) { b.onclick = function () { A.sub = b.dataset.sub; render(); }; });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-sub]"), function (b) { b.onclick = function () { A.sub = b.dataset.sub; buildNav(); render(); }; });
   Array.prototype.forEach.call(document.querySelectorAll("input.money"), function (el) { el.addEventListener("input", function () { reformat(el); }); });
   Array.prototype.forEach.call(document.querySelectorAll("[data-del]"), function (b) { b.onclick = function () { delRow(+b.dataset.del); }; });
   if ($("addRow")) $("addRow").onclick = addRow;
@@ -545,7 +524,7 @@ async function start() {
   A.admin = p.data.role === "admin"; A.name = p.data.full_name || A.me.email;
   $("meNm").textContent = A.name; $("meRl").textContent = A.admin ? "مدیر" : "مشاهده"; $("meAv").textContent = (A.name || "؟").trim().charAt(0);
   try { await loadAll(); } catch (e) { $("boot").innerHTML = '<div class="empty">داده بارگذاری نشد: ' + esc(e.message || e) + '</div>'; return; }
-  var h = (location.hash || "").slice(1); if (PAGES.some(function (x) { return x.k === h; })) A.page = h;
+  var h = (location.hash || "").slice(1); h = PAGE_ALIAS[h] || h; if (PAGES.some(function (x) { return x.k === h; })) A.page = h;
   $("boot").classList.add("hide"); $("app").classList.remove("hide");
   buildNav(); render();
 }

@@ -356,6 +356,21 @@ input[disabled],select[disabled]{opacity:.75}
 .pill-btn{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:.78rem;font-weight:700;color:var(--deep)}
 .phint{color:var(--muted);font-size:.78rem;margin:2px 0 0}
 #stamps{margin-bottom:6px}
+.ngrp{margin-bottom:6px}
+.nhead{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;padding:10px 14px 6px;font:inherit;font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.01em;cursor:pointer}
+.nhead .svgi{transition:transform .18s;transform:rotate(-90deg)}
+.ngrp.closed .nhead .svgi{transform:rotate(0)}
+.ngrp.closed .nbody{display:none}
+.nav .ic .svgi{display:block}
+.nav{padding:10px 14px;font-size:.9rem}
+.nkids{margin:2px 30px 6px 0;border-right:2px solid var(--line);padding-right:8px}
+.nkid{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;padding:8px 10px;border-radius:10px;font:inherit;font-size:.84rem;color:var(--ink2);cursor:pointer;text-align:right}
+.nkid:hover{background:var(--grey-s)}.nkid.on{background:var(--mint-s);color:var(--deep);font-weight:700}
+.chip .svgi{display:block}
+#app .side{overflow-y:auto;overscroll-behavior:contain}
+#app .side .promo{margin-top:14px;padding:12px 14px}
+#app .side .promo .n{font-size:1rem}
+
 table.asm td{padding:7px 8px;vertical-align:middle}table.asm .vcell input{min-width:150px;padding:8px 10px;direction:ltr;text-align:right}table.asm .vcell .chk{margin:0;padding:0}table.asm .vcell select{min-width:150px;padding:8px}table.asm .conf{width:auto;padding:7px}table.asm .note-in{min-width:240px;padding:8px 10px;font-size:.78rem}
 .wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .wcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 15px;box-shadow:var(--sh);border-top:4px solid var(--line)}
@@ -392,7 +407,7 @@ table.asm td{padding:7px 8px;vertical-align:middle}table.asm .vcell input{min-wi
     <button class="brand" id="brandBtn"><div class="logo">س</div><div><h1>پودر باریت سایا</h1><div class="phint">داشبورد تصمیم</div></div></button>
     <nav id="nav"></nav>
     <div class="promo"><h4>موجودی نقد</h4><span class="n" id="promoN">—</span><p>نقد اولیه + وصولی‌ها − پرداخت‌ها</p></div>
-    <div class="bot"><a class="nav" href="../"><span class="ic">↩</span>داشبورد مالی پروژه</a><button class="nav" id="logout"><span class="ic">⏻</span>خروج</button></div>
+    <div class="bot"><button class="nav" id="guideBtn"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 .5c0 1.5-2.5 2-2.5 3.5"/><path d="M12 17v.01"/></svg></span>راهنما</button><a class="nav" href="../"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-5-5 5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/></svg></span>داشبورد مالی پروژه</a><button class="nav" id="logout"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1011.4 0"/></svg></span>خروج</button></div>
   </aside>
   <div class="scrim hide" id="scrim"></div>
   <main class="main">
@@ -415,6 +430,7 @@ table.asm td{padding:7px 8px;vertical-align:middle}table.asm .vcell input{min-wi
 <div id="toast" class="toast"></div>
 <script src="jalali.js"></script>
 <script src="engine.js"></script>
+<script src="nav.js"></script>
 <script src="plan.js"></script>
 <script src="app.js"></script>
 </body>
