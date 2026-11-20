@@ -32,7 +32,7 @@ var A = {
   page: "home", sub: "prod", admin: false, me: null, name: "",
   model: null,          // نسخهٔ ذخیره‌شده در پایگاه داده
   dirty: false,         // مدل در حال ویرایش با نسخهٔ ذخیره‌شده فرق دارد
-  prod: [], sales: [], purch: [], exp: [], scen: [], watch: [], tasks: [],
+  prod: [], sales: [], purch: [], exp: [], scen: [], watch: [], tasks: [], mlog: [],
   loadedAt: null
 };
 var UNIT = "toman";
@@ -45,6 +45,7 @@ var PAGES = [
   { k: "watch", t: "پایش ۱۹ بُعد", ic: "◉", h: "هشدار زودهنگام برنامهٔ رشد ۵ ساله" },
   { k: "gates", t: "دروازه‌ها و اقدام‌ها", ic: "✓", h: "۹۰ روز اول، دروازهٔ سال اول و فرض‌ها" },
   { k: "cash", t: "جریان نقدی", ic: "◔", h: "پیش‌بینی ماهانهٔ نقدینگی طرح" },
+  { k: "assume", t: "مفروضات", ic: "≡", h: "همهٔ عددهای ورودی مدل، با منبع و اعتبار هر کدام" },
   { k: "model", t: "مدل و اهرم‌ها", ic: "⚙", h: "فرض‌های اصلی مدل" },
   { k: "sources", t: "منابع خوراک", ic: "◆", h: "موجودی، بورس، معدن و تأمین‌کننده‌ها" },
   { k: "loans", t: "تسهیلات", ic: "▣", h: "وام‌ها و اقساط" },
@@ -160,7 +161,7 @@ function render() {
   $("unit").textContent = uN();
   $("stamps").innerHTML = stamps();
   $("promoN").textContent = fmt(A.act.T.cash) + " " + uN();
-  var f = { home: pHome, daily: pDaily, pva: pPva, watch: pWatch, gates: pGates, cash: pCash, model: pModel, sources: pSources, loans: pLoans, sens: pSens, scen: pScen, guide: pGuide }[p.k];
+  var f = { home: pHome, daily: pDaily, pva: pPva, watch: pWatch, gates: pGates, cash: pCash, assume: pAssume, model: pModel, sources: pSources, loans: pLoans, sens: pSens, scen: pScen, guide: pGuide }[p.k];
   $("view").innerHTML = f();
   bind();
   strip();
@@ -464,7 +465,7 @@ function pGuide() {
 
 /* ---------- اتصال رویدادها ---------- */
 function bind() {
-  bindPlan();
+  bindPlan(); bindAssume();
   Array.prototype.forEach.call(document.querySelectorAll("[data-go]"), function (b) { b.onclick = function () { go(b.dataset.go); }; });
   Array.prototype.forEach.call(document.querySelectorAll("[data-sub]"), function (b) { b.onclick = function () { A.sub = b.dataset.sub; render(); }; });
   Array.prototype.forEach.call(document.querySelectorAll("input.money"), function (el) { el.addEventListener("input", function () { reformat(el); }); });
@@ -492,9 +493,11 @@ function bind() {
     if (!confirm("سناریو حذف شود؟")) return; await db.from("bf_scenarios").delete().eq("id", b.dataset.sdel); await loadScen(); render(); }; });
 }
 async function saveModel() {
+  var diff = modelDiff(A.model.data || {}, S);
   var r = await db.from("bf_model").upsert({ id: 1, data: S, updated_at: new Date().toISOString() }).select().single();
   if (r.error) { toast("ذخیره نشد: " + r.error.message); return; }
-  A.model = r.data; A.dirty = false; render(); toast("مدل ذخیره شد.");
+  if (diff.length) await db.from("bf_model_log").insert(diff.map(function (d) { return { by_name: A.name, item: d[0], old_value: d[1], new_value: d[2] }; }));
+  await loadLog(); A.model = r.data; A.dirty = false; render(); toast("ذخیره شد" + (diff.length ? " — " + toFa(diff.length) + " تغییر در تاریخچه" : "") + ".");
 }
 async function saveScenario() {
   var n = prompt("نام سناریو:"); if (!n) return; var note = prompt("توضیح کوتاه (اختیاری):") || null;
@@ -514,7 +517,7 @@ async function loadAll() {
   A.model = r.data || { data: fresh() };
   if (!A.dirty) S = JSON.parse(JSON.stringify(A.model.data));
   ["loans", "fg", "stock", "mines", "buys", "bourse"].forEach(function (k) { if (!S[k]) S[k] = []; });
-  await Promise.all([loadTable("prod"), loadTable("sales"), loadTable("purch"), loadTable("exp"), loadScen(), loadPlan()]);
+  await Promise.all([loadTable("prod"), loadTable("sales"), loadTable("purch"), loadTable("exp"), loadScen(), loadPlan(), loadLog()]);
   A.loadedAt = new Date();
 }
 

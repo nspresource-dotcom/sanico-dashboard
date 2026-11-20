@@ -203,3 +203,66 @@ function bindPlan() {
     var g = b.dataset.tadd, kind = g.indexOf("فرض") === 0 ? "فرض" : "اقدام";
     var r = await db.from("bf_tasks").insert({ grp: g, title: t, kind: kind, sort: 100 }); if (r.error) { toast(r.error.message); return; } await loadPlan(); render(); }; });
 }
+
+/* ---------- مفروضات: یک صفحه برای همهٔ عددهای ورودی مدل ---------- */
+var CONF = { ok: ["p3", "تأییدشده"], est: ["p2", "برآورد"], guess: ["p1", "فرضی"] };
+var SRC_KEYS = { stock: ["qty", "tons", "price", "freight", "rec", "wpct", "wprice", "sg", "psg"], bourse: ["tons", "priceRial", "comm", "freight", "rec", "wpct", "wprice", "sg", "psg"],
+  mines: ["tons", "contract", "freight", "rec", "wpct", "wprice", "sg", "psg"], buys: ["tons", "price", "freight", "rec", "wpct", "wprice", "sg", "psg"], fg: ["qty", "tons", "cost", "price"] };
+var UNITS = { invest: "تومان", horizon: "ماه", price: "تومان بر تن", proc: "تومان بر تن خوراک", bag: "تومان", bagSize: "تن", overhead: "تومان در ماه", capacity: "تن در ماه",
+  loanRate: "٪ سالانه", loanMonths: "ماه", tax: "٪", disc: "٪ سالانه", vatRate: "٪", targetSg: "وزن مخصوص", cash0: "تومان", dso: "روز",
+  qty: "تن", tons: "تن در ماه", cost: "تومان بر تن", freight: "تومان بر تن", rec: "٪", wpct: "٪ خوراک", wprice: "تومان بر تن", sg: "وزن مخصوص", psg: "وزن مخصوص", priceRial: "ریال بر کیلو", comm: "در هزار", contract: "تومان در ماه" };
+function metaOf(k) { S.meta = S.meta || {}; return S.meta[k] || {}; }
+function asmRow(path, f, obj, idx) {
+  var k = path + "." + f[0], m = metaOf(k), lab = f[1].replace(/\s*\((تومان|٪)\)/, ""), cf = CONF[m.conf];
+  var unit = (UNITS[f[0]] || "").replace("تومان", uN()), ro = A.admin ? "" : " disabled";
+  var cell = fieldHtml(path, [f[0], "", f[2], f[3]], obj).replace("<label></label>", "").replace(/<div>|<\/div>/g, "");
+  return '<tr><td class="mid">' + toFa(idx) + '</td><td><b>' + lab + '</b></td><td class="vcell">' + cell + '</td><td>' + (f[2] === "c" ? "بله/خیر" : unit) + '</td>' +
+    '<td><select class="conf" data-mconf="' + k + '"' + ro + '><option value="">—</option>' + Object.keys(CONF).map(function (c) { return '<option value="' + c + '"' + (m.conf === c ? " selected" : "") + '>' + CONF[c][1] + '</option>'; }).join("") + '</select></td>' +
+    '<td><input class="note-in" data-mnote="' + k + '" value="' + esc(m.note || "") + '" placeholder="منبع یا توضیح"' + ro + '></td></tr>';
+}
+function pAssume() {
+  var g = S.g, i = 0, cnt = { ok: 0, est: 0, guess: 0, none: 0 };
+  var head = '<div class="scroll"><table class="asm"><thead><tr><th class="mid">#</th><th>مفروض</th><th>مقدار</th><th>واحد</th><th>اعتبار</th><th>توضیح و منبع</th></tr></thead><tbody>';
+  var rows = G_FIELDS.map(function (f) { return asmRow("g", f, g, ++i); }).join("") +
+    asmRow("g", ["cash0", "موجودی نقد در شروع", "m"], g, ++i) + asmRow("g", ["dso", "دورهٔ وصول مطالبات", "n"], g, ++i);
+  var h = liveBar() + '<div class="gap">همهٔ عددهای ورودی مدل اینجاست؛ همان برگهٔ «مفروضات» گوگل‌شیت، به‌علاوهٔ عددهای کلیدی هر منبع خوراک. هر مفروض یک «اعتبار» دارد (تأییدشده، برآورد، فرضی) تا معلوم باشد تصمیم روی چه پایه‌ای گرفته می‌شود. بعد از تغییر «ذخیره» بزنید؛ هر تغییر با نام و تاریخ در تاریخچه می‌ماند و شیت هم در به‌روزرسانی بعدی همین عددها را می‌گیرد.</div>';
+  h += '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>مفروضات کلی کارخانه</h3></div></div>' + head + rows + '</tbody></table></div></div>';
+  TYPES.forEach(function (t) { S[t].forEach(function (s, j) { if (s.on === false) return; var path = t + ":" + j, n = 0;
+    var fl = FIELDS[t].filter(function (f) { return SRC_KEYS[t].indexOf(f[0]) >= 0; });
+    h += '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>' + esc(s.name) + '</h3><p class="hint">' + TYPE_FA[t] + ' · برای افزودن یا غیرفعال کردن منبع به «منابع خوراک» بروید</p></div></div>' + head +
+      fl.map(function (f) { return asmRow(path, f, s, ++n); }).join("") + '</tbody></table></div></div>'; }); });
+  var calcRows = [["هزینهٔ بسته‌بندی هر تن محصول", fmt(g.bagSize > 0 ? g.bag / g.bagSize : 0) + " " + uN(), "قیمت جامبوبگ ÷ ظرفیت آن"],
+    ["نرخ تنزیل ماهانه", p1(Math.pow(1 + g.disc / 100, 1 / 12) - 1), "معادل ماهانهٔ نرخ تنزیل سالانه"],
+    ["ضریب هزینهٔ مالی هر تن خوراک", p1(g.loanRate / 100 * g.loanMonths / 12), "نرخ مالی سالانه × ماه‌های درگیری ÷ ۱۲"]];
+  h += '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>مقادیر محاسبه‌شده</h3></div></div><div class="scroll"><table><tbody>' + calcRows.map(function (r) { return '<tr><td><b>' + r[0] + '</b></td><td class="num">' + r[1] + '</td><td>' + r[2] + '</td></tr>'; }).join("") + '</tbody></table></div></div>';
+  h += (A.admin ? '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px"><button class="btn sm" id="saveM">ذخیرهٔ مفروضات</button><button class="btn sm ghost" id="saveS">ذخیره به‌عنوان سناریو</button></div>' : '');
+  h += '<div class="card"><div class="chead"><div><h3>تاریخچهٔ تغییرات</h3><p class="hint">۵۰ تغییر آخر</p></div></div><div class="scroll"><table><thead><tr><th>زمان</th><th>کاربر</th><th>مفروض</th><th class="num">قبلی</th><th class="num">جدید</th></tr></thead><tbody>' +
+    (A.mlog.length ? A.mlog.map(function (r) { return '<tr><td>' + jd(r.at.slice(0, 10)) + ' ' + toFa(new Date(r.at).toLocaleTimeString("en-GB", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit" })) + '</td><td>' + esc(r.by_name || "—") + '</td><td>' + esc(r.item) + '</td><td class="num">' + esc(r.old_value || "—") + '</td><td class="num">' + esc(r.new_value || "—") + '</td></tr>'; }).join("")
+      : '<tr><td colspan="5" class="mid" style="color:var(--muted)">هنوز تغییری ثبت نشده.</td></tr>') + '</tbody></table></div></div>';
+  return h;
+}
+/* فهرست تغییرات بین نسخهٔ ذخیره‌شده و نسخهٔ فعلی، برای تاریخچه */
+function modelDiff(a, b) {
+  var out = [];
+  function lab(path, k) { var f = path === "g" ? G_FIELDS.concat([["cash0", "موجودی نقد در شروع"], ["dso", "دورهٔ وصول"], ["startDate", "تاریخ شروع تولید"]]).filter(function (x) { return x[0] === k; })[0]
+      : (FIELDS[path.split(":")[0]] || []).concat([["on", "فعال"]]).filter(function (x) { return x[0] === k; })[0];
+    var pre = path === "g" ? "" : ((b[path.split(":")[0]] || [])[+path.split(":")[1]] || (a[path.split(":")[0]] || [])[+path.split(":")[1]] || {}).name + " — ";
+    return pre + (f ? f[1].replace(/\s*\((تومان|٪)\)/, "") : k); }
+  function show(v) { return typeof v === "number" ? NF2.format(v) : typeof v === "boolean" ? (v ? "بله" : "خیر") : v === undefined || v === null ? "" : String(v); }
+  function cmp(path, x, y) { var ks = {}; Object.keys(x || {}).concat(Object.keys(y || {})).forEach(function (k) { ks[k] = 1; });
+    Object.keys(ks).forEach(function (k) { if (k === "id" || k === "unit") return; var u = (x || {})[k], v = (y || {})[k]; if (JSON.stringify(u) !== JSON.stringify(v)) out.push([lab(path, k), show(u), show(v)]); }); }
+  cmp("g", a.g, b.g);
+  ["loans", "fg", "stock", "mines", "buys", "bourse"].forEach(function (t) { var n = Math.max((a[t] || []).length, (b[t] || []).length);
+    for (var i = 0; i < n; i++) { var x = (a[t] || [])[i], y = (b[t] || [])[i];
+      if (!x) out.push([TYPE_FA[t] + " — " + y.name, "", "افزوده شد"]); else if (!y) out.push([TYPE_FA[t] + " — " + x.name, "", "حذف شد"]); else cmp(t + ":" + i, x, y); } });
+  var ma = a.meta || {}, mb = b.meta || {}; Object.keys(Object.assign({}, ma, mb)).forEach(function (k) { if (JSON.stringify(ma[k]) !== JSON.stringify(mb[k])) {
+    var p = k.split("."); out.push([lab(p[0], p[1]) + " (توضیح/اعتبار)", (ma[k] && ((CONF[ma[k].conf] || [])[1] || "")) || "", (mb[k] && ((CONF[mb[k].conf] || [])[1] || "")) || ""]); } });
+  return out;
+}
+async function loadLog() { var r = await db.from("bf_model_log").select("*").order("at", { ascending: false }).limit(50); A.mlog = r.data || []; }
+function bindAssume() {
+  Array.prototype.forEach.call(document.querySelectorAll("[data-mconf],[data-mnote]"), function (el) { el.addEventListener("change", function () {
+    var k = el.dataset.mconf || el.dataset.mnote; S.meta = S.meta || {}; var m = S.meta[k] = Object.assign({}, S.meta[k] || {});
+    if (el.dataset.mconf) m.conf = el.value || undefined; else m.note = el.value.trim() || undefined;
+    A.dirty = true; render(); }); });
+}
