@@ -6,7 +6,7 @@ var X = { page: "matrix", me: "", users: [], dash: [], acc: [], log: [], profile
 var ROLES = { viewer: "مشاهده", editor: "ثبت و ویرایش", admin: "مدیر" };
 var APAGES = [
   { k: "matrix", t: "ماتریس دسترسی", ic: "list", h: "هر کاربر به کدام داشبورد و با چه سطحی" },
-  { k: "users", t: "کاربران", ic: "edit", h: "کاربران ثبت‌نام‌شده و دسترسی‌های پیش‌ثبت‌شده" },
+  { k: "users", t: "کاربران", ic: "edit", h: "افزودن کاربر، رمز، فعال و غیرفعال کردن" },
   { k: "dash", t: "داشبوردها", ic: "layers", h: "فهرست داشبوردها؛ افزودن داشبورد تازه در آینده" },
   { k: "log", t: "گزارش تغییرات", ic: "clock", h: "چه کسی، کی، چه دسترسی‌ای را تغییر داد" }
 ];
@@ -27,7 +27,7 @@ async function load() {
       d = await db.from("app_access_log").select("*").order("at", { ascending: false }).limit(200), e = await db.from("profiles").select("email,full_name,role,is_active");
   X.dash = a.data || []; X.acc = b.data || []; X.users = c.data || []; X.log = d.data || []; X.profiles = e.data || [];
 }
-function allEmails() { var m = {}; X.users.forEach(function (u) { m[u.email] = { email: u.email, name: u.full_name, last: u.last_sign_in, reg: true }; });
+function allEmails() { var m = {}; X.users.forEach(function (u) { m[u.email] = { email: u.email, name: u.full_name, last: u.last_sign_in, reg: true, off: u.disabled }; });
   X.acc.forEach(function (a) { if (!m[a.email]) m[a.email] = { email: a.email, name: null, last: null, reg: false }; });
   return Object.keys(m).sort().map(function (k) { return m[k]; }); }
 function roleOf(email, dash) { var r = X.acc.filter(function (a) { return a.email === email && a.dashboard === dash; })[0]; return r ? r.role : ""; }
@@ -56,15 +56,34 @@ function pMatrix() {
     Object.keys(ROLES).map(function (k) { return '<option value="' + k + '">' + ROLES[k] + '</option>'; }).join("") + '</select><button class="btn sm" id="nAdd" style="margin:0">ثبت</button></div></div>';
   return h;
 }
+var FIN = { none: "بدون دسترسی", viewer: "مشاهده", admin: "مدیر" };
+function genPw() { var c = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789", r = ""; var a = new Uint32Array(12); crypto.getRandomValues(a); for (var i = 0; i < 12; i++) r += c[a[i] % c.length]; return r; }
 function pUsers() {
-  var U = allEmails(), F = {}; X.profiles.forEach(function (p) { F[String(p.email || "").toLowerCase()] = p; });
-  return '<div class="card"><div class="scroll"><table><thead><tr><th>کاربر</th><th>ایمیل</th><th>آخرین ورود</th><th>داشبوردها</th><th>داشبورد مالی (جدول profiles)</th></tr></thead><tbody>' +
-    U.map(function (u) { var mine = X.acc.filter(function (a) { return a.email === u.email; }), f = F[u.email];
-      return '<tr><td><b>' + esc(u.name || "—") + '</b></td><td dir="ltr" style="text-align:right">' + esc(u.email) + '</td><td>' + (u.reg ? when(u.last) : '<span class="pill p2">ثبت‌نام نکرده</span>') + '</td><td>' +
-        (mine.length ? mine.map(function (a) { var d = X.dash.filter(function (x) { return x.key === a.dashboard; })[0]; return '<span class="pill p3">' + esc(d ? d.title : a.dashboard) + ' · ' + ROLES[a.role] + '</span>'; }).join(" ") : "—") + '</td><td>' +
-        (f ? (f.is_active ? (f.role === "admin" ? "مدیر" : "مشاهده") : "غیرفعال") : "—") + '</td></tr>'; }).join("") + '</tbody></table></div>' +
-    '<p class="hint" style="margin-top:10px">دسترسی داشبورد مالی پروژه هنوز از سامانهٔ خودش (جدول profiles و فهرست مجاز) کنترل می‌شود و این‌جا فقط نمایش داده می‌شود. اگر بخواهید، در مرحلهٔ بعد آن را هم به همین کنسول وصل می‌کنیم.</p></div>';
+  var U = X.users, D = X.dash.filter(function (d) { return d.enforced && d.key !== "admin" && d.active; });
+  var h = '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>افزودن کاربر تازه</h3><p class="hint">حساب فوراً ساخته و تأییدشده است؛ ایمیل و رمز را خودتان به کاربر بدهید.</p></div></div>' +
+    '<div class="frm"><div><label>نام و سمت</label><input id="uName" placeholder="مثلاً رضا احمدی — سرپرست تولید"></div><div><label>ایمیل</label><input id="uEmail" dir="ltr" placeholder="name@example.com"></div>' +
+    '<div><label>رمز عبور اولیه</label><div style="display:flex;gap:6px"><input id="uPw" dir="ltr" value="' + genPw() + '"><button class="more" id="uGen" type="button">تازه</button></div></div>' +
+    D.map(function (d) { return '<div><label>' + esc(d.title) + '</label><select data-ud="' + d.key + '"><option value="">بدون دسترسی</option>' + Object.keys(ROLES).map(function (k) { return '<option value="' + k + '">' + ROLES[k] + '</option>'; }).join("") + '</select></div>'; }).join("") +
+    '<div><label>داشبورد مالی پروژه</label><select id="uFin">' + Object.keys(FIN).map(function (k) { return '<option value="' + k + '">' + FIN[k] + '</option>'; }).join("") + '</select></div>' +
+    '</div><button class="btn sm" id="uAdd">ساخت حساب</button><div class="note" id="uNote"></div></div>';
+  h += '<div class="card"><div class="chead"><div><h3>حساب‌های موجود</h3><p class="hint">' + toFa(U.length) + ' حساب</p></div></div><div class="scroll"><table class="mx"><thead><tr><th>کاربر</th><th>آخرین ورود</th><th>داشبوردها</th><th>داشبورد مالی</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' +
+    U.map(function (u) { var mine = X.acc.filter(function (a) { return a.email === u.email; }), self = u.email === X.me;
+      return '<tr><td class="who"><b>' + esc(u.full_name || "—") + '</b><span>' + esc(u.email) + '</span></td><td>' + when(u.last_sign_in) + '</td><td>' +
+        (mine.length ? mine.map(function (a) { var d = X.dash.filter(function (x) { return x.key === a.dashboard; })[0]; return '<span class="pill p3">' + esc(d ? d.title : a.dashboard) + ' · ' + ROLES[a.role] + '</span>'; }).join(" ") : "—") + '</td>' +
+        '<td><select data-fin="' + esc(u.email) + '">' + Object.keys(FIN).map(function (k) { return '<option value="' + k + '"' + (u.finance === k ? " selected" : "") + '>' + FIN[k] + '</option>'; }).join("") + '</select></td>' +
+        '<td>' + (u.disabled ? '<span class="pill p1">غیرفعال</span>' : '<span class="pill p3">فعال</span>') + '</td><td style="white-space:nowrap">' +
+        '<button class="more" data-pw="' + esc(u.email) + '">رمز تازه</button> <button class="more" data-ren="' + esc(u.email) + '">نام</button> ' +
+        (self ? "" : '<button class="more" data-ban="' + esc(u.email) + '" data-on="' + (u.disabled ? "1" : "") + '">' + (u.disabled ? "فعال کن" : "غیرفعال کن") + '</button>') + '</td></tr>'; }).join("") +
+    '</tbody></table></div><p class="hint" style="margin-top:10px">«غیرفعال کن» جلوی ورود به همهٔ داشبوردها را می‌گیرد، بدون اینکه حساب یا سابقه‌اش پاک شود. دسترسی داشبورد مالی از سامانهٔ خود آن داشبورد است و این‌جا تغییرش می‌دهید.</p></div>';
+  return h;
 }
+async function callAdmin(body) {
+  var r = await db.functions.invoke("admin-users", { body: body });
+  if (r.error) { var m = r.error.message; try { var j = await r.error.context.json(); m = j.error || m; } catch (e) {} throw new Error(m); }
+  if (r.data && r.data.error) throw new Error(r.data.error);
+  return r.data;
+}
+async function act(body, okMsg) { try { await callAdmin(body); await load(); render(); toast(okMsg); } catch (e) { toast("انجام نشد: " + e.message); } }
 function pDash() {
   var h = X.dash.map(function (d) { var n = X.acc.filter(function (a) { return a.dashboard === d.key; }).length;
     return '<div class="dcard"><div><b>' + esc(d.title) + '</b> <span class="pill ' + (d.active ? "p3" : "p1") + '">' + (d.active ? "فعال" : "غیرفعال") + '</span>' + (d.enforced ? "" : ' <span class="pill p2">دسترسی از سامانهٔ خودش</span>') +
@@ -90,6 +109,21 @@ function render() {
   $("ptitle").textContent = p.t; $("phint").textContent = p.h;
   $("view").innerHTML = { matrix: pMatrix, users: pUsers, dash: pDash, log: pLog }[p.k]();
   Array.prototype.forEach.call(document.querySelectorAll("select[data-email]"), function (s) { s.onchange = function () { setRole(s.dataset.email, s.dataset.dash, s.value); }; });
+  if ($("uGen")) $("uGen").onclick = function () { $("uPw").value = genPw(); };
+  if ($("uAdd")) $("uAdd").onclick = async function () {
+    var e = $("uEmail").value.trim().toLowerCase(), pw = $("uPw").value.trim(), n = $("uName").value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { toast("ایمیل درست نیست."); return; } if (pw.length < 8) { toast("رمز دست‌کم ۸ نویسه."); return; }
+    $("uAdd").disabled = true; $("uNote").className = "note"; $("uNote").textContent = "در حال ساخت…";
+    try { await callAdmin({ action: "create", email: e, password: pw, full_name: n, finance: $("uFin").value });
+      var sels = document.querySelectorAll("[data-ud]");
+      for (var i = 0; i < sels.length; i++) if (sels[i].value) { await db.from("app_access").upsert({ email: e, dashboard: sels[i].dataset.ud, role: sels[i].value, updated_at: new Date().toISOString(), updated_by: X.me });
+        await db.from("app_access_log").insert({ by_email: X.me, email: e, dashboard: sels[i].dataset.ud, action: "دسترسی: " + ROLES[sels[i].value] }); }
+      await load(); render(); $("uNote").className = "note ok"; $("uNote").textContent = "حساب ساخته شد. ایمیل: " + e + " · رمز: " + pw + " — این را به کاربر بدهید.";
+    } catch (err) { $("uAdd").disabled = false; $("uNote").className = "note err"; $("uNote").textContent = "ساخته نشد: " + err.message; } };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-pw]"), function (b) { b.onclick = function () { var pw = prompt("رمز تازه برای " + b.dataset.pw + " (دست‌کم ۸ نویسه):", genPw()); if (!pw) return; act({ action: "password", email: b.dataset.pw, password: pw }, "رمز تغییر کرد: " + pw); }; });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-ren]"), function (b) { b.onclick = function () { var n = prompt("نام و سمت تازه:"); if (n === null) return; act({ action: "rename", email: b.dataset.ren, full_name: n.trim() }, "نام ثبت شد."); }; });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-ban]"), function (b) { b.onclick = function () { var on = !!b.dataset.on; if (!confirm((on ? "فعال" : "غیرفعال") + " شود؟")) return; act({ action: on ? "enable" : "disable", email: b.dataset.ban }, "ثبت شد."); }; });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-fin]"), function (s) { s.onchange = function () { act({ action: "finance", email: s.dataset.fin, finance: s.value }, "دسترسی داشبورد مالی ثبت شد."); }; });
   if ($("nAdd")) $("nAdd").onclick = function () { var e = $("nEmail").value.trim().toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { toast("ایمیل درست نیست."); return; } setRole(e, $("nDash").value, $("nRole").value); };
   Array.prototype.forEach.call(document.querySelectorAll("[data-tog]"), function (b) { b.onclick = async function () { var d = X.dash.filter(function (x) { return x.key === b.dataset.tog; })[0];
     if (!confirm((d.active ? "غیرفعال" : "فعال") + " شود؟ با غیرفعال شدن، هیچ‌کس به آن دسترسی ندارد.")) return;
