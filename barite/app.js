@@ -519,10 +519,14 @@ async function start() {
   var s = await db.auth.getSession(); if (!s.data.session) { $("auth").classList.remove("hide"); $("boot").classList.add("hide"); return; }
   A.me = s.data.session.user;
   $("auth").classList.add("hide"); $("boot").classList.remove("hide");
-  var p = await db.from("profiles").select("full_name,role,is_active").eq("id", A.me.id).maybeSingle();
-  if (!p.data || !p.data.is_active) { $("boot").innerHTML = '<div class="empty">حساب شما برای این داشبورد فعال نیست. با مدیر تماس بگیرید.</div>'; return; }
-  A.admin = p.data.role === "admin"; A.name = p.data.full_name || A.me.email;
-  $("meNm").textContent = A.name; $("meRl").textContent = A.admin ? "مدیر" : "مشاهده"; $("meAv").textContent = (A.name || "؟").trim().charAt(0);
+  var dr = await db.rpc("dash_role", { p_key: "barite" }), role = dr.data || null;
+  if (!role) { $("boot").innerHTML = '<div class="empty">دسترسی شما (' + esc(A.me.email) + ') به داشبورد تصمیم کارخانه فعال نیست. از مدیر بخواهید در «کنسول مدیریت دسترسی» برایتان فعال کند.<br><br><button class="more" id="lo2">خروج و ورود با حساب دیگر</button></div>';
+    $("lo2").onclick = async function () { await db.auth.signOut(); location.reload(); }; return; }
+  A.role = role; A.admin = role === "editor" || role === "admin";
+  var p = await db.from("profiles").select("full_name").eq("id", A.me.id).maybeSingle();
+  A.name = (p.data && p.data.full_name) || A.me.email;
+  var aa = await db.rpc("is_app_admin"); if (aa.data) $("adminLink").classList.remove("hide");
+  $("meNm").textContent = A.name; $("meRl").textContent = { admin: "مدیر", editor: "ویرایش", viewer: "مشاهده" }[role]; $("meAv").textContent = (A.name || "؟").trim().charAt(0);
   try { await loadAll(); } catch (e) { $("boot").innerHTML = '<div class="empty">داده بارگذاری نشد: ' + esc(e.message || e) + '</div>'; return; }
   var h = (location.hash || "").slice(1); h = PAGE_ALIAS[h] || h; if (PAGES.some(function (x) { return x.k === h; })) A.page = h;
   $("boot").classList.add("hide"); $("app").classList.remove("hide");
