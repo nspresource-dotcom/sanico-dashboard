@@ -9,14 +9,16 @@ var $ = function (id) { return document.getElementById(id); }, db = null;
 var I = { page: "desk", me: "", role: null, ed: false, proc: [], tasks: [], nc: [], kn: [], org: [], acc: [], log: [], f: { p: "", a: "", s: "", k: "" } };
 
 var PAGES = [
-  { k: "desk", t: "میز کار من", ic: "home", h: "کارهای من، منتظر تأیید من، و ثبت سریع" },
-  { k: "board", t: "تختهٔ کارها", ic: "list", h: "چرخهٔ PDCA: برنامه ← اجرا ← بررسی ← بسته" },
-  { k: "nc", t: "عدم انطباق و اقدام اصلاحی", ic: "alert", h: "ثبت، علت ریشه‌ای، اقدام اصلاحی، بررسی اثربخشی (بند ۱۰.۲)" },
-  { k: "know", t: "بانک دانش", ic: "layers", h: "دانش سازمانی هر فرایند — ثبت، تأیید، انتقال، بازنگری" },
-  { k: "proc", t: "نقشهٔ فرایندها", ic: "value", h: "فرایندهای مدیریتی، اصلی و پشتیبانی و مالک هر کدام (بند ۴.۴)" },
-  { k: "over", t: "نمای کلی IMS", ic: "sum", h: "وضعیت کیفیت، ایمنی و محیط زیست در یک نگاه" },
-  { k: "log", t: "گزارش تغییرات", ic: "clock", h: "سابقهٔ همهٔ تغییرات" }
+  { k: "desk", g: "daily", t: "میز کار من", ic: "home", h: "کارهای من، منتظر تأیید من، و ثبت سریع" },
+  { k: "board", g: "daily", t: "تختهٔ کارها", ic: "list", h: "چرخهٔ PDCA: برنامه ← اجرا ← بررسی ← بسته" },
+  { k: "nc", g: "daily", t: "عدم انطباق و اقدام اصلاحی", ic: "alert", h: "ثبت، علت ریشه‌ای، اقدام اصلاحی، بررسی اثربخشی (بند ۱۰.۲)" },
+  { k: "know", g: "support", t: "بانک دانش", ic: "layers", h: "دانش سازمانی هر فرایند — ثبت، تأیید، انتقال، بازنگری" },
+  { k: "proc", g: "plan", t: "نقشهٔ فرایندها", ic: "value", h: "فرایندهای مدیریتی، اصلی و پشتیبانی و مالک هر کدام (بند ۴.۴)" },
+  { k: "over", g: "eval", t: "نمای کلی IMS", ic: "sum", h: "وضعیت کیفیت، ایمنی و محیط زیست در یک نگاه" },
+  { k: "log", g: "eval", t: "گزارش تغییرات", ic: "clock", h: "سابقهٔ همهٔ تغییرات" }
 ];
+var GROUPS = [["daily", "کار روزانه"], ["plan", "بافت و برنامه‌ریزی (بند ۴ و ۶)"], ["support", "پشتیبانی و مستندات (بند ۷)"], ["eval", "ارزیابی و بهبود (بند ۹ و ۱۰)"]];
+var X = window.IMS_EXT = window.IMS_EXT || { pages: {}, add: [] };
 var STD = { Q: "کیفیت", S: "ایمنی", E: "محیط زیست" };
 var KIND = { routine: "وظیفهٔ روتین", assigned: "ارجاعی", corrective: "اقدام اصلاحی", improvement: "پیشنهاد بهبود" };
 var SRC = { routine: "برنامهٔ روتین", objective: "هدف ماهانه/سالانه", risk: "ریسک یا فرصت", aspect: "جنبهٔ زیست‌محیطی", hazard: "خطر ایمنی", nc: "عدم انطباق", complaint: "شکایت مشتری", audit: "یافتهٔ ممیزی", review: "مصوبهٔ بازنگری مدیریت", legal: "الزام قانونی", suggestion: "پیشنهاد کارکنان", other: "سایر" };
@@ -62,6 +64,7 @@ async function load() {
     db.from("ims_nc").select("*").order("id", { ascending: false }).limit(1000), db.from("ims_knowledge").select("*").order("id", { ascending: false }).limit(2000),
     db.rpc("ims_org"), db.rpc("ims_accounts"), db.from("ims_log").select("*").order("at", { ascending: false }).limit(300)]);
   I.proc = r[0].data || []; I.tasks = r[1].data || []; I.nc = r[2].data || []; I.kn = r[3].data || []; I.org = r[4].data || []; I.acc = r[5].data || []; I.log = r[6].data || [];
+  if (X.load) await X.load();
 }
 async function logit(t) { await db.from("ims_log").insert({ action: t }); }
 
@@ -90,6 +93,7 @@ function pDesk() {
   if (kap.length) h += block("دانش منتظر تأیید من", kap, function (k) { return '<div class="li" data-kn="' + k.id + '"><div><b>' + esc(k.title) + '</b><br><span>' + esc(nameOf(k.author_email)) + " · " + KK[k.kind] + '</span></div><span>' + jd(k.created_at) + '</span></div>'; }, "");
   if (myNc.length) h += block("عدم انطباق‌هایی که مسئولشان هستم", myNc, ncRow, "");
   if (sent.length) h += block("کارهایی که ارجاع داده‌ام", sent, taskRow, "");
+  if (X.desk) h += X.desk(block);
   return h;
 }
 
@@ -167,7 +171,7 @@ function openTask(id, preset) {
       var r = await db.from("ims_tasks").update(o).eq("id", t.id); if (r.error) { toast(r.error.message); return; }
       await logit("ویرایش کار #" + t.id + " «" + (o.title || t.title) + "»");
     } else {
-      o.approver_email = approverFor(o.assignee_email, me); o.created_by = me; if (preset && preset.nc_id) o.nc_id = preset.nc_id;
+      o.approver_email = approverFor(o.assignee_email, me); o.created_by = me; if (preset && preset.nc_id) o.nc_id = preset.nc_id; if (preset && preset.ref_type) { o.ref_type = preset.ref_type; o.ref_id = preset.ref_id; }
       if (o.kind === "corrective" && !o.effect_due && o.due_date) o.effect_due = addDays(o.due_date, 30);
       var r2 = await db.from("ims_tasks").insert(o); if (r2.error) { toast(r2.error.message); return; }
       await logit("کار تازه «" + o.title + "» برای " + nameOf(o.assignee_email));
@@ -371,6 +375,7 @@ function pOver() {
   var ks = Object.keys(seen);
   h += '<div class="card"><div class="chead"><div><h3>فراتر از وظیفه — ۳۰ روز اخیر</h3><p class="hint">پیشنهاد بهبود، گزارش شبه‌حادثه و دانش ثبت‌شده. امتیاز ندارد؛ برای دیدن و قدردانی در گفت‌وگوی ماهانه است.</p></div></div>' +
     (ks.length ? ks.map(function (e) { return '<div class="kb"><b>' + esc(nameOf(e)) + '</b><div class="mt">' + seen[e].map(function (x) { return '<span>' + esc(x) + '</span>'; }).join(" · ") + '</div></div>'; }).join("") : '<p class="hint">هنوز موردی ثبت نشده.</p>') + '</div>';
+  if (X.over) h = X.over() + h;
   return h;
 }
 function pLog() {
@@ -381,8 +386,12 @@ function pLog() {
 /* ================= پوسته ================= */
 function nav() {
   var me = I.me, badge = { desk: I.tasks.filter(function (t) { return (t.assignee_email === me && (t.status === "todo" || t.status === "doing")) || (t.status === "review" && t.approver_email === me); }).length, nc: I.nc.filter(function (n) { return n.status !== "closed"; }).length };
-  $("nav").innerHTML = '<div class="ngrp"><div class="nhead" style="cursor:default"><span>سیستم مدیریت یکپارچه</span></div><div class="nbody">' + PAGES.map(function (p) {
-    return '<button class="nav' + (I.page === p.k ? " on" : "") + '" data-p="' + p.k + '"><span class="ic">' + icon(p.ic) + '</span>' + p.t + (badge[p.k] ? ' <span class="pill p2" style="margin-right:auto">' + toFa(badge[p.k]) + '</span>' : '') + '</button>'; }).join("") + '</div></div>';
+  var all = PAGES.filter(function (p) { return p.k !== "log"; }).concat(X.add || [], PAGES.filter(function (p) { return p.k === "log"; }));
+  $("nav").innerHTML = GROUPS.map(function (g) {
+    var L = all.filter(function (p) { return p.g === g[0]; }); if (!L.length) return "";
+    return '<div class="ngrp"><div class="nhead" style="cursor:default"><span>' + g[1] + '</span></div><div class="nbody">' + L.map(function (p) {
+      var bd = badge[p.k] || (X.badge && X.badge(p.k)) || 0;
+      return '<button class="nav' + (I.page === p.k ? " on" : "") + '" data-p="' + p.k + '"><span class="ic">' + icon(p.ic) + '</span>' + p.t + (bd ? ' <span class="pill p2" style="margin-right:auto">' + toFa(bd) + '</span>' : '') + '</button>'; }).join("") + '</div></div>'; }).join("");
   Array.prototype.forEach.call(document.querySelectorAll("[data-p]"), function (b) { b.onclick = function () { I.page = b.dataset.p; $("side").classList.remove("open"); $("scrim").classList.add("hide"); render(); window.scrollTo(0, 0); }; });
 }
 function bindLinks() {
@@ -391,10 +400,11 @@ function bindLinks() {
   Array.prototype.forEach.call(document.querySelectorAll("[data-kn]"), function (b) { b.onclick = function () { openKnow(+b.dataset.kn); }; });
 }
 function render() {
-  nav(); var p = PAGES.filter(function (x) { return x.k === I.page; })[0];
+  nav(); var p = PAGES.concat(X.add || []).filter(function (x) { return x.k === I.page; })[0] || PAGES[0];
   $("ptitle").textContent = p.t; $("phint").textContent = p.h;
-  $("view").innerHTML = { desk: pDesk, board: pBoard, nc: pNc, know: pKnow, proc: pProc, over: pOver, log: pLog }[p.k]();
-  bindLinks();
+  var fn = Object.assign({ desk: pDesk, board: pBoard, nc: pNc, know: pKnow, proc: pProc, over: pOver, log: pLog }, X.pages)[p.k];
+  $("view").innerHTML = (p.print ? '<div class="flt noprint" style="justify-content:flex-end"><button class="more" onclick="window.print()">چاپ / PDF</button></div><div class="printh">' + esc(p.t) + ' — سیستم مدیریت یکپارچهٔ سایا نیک — ' + jd(today()) + '</div>' : '') + fn();
+  bindLinks(); if (X.bind) X.bind(p.k);
   Array.prototype.forEach.call(document.querySelectorAll("[data-new]"), function (b) { b.onclick = function () {
     var k = b.dataset.new; if (k === "task") openTask(null); else if (k === "nc") openNc(null); else if (k === "know") openKnow(null);
     else if (k === "improve") openTask(null, { kind: "improvement", source: "suggestion", title: "", assignee_email: managerOf(I.me) || I.me }); }; });

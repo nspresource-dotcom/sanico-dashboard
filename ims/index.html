@@ -479,6 +479,19 @@ textarea[disabled]{opacity:.75}
 .sec-h{font-size:.8rem;font-weight:800;color:var(--ink2);margin:16px 2px 8px}
 @media(max-width:760px){.board{grid-template-columns:repeat(4,82vw)}}
 
+.printh{display:none}.printonly{display:none}
+@media print{.printonly{display:block!important}}
+@media print{.side,.top .tools,#burger,.noprint,.foot,.qa,.acts,.flt{display:none!important}.shell{display:block}.main{padding:0;margin:0}.printh{display:block;font-weight:800;margin-bottom:10px}
+ .card,.pcard{box-shadow:none;break-inside:avoid}body{background:#fff}table{font-size:9pt}}
+.mx5{display:grid;grid-template-columns:28px repeat(5,1fr);gap:3px;font-size:.7rem;max-width:420px}
+.mx5 div{border-radius:6px;padding:6px 0;text-align:center;font-weight:800}
+.mx5 .ax{background:none;color:var(--muted);font-weight:600}
+.lv1{background:var(--mint-s);color:var(--deep)}.lv2{background:var(--amber-s);color:var(--amber)}.lv3{background:var(--rose-s);color:var(--rose)}
+.sc{display:inline-block;min-width:30px;text-align:center;border-radius:8px;padding:2px 6px;font-weight:800;font-size:.75rem}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.tabs button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;font:inherit;font-size:.78rem;cursor:pointer}.tabs button.on{background:var(--deep);color:#fff;border-color:var(--deep)}
+.pol{white-space:pre-wrap;line-height:2.1;font-size:.88rem}
+.bar2{height:8px;border-radius:99px;background:var(--grey-s);overflow:hidden;margin-top:6px}.bar2 i{display:block;height:100%;background:var(--deep)}
+
 </style>
 </head>
 <body>
@@ -515,6 +528,7 @@ textarea[disabled]{opacity:.75}
 <script>var PAGES=[],NAV_GROUPS=[],GRP_ORDER=[];</script>
 <script src="../barite/nav.js"></script>
 <script src="../shared/apps.js"></script>
+<script src="ims2.js"></script>
 <script src="ims.js"></script>
 </body>
 </html>
