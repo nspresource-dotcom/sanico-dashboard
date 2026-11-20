@@ -85,6 +85,8 @@
     I.set = {}; (r[0].data || []).forEach(function (x) { I.set[x.key] = x.value; });
     I.ctx = r[1].data || []; I.risks = r[2].data || []; I.legal = r[3].data || []; I.levals = r[4].data || []; I.objs = r[5].data || []; I.ovals = r[6].data || [];
     I.docs = r[7].data || []; I.drevs = r[8].data || []; I.audits = r[9].data || []; I.aitems = r[10].data || []; I.reviews = r[11].data || [];
+    var h1 = await db.from("hr_position_reqs").select("position_id", { count: "exact", head: true }), h2 = await db.from("hr_trainings").select("id", { count: "exact", head: true });
+    I.hrReqs = h1.count || 0; I.hrTr = h2.count || 0;
   };
   X.badge = function (k) {
     if (k === "risk") return I.risks ? I.risks.filter(function (x) { return x.score >= 15 && (x.status === "open"); }).length : 0;
@@ -434,6 +436,7 @@
       ["۹.۱.۲", "ارزیابی انطباق انجام‌شده", I.legal.length > 0 && n(I.legal, function (l) { return !!l.last_eval; }) === I.legal.length, "legal"],
       ["۶.۲", "اهداف سال جاری", n(I.objs, function (o) { return o.year === jy(); }) > 0, "obj"],
       ["۷.۱.۶", "دانش سازمانی تأییدشده", n(I.kn, function (k) { return k.status === "approved"; }) > 0, "know"],
+      ["۷.۲", "ماتریس صلاحیت و سوابق آموزش (پنل منابع انسانی)", I.hrReqs > 0 && I.hrTr > 0, "../hr/"],
       ["۷.۵", "مستندات تأییدشده", I.docs.length > 0 && n(I.docs, function (d) { return d.status === "approved"; }) >= Math.ceil(I.docs.length * 0.8), "docs"],
       ["۹.۲", "ممیزی داخلی انجام‌شده", n(I.audits, function (a) { return a.status === "done"; }) > 0, "audit"],
       ["۹.۳", "بازنگری مدیریت نهایی‌شده", n(I.reviews, function (r) { return r.status === "final"; }) > 0, "review"],
@@ -441,7 +444,7 @@
     ];
     var ok = n(C, function (c) { return c[2]; });
     return '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>آمادگی ممیزی — ' + toFa(ok) + ' از ' + toFa(C.length) + '</h3><p class="hint">خودکار از داده‌های سامانه. هر ردیف را بزنید تا به همان بخش بروید.</p></div></div><div class="bar2" style="margin-bottom:10px"><i style="width:' + Math.round(ok / C.length * 100) + '%"></i></div>' +
-      C.map(function (c) { return '<div class="li" data-go="' + c[3] + '"><div><b>' + c[0] + '</b> ' + c[1] + '</div>' + (c[2] ? pill(1, "✓ آماده") : pill(2, "باقی‌مانده")) + '</div>'; }).join("") + '</div>';
+      C.map(function (c) { return /^\.\./.test(c[3]) ? '<a class="li" href="' + c[3] + '" style="color:inherit;text-decoration:none"><div><b>' + c[0] + '</b> ' + c[1] + '</div>' + (c[2] ? pill(1, "✓ آماده") : pill(2, "باقی‌مانده")) + '</a>' : '<div class="li" data-go="' + c[3] + '"><div><b>' + c[0] + '</b> ' + c[1] + '</div>' + (c[2] ? pill(1, "✓ آماده") : pill(2, "باقی‌مانده")) + '</div>'; }).join("") + '</div>';
   };
 
   /* ================= میز کار: موارد سررسید من ================= */

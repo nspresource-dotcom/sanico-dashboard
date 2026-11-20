@@ -11,7 +11,9 @@ var HPAGES = [
   { k: "units", t: "واحدها", ic: "list", h: "واحدهای سازمانی و رنگ آن‌ها در چارت" },
   { k: "log", t: "گزارش تغییرات", ic: "clock", h: "چه کسی، کی، چه چیزی را تغییر داد" }
 ];
-var NEXT = ["کارها و ارجاع (تخته)", "اهداف ماهانه", "عملکرد ماهانهٔ هر نفر", "ورود با موبایل و کد", "پنل شخصی روی گوشی"];
+var NEXT = ["گفت‌وگوی عملکرد ماهانه", "ورود با موبایل و کد", "پنل شخصی روی گوشی"];
+var HX = window.HR_EXT || { pages: {}, add: [] };
+HPAGES.splice(4, 0, HX.add[0] || null, HX.add[1] || null, HX.add[2] || null); HPAGES = HPAGES.filter(Boolean);
 function esc(s) { return String(s === null || s === undefined ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function toast(t) { var el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(el._t); el._t = setTimeout(function () { el.classList.remove("on"); }, 2600); }
 function when(iso) { if (!iso) return "—"; return formatJalali(String(iso).slice(0, 10)) + " " + toFa(new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit" })); }
@@ -22,6 +24,7 @@ async function load() {
   var a = await db.from("hr_units").select("*").order("sort"), b = await db.from("hr_positions").select("*").order("sort").order("id"),
       c = await db.from("hr_people").select("*"), d = await db.rpc("hr_accounts"), e = await db.from("hr_log").select("*").order("at", { ascending: false }).limit(200);
   H.units = a.data || []; H.pos = b.data || []; H.people = c.data || []; H.acc = d.data || []; H.log = e.data || [];
+  if (HX.load) await HX.load();
 }
 async function logit(t) { await db.from("hr_log").insert({ action: t }); }
 function unitOf(id) { return H.units.filter(function (u) { return u.id === id; })[0] || null; }
@@ -120,8 +123,8 @@ function nav() { $("nav").innerHTML = '<div class="ngrp"><div class="nhead" styl
 function render() {
   nav(); var p = HPAGES.filter(function (x) { return x.k === H.page; })[0];
   $("ptitle").textContent = p.t; $("phint").textContent = p.h;
-  $("view").innerHTML = { over: pOver, chart: pChart, people: pPeople, units: pUnits, log: pLog }[p.k]();
-  bind();
+  $("view").innerHTML = Object.assign({ over: pOver, chart: pChart, people: pPeople, units: pUnits, log: pLog }, HX.pages)[p.k]();
+  bind(); if (HX.bind) HX.bind();
 }
 async function savePos() {
   var f = H.form, o = { title: $("fTitle").value.trim(), unit_id: +$("fUnit").value || null, parent_id: +$("fParent").value || null, holder_email: $("fHolder").value || null,
