@@ -17,6 +17,7 @@ var PAGES = [
   { k: "over", g: "eval", t: "نمای کلی IMS", ic: "sum", h: "وضعیت کیفیت، ایمنی و محیط زیست در یک نگاه" },
   { k: "log", g: "eval", t: "گزارش تغییرات", ic: "clock", h: "سابقهٔ همهٔ تغییرات" }
 ];
+var NAVO = {}; try { NAVO = JSON.parse(localStorage.getItem("ims_nav") || "{}"); } catch (e) {}
 var GROUPS = [["daily", "کار روزانه"], ["plan", "بافت و برنامه‌ریزی (بند ۴ و ۶)"], ["support", "پشتیبانی و مستندات (بند ۷)"], ["eval", "ارزیابی و بهبود (بند ۹ و ۱۰)"]];
 var X = window.IMS_EXT = window.IMS_EXT || { pages: {}, add: [] };
 var STD = { Q: "کیفیت", S: "ایمنی", E: "محیط زیست" };
@@ -389,9 +390,11 @@ function nav() {
   var all = PAGES.filter(function (p) { return p.k !== "log"; }).concat(X.add || [], PAGES.filter(function (p) { return p.k === "log"; }));
   $("nav").innerHTML = GROUPS.map(function (g) {
     var L = all.filter(function (p) { return p.g === g[0]; }); if (!L.length) return "";
-    return '<div class="ngrp"><div class="nhead" style="cursor:default"><span>' + g[1] + '</span></div><div class="nbody">' + L.map(function (p) {
+    var cur = all.filter(function (p) { return p.k === I.page; })[0] || {}, closed = cur.g !== g[0] && NAVO[g[0]] !== true;
+    return '<div class="ngrp' + (closed ? " closed" : "") + '"><button class="nhead" data-igrp="' + g[0] + '"><span>' + g[1] + '</span>' + icon("caret", 14) + '</button><div class="nbody">' + L.map(function (p) {
       var bd = badge[p.k] || (X.badge && X.badge(p.k)) || 0;
       return '<button class="nav' + (I.page === p.k ? " on" : "") + '" data-p="' + p.k + '"><span class="ic">' + icon(p.ic) + '</span>' + p.t + (bd ? ' <span class="pill p2" style="margin-right:auto">' + toFa(bd) + '</span>' : '') + '</button>'; }).join("") + '</div></div>'; }).join("");
+  Array.prototype.forEach.call(document.querySelectorAll("[data-igrp]"), function (b) { b.onclick = function () { var k = b.dataset.igrp, nowOpen = b.parentNode.classList.contains("closed"); b.parentNode.classList.toggle("closed"); NAVO[k] = nowOpen; try { localStorage.setItem("ims_nav", JSON.stringify(NAVO)); } catch (e) {} }; });
   Array.prototype.forEach.call(document.querySelectorAll("[data-p]"), function (b) { b.onclick = function () { I.page = b.dataset.p; $("side").classList.remove("open"); $("scrim").classList.add("hide"); render(); window.scrollTo(0, 0); }; });
 }
 function bindLinks() {

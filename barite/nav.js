@@ -62,12 +62,12 @@ var PAGES = [
   { k: "guide", g: null, t: "راهنما", ic: "help", h: "این داشبورد چطور کار می‌کند" }
 ];
 var PAGE_ALIAS = { model: "assume" };
-var navClosed = {}; try { navClosed = JSON.parse(localStorage.getItem("bf_nav") || "{}"); } catch (e) {}
+var navClosed = {}; try { navClosed = JSON.parse(localStorage.getItem("bf_nav2") || "{}"); } catch (e) {}
 
 function buildNav() {
   var cur = PAGES.filter(function (p) { return p.k === A.page; })[0] || {}, h = "";
   NAV_GROUPS.forEach(function (gr) {
-    var items = PAGES.filter(function (p) { return p.g === gr.k; }), closed = navClosed[gr.k] && cur.g !== gr.k;
+    var items = PAGES.filter(function (p) { return p.g === gr.k; }), closed = cur.g !== gr.k && navClosed[gr.k] !== false; /* پیش‌فرض بسته؛ فقط گروه صفحهٔ جاری و گروه‌هایی که کاربر باز کرده باز می‌مانند */
     h += '<div class="ngrp' + (closed ? " closed" : "") + '"><button class="nhead" data-grp="' + gr.k + '"><span>' + gr.t + '</span>' + icon("caret", 14) + '</button><div class="nbody">';
     items.forEach(function (p) {
       h += '<button class="nav' + (A.page === p.k ? " on" : "") + '" data-p="' + p.k + '"><span class="ic">' + icon(p.ic) + '</span>' + p.t + '</button>';
@@ -80,7 +80,7 @@ function buildNav() {
   Array.prototype.forEach.call($("nav").querySelectorAll("[data-p]"), function (b) { b.onclick = function () { if (b.dataset.s) A.sub = b.dataset.s; go(b.dataset.p); }; });
   Array.prototype.forEach.call($("nav").querySelectorAll("[data-grp]"), function (b) { b.onclick = function () {
     var k = b.dataset.grp; navClosed[k] = !b.parentNode.classList.contains("closed"); b.parentNode.classList.toggle("closed");
-    try { localStorage.setItem("bf_nav", JSON.stringify(navClosed)); } catch (e) {} }; });
+    try { localStorage.setItem("bf_nav2", JSON.stringify(navClosed)); } catch (e) {} }; });
   var gb = $("guideBtn"); if (gb) { gb.classList.toggle("on", A.page === "guide"); gb.onclick = function () { go("guide"); }; }
 }
 function crumb() { var p = PAGES.filter(function (x) { return x.k === A.page; })[0]; if (!p) return "";

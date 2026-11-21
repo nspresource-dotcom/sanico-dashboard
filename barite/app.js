@@ -222,8 +222,8 @@ var FORMS = {
     cols: [["d", "تاریخ", "date"], ["source", "منبع"], ["feed_t", "خوراک", "t"], ["product_t", "پودر", "t"], ["_rec", "بازیافت", "p"], ["sg", "عیار"], ["planned_h", "ساعت برنامه", "t"], ["downtime_h", "توقف", "t"], ["offspec_t", "خارج از مشخصه", "t"], ["note", "توضیح"]] },
   sales: { t: "bf_sales", title: "فروش", list: "sales", f: [["d", "تاریخ", "date"], ["kind", "نوع", "sel", ["پودر", "باطله"]], ["customer", "خریدار", "t"], ["tons", "مقدار (تن)", "n"], ["price_t", "قیمت هر تن", "m"], ["amount", "مبلغ کل (خالی = مقدار × قیمت)", "m"], ["received", "وصول‌شده تا کنون", "m"], ["returned_t", "مرجوعی (تن)", "n"], ["note", "توضیح", "t"]],
     cols: [["d", "تاریخ", "date"], ["kind", "نوع"], ["customer", "خریدار"], ["tons", "تن", "t"], ["price_t", "قیمت هر تن", "m"], ["amount", "مبلغ", "m"], ["received", "وصولی", "m"], ["_ar", "مانده", "m"], ["returned_t", "مرجوعی", "t"]] },
-  purch: { t: "bf_purchases", title: "خرید خوراک", list: "purch", f: [["d", "تاریخ", "date"], ["source", "منبع", "src"], ["tons", "مقدار (تن)", "n"], ["amount", "مبلغ خرید با کارمزد", "m"], ["freight", "کرایه حمل کل", "m"], ["paid", "پرداخت‌شده تا کنون", "m"], ["note", "توضیح", "t"]],
-    cols: [["d", "تاریخ", "date"], ["source", "منبع"], ["tons", "تن", "t"], ["amount", "مبلغ", "m"], ["freight", "حمل", "m"], ["_pt", "هر تن تحویلی", "m"], ["paid", "پرداختی", "m"], ["note", "توضیح"]] },
+  purch: { t: "bf_purchases", title: "خرید خوراک", list: "purch", f: [["d", "تاریخ", "date"], ["source", "منبع", "src"], ["tons", "مقدار (تن)", "n"], ["amount", "مبلغ خرید با کارمزد", "m"], ["freight", "کرایه حمل کل", "m"], ["paid", "پرداخت‌شده تا کنون", "m"], ["grade", "عیار BaSO₄ (٪)", "n"], ["sg", "وزن مخصوص خوراک", "n"], ["moisture", "رطوبت (٪)", "n"], ["lot", "شمارهٔ محموله/بارنامه", "t"], ["note", "توضیح", "t"]],
+    cols: [["d", "تاریخ", "date"], ["source", "منبع"], ["tons", "تن", "t"], ["amount", "مبلغ", "m"], ["freight", "حمل", "m"], ["_pt", "هر تن تحویلی", "m"], ["grade", "عیار"], ["sg", "و.م"], ["paid", "پرداختی", "m"], ["note", "توضیح"]] },
   exp: { t: "bf_expenses", title: "هزینه", list: "exp", f: [["d", "تاریخ", "date"], ["category", "دسته", "sel", ["حقوق و دستمزد", "برق و انرژی", "بسته‌بندی", "تعمیر و نگهداری", "حمل فروش", "اجاره", "مالیات و عوارض", "اداری و سربار", "سایر"]], ["amount", "مبلغ", "m"], ["note", "توضیح", "t"]],
     cols: [["d", "تاریخ", "date"], ["category", "دسته"], ["amount", "مبلغ", "m"], ["note", "توضیح"]] }
 };
@@ -231,7 +231,8 @@ function pDaily() {
   var F = FORMS[A.sub], rows = A[F.list];
   var h = '<div class="sub-nav">' + [["prod", "تولید"], ["sales", "فروش"], ["purch", "خرید خوراک"], ["exp", "هزینه‌ها"]].map(function (x) {
     return '<button data-sub="' + x[0] + '" class="' + (A.sub === x[0] ? "on" : "") + '">' + x[1] + '</button>'; }).join("") + '</div>';
-  if (A.admin) {
+  if (A.admin && A.sub === "prod" && typeof prodForm === "function") h += prodForm();
+  else if (A.admin) {
     h += '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>ثبت ' + F.title + '</h3><p class="hint">مبالغ به ' + uN() + ' · تاریخ شمسی مثل ۱۴۰۵/۰۸/۲۹</p></div></div><div class="frm">' +
       F.f.map(function (f) { return '<div><label>' + f[1] + '</label>' + inputFor(f) + '</div>'; }).join("") +
       '</div><button class="btn sm" id="addRow">ثبت</button><div class="note" id="fnote"></div></div>';
@@ -275,6 +276,7 @@ function monthBoxes(sub) {
   return h + '</div></div>';
 }
 async function addRow() {
+  if (A.sub === "prod" && typeof addProd === "function") return addProd();
   var F = FORMS[A.sub], o = {}, bad = null;
   F.f.forEach(function (f) { var el = $("f_" + f[0]); if (!el) return; var v = el.value;
     if (f[2] === "date") { o[f[0]] = parseJ(v); if (!o[f[0]]) bad = "تاریخ درست نیست (مثل ۱۴۰۵/۰۸/۲۹)"; }

@@ -153,9 +153,9 @@ input:focus{outline:2px solid var(--mint);outline-offset:1px}
 
 /* ---------- cards ---------- */
 .grid{display:grid;gap:14px}
-.g3{grid-template-columns:repeat(3,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
 .g2{grid-template-columns:repeat(2,1fr)}
-@media(max-width:1040px){.g3{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1040px){.g3{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.g3,.g2{grid-template-columns:1fr}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
   padding:18px;box-shadow:var(--sh)}
@@ -436,6 +436,7 @@ table.asm td{padding:7px 8px;vertical-align:middle}table.asm .vcell input{min-wi
 <script src="nav.js"></script>
 <script src="plan.js"></script>
 <script src="extra.js"></script>
+<script src="cost.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
