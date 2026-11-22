@@ -194,7 +194,8 @@ body.rial td.num{font-size:.78rem}
 .mbx.on{background:var(--mint-s);border-color:var(--mint);box-shadow:var(--sh)}
 .mbx .mtop{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .mbx .mnm{font-size:.79rem;font-weight:700;color:var(--ink2);overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap}
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  line-clamp:2;white-space:normal;line-height:1.35}
 .mbx .mct{font-size:.67rem;font-weight:700;padding:1px 7px;border-radius:999px;
   background:var(--card);color:var(--muted);flex:0 0 auto}
 .mbx .mvl{font-size:1.18rem;font-weight:800;letter-spacing:-.03em;color:var(--deep);
@@ -205,6 +206,15 @@ body.rial td.num{font-size:.78rem}
 .mbx .msp{font-size:.69rem;color:var(--blue);font-weight:800}
 .mbx.sh{border-color:var(--rose)}
 .mbx .mnt{font-size:.67rem;color:var(--muted);line-height:1.5}
+/* دکمه‌های سطر قرارداد */
+td.acts{white-space:nowrap}
+td.acts .coefsel{font:inherit;font-size:.72rem;padding:4px 7px;border-radius:9px;
+  border:1px solid var(--line);background:var(--card);color:var(--ink2);margin-left:6px}
+td.acts .mini{font:inherit;font-size:.72rem;font-weight:700;padding:5px 11px;
+  border-radius:999px;background:var(--mint-s);color:var(--deep);border:1px solid transparent}
+td.acts .mini:hover{background:var(--mint)}
+td.acts .mini.on{background:var(--grey-s);color:var(--muted)}
+tr.cleared td:not(.acts){opacity:.55;text-decoration:line-through}
 .mbx.ph{background:transparent;border:1px dashed var(--line)}
 .mbx.ph:hover{background:var(--grey-s)}
 .mbx .mvl.ph{color:var(--muted)}
@@ -603,7 +613,7 @@ async function ensureDb(){
 }
 var $ = function(id){ return document.getElementById(id); };
 
-var BUILD = "۶۱";
+var BUILD = "۶۲";
 var S = { role:"viewer", pages:[], widgets:[], core:{}, cash:null, health:{}, pre:{},
           insights:[], periods:[], page:"home", ready:false, booting:false, bootSrc:"", nowJalali:"", me:null, meName:"", fresh:{}, internals:false };
 
@@ -995,6 +1005,13 @@ async function go(key){
 /* one listener on the container: survives every re-render */
 function bindDrill(){ /* kept for call-site compatibility */ }
 
+/* انتخابگر ضریب داخل سطرهای قرارداد */
+document.addEventListener("change", function(ev){
+  var s = ev.target.closest && ev.target.closest(".coefsel");
+  if(!s) return;
+  setCoef(s.getAttribute("data-cid"), s.value);
+});
+
 document.addEventListener("click", function(ev){
   var f = ev.target.closest && ev.target.closest("[data-full]");
   if(f){ ev.preventDefault(); ev.stopPropagation();
@@ -1012,6 +1029,10 @@ document.addEventListener("click", function(ev){
   if(ar){ ev.preventDefault(); ev.stopPropagation();
     if(window.innerWidth<=860) kbRailOpen(false);
     kbArticle(ar.getAttribute("data-art")); return; }
+  var mf = ev.target.closest && ev.target.closest("[data-mofasa]");
+  if(mf){ ev.preventDefault(); ev.stopPropagation();
+    setMofasa(mf.getAttribute("data-mofasa"), mf.getAttribute("data-done")!=="1");
+    return; }
   var mb = ev.target.closest && ev.target.closest("[data-mbox]");
   if(mb){ ev.preventDefault(); ev.stopPropagation();
     toggleMonth(mb); return; }
@@ -1439,7 +1460,7 @@ async function widget(w,pre){
     var r=await q; rows=r.data||[];
   }
   if(!rows.length) return "";
-  if(w.kind==="monthbox") return monthbox(w,c,rows);
+  if(w.kind==="monthbox"||w.kind==="actionbox") return monthbox(w,c,rows);
   return w.kind==="bars" ? bars(w,c,rows) : table(w,c,rows);
 }
 
@@ -1491,9 +1512,14 @@ function monthbox(w,c,rows){
   var uid="mb"+String(w.id||"x").replace(/[^a-zA-Z0-9]/g,"").slice(0,10);
   var gw=c.groupword||"ماه", iw=c.unitword||"تعهد باز";
 
+  /* وقتی باکس‌ها دسته‌بندی یک چیزند، جمعشان معنا دارد؛ وقتی زاویه‌های
+     مختلفِ یک موضوعند (مثل قراردادها) جمع زدنشان دوباره‌شماری است. */
+  var head = (c.nosum===true)
+    ? fa(rows.length)+' '+esc(gw)+' · '+fa(cnt)+' '+esc(iw)
+    : 'جمع '+bn(tot)+' '+unitLabel()+' در '+fa(rows.length)+' '+esc(gw)+
+      ' ('+fa(cnt)+' '+esc(iw)+')';
   var h='<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>'+
-        esc(w.title)+'</h3><p class="hint">جمع '+bn(tot)+' '+unitLabel()+' در '+
-        fa(rows.length)+' '+esc(gw)+' ('+fa(cnt)+' '+esc(iw)+')'+
+        esc(w.title)+'</h3><p class="hint">'+head+
         ' — روی هر باکس بزنید تا ریز آن پایینش باز شود</p></div></div><div class="mgrid">';
 
   cards.forEach(function(k,i){
@@ -1522,7 +1548,7 @@ function monthbox(w,c,rows){
              : fa(k.n)+' '+esc(iw)+' — جمع '+bn(k.v)+' '+unitLabel())+
        '</span></div>'+
        cashLine(k)+
-       monthRows(c.itemcols||c.columns||[], k.items, k.search)+'</div>';
+       monthRows(c.itemcols||c.columns||[], k.items, k.search, c.actions, c.idkey)+'</div>';
   });
   return h+'</div>';
 }
@@ -1540,16 +1566,18 @@ function cashLine(k){
     '</div>';
 }
 
-function monthRows(cols,items,search){
+function monthRows(cols,items,search,actions,idkey){
   if(!items.length) return '<p class="hint" style="margin:0">ردیفی ثبت نشده است.</p>';
   var h=search?'<input id="srch" class="srch" '+
         'placeholder="جست‌وجو در شرح، دسته یا طرف حساب…">':"";
   h+='<div class="scroll"><table><thead><tr>';
   cols.forEach(function(x){ h+='<th class="'+(x.n?"num":(x.pill?"mid":""))+'">'+esc(x.t)+'</th>'; });
+  if(actions==="contract") h+='<th class="mid">ضریب / مفاصا</th>';
   h+='</tr></thead><tbody'+(search?' id="rowsbody"':"")+'>';
   items.forEach(function(r){
-    var k=((r.description||"")+" "+(r.category||"")+" "+(r.counterparty||"")).toLowerCase();
-    h+='<tr data-k="'+esc(k)+'">';
+    var k=((r.description||"")+" "+(r.category||"")+" "+
+           (r.counterparty||"")+" "+(r.party||"")+" "+(r.title||"")).toLowerCase();
+    h+='<tr data-k="'+esc(k)+'"'+(r.mofasa_done?' class="cleared"':"")+'>';
     cols.forEach(function(x){
       var v=r[x.k];
       if(x.n) h+='<td class="num'+(Number(v)<0?" neg":"")+'">'+bn(v)+'</td>';
@@ -1557,9 +1585,56 @@ function monthRows(cols,items,search){
         esc(String(v||"—").replace(/\s*-\s*.*/,""))+'</span></td>';
       else h+='<td>'+esc((v===null||v===undefined||v==="")?"—":v)+'</td>';
     });
+    if(actions==="contract") h+=contractActions(r, idkey||"id");
     h+='</tr>';
   });
   return h+'</tbody></table></div>';
+}
+
+/* دکمه‌های هر سطر قرارداد: تغییر ضریب و ثبت/لغو مفاصا.
+   تغییر مستقیم در پایگاه داده می‌نشیند و صفحه دوباره خوانده می‌شود،
+   پس همهٔ باکس‌های بالا بلافاصله عدد تازه می‌گیرند. */
+function contractActions(r,idkey){
+  var id=r[idkey], done=!!r.mofasa_done, kinds=[
+    ["labour","دستمزدی ۱۶٫۶۷٪"],["mechanical","مکانیکی ۷٫۷۸٪"],["exempt","معاف"]];
+  var sel='<select class="coefsel" data-cid="'+esc(id)+'">';
+  kinds.forEach(function(k){
+    sel+='<option value="'+k[0]+'"'+(r.coef_kind===k[0]?" selected":"")+'>'+k[1]+'</option>'; });
+  sel+='</select>';
+  return '<td class="mid acts">'+sel+
+    '<button class="mini'+(done?" on":"")+'" data-mofasa="'+esc(id)+'" '+
+    'data-done="'+(done?1:0)+'">'+(done?"لغو مفاصا":"ثبت مفاصا")+'</button></td>';
+}
+
+async function setCoef(id,kind){
+  try{
+    var r=await db.rpc("contract_set_coef",{p_id:id,p_kind:kind});
+    if(r.error) throw r.error;
+    await sub(S.page);
+  }catch(e){ alertLine("تغییر ضریب انجام نشد: "+(e.message||e)); }
+}
+
+async function setMofasa(id,done){
+  var ref=null;
+  if(done){
+    try{ ref=window.prompt("شماره مفاصا حساب (اختیاری):",""); }catch(e){}
+    if(ref===null && done) ref="";
+  }
+  try{
+    var r=await db.rpc("contract_set_mofasa",
+      {p_id:id,p_done:done,p_ref:ref||null,p_jalali:null});
+    if(r.error) throw r.error;
+    await sub(S.page);
+  }catch(e){ alertLine("ثبت مفاصا انجام نشد: "+(e.message||e)); }
+}
+
+function alertLine(msg){
+  var b=$("body"); if(!b) return;
+  var d=document.createElement("div");
+  d.className="card"; d.style.cssText="margin-bottom:12px;border:1px solid var(--rose)";
+  d.innerHTML='<p class="hint" style="margin:0;color:var(--rose)">'+esc(msg)+'</p>';
+  b.insertBefore(d,b.firstChild);
+  setTimeout(function(){ try{ d.remove(); }catch(e){} },6000);
 }
 
 /* یک ماه باز است و بقیه بسته — دو جدول باز هم‌زمان فقط گیج‌کننده است */
