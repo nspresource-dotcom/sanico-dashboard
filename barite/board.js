@@ -28,6 +28,9 @@ function bCard(t) {
   if (A.bEdit === t.id) return '<div class="bcard s-' + t.status + '" style="outline:2px solid var(--deep)"><input id="be_t" value="' + esc(t.title) + '"><textarea id="be_d" placeholder="شرح">' + esc(t.description || "") + '</textarea>' + (t.status === "done" ? '<input id="be_n" placeholder="نتیجه یا شاهد انجام" value="' + esc(t.result_note || "") + '">' : '') +
     '<div style="display:flex;gap:6px"><input id="be_due" value="' + isoToJ(t.due_date) + '" placeholder="مهلت" inputmode="numeric"><select id="be_p">' + Object.keys(BPRI).map(function (k) { return '<option value="' + k + '"' + (t.priority === k ? " selected" : "") + '>' + BPRI[k][0] + '</option>'; }).join("") + '</select></div>' +
     '<div style="display:flex;gap:6px;justify-content:space-between"><button class="btn sm" id="be_s" data-id="' + t.id + '">ذخیره</button><button class="more" id="be_x">انصراف</button><button class="more" id="be_del" data-id="' + t.id + '" style="color:var(--rose)">حذف</button></div></div>';
+  if (!(A.bOpenSet && A.bOpenSet[t.id])) return '<div class="bcard mini s-' + t.status + (late ? ' late' : '') + '" data-bid="' + t.id + '" title="' + esc(t.title) + '"><span class="bgrip" title="بکشید">⠿</span>' +
+    (t.priority === "high" ? '<i class="bdot" title="فوری"></i>' : '') + '<span class="btl' + (t.status === "done" || t.status === "cancelled" ? ' off' : '') + '">' + esc(t.title) + '</span>' +
+    '<span class="bdue' + (late ? ' late' : '') + '">' + (t.due_date ? jd(t.due_date).slice(5) : "") + '</span></div>';
   return '<div class="bcard s-' + t.status + (late ? ' late' : '') + '" data-bid="' + t.id + '"><div style="display:flex;justify-content:space-between;gap:6px;align-items:flex-start"><span class="bgrip" title="بکشید">⠿</span><b style="flex:1' + (t.status === "done" || t.status === "cancelled" ? ';color:var(--muted);text-decoration:line-through' : '') + '">' + esc(t.title) + '</b>' + (t.priority === "high" || t.priority === "low" ? '<span class="pill ' + p[1] + '">' + p[0] + '</span>' : '') + '</div>' +
     (ref ? '<div class="hint" style="margin-top:4px">' + (BSRC[t.source] || (t.risk_id ? "ریسک" : "مرتبط")) + ': ' + esc(ref) + '</div>' : '') +
     (t.description ? '<div class="hint" style="margin-top:4px">' + esc(t.description) + '</div>' : '') +
@@ -43,7 +46,9 @@ function pBoard() {
     kpi("عقب‌افتاده", toFa(late.length), "کار", late.length ? "مهلت گذشته" : "همه در مهلت", late.length ? "neg" : "pos", "!") + kpi("مهلت این هفته", toFa(week.length), "کار", "۷ روز آینده", week.length ? "warn" : "", "◷") + '</div>';
   var srcs = Object.keys(BSRC).filter(function (k) { return L.some(function (t) { return t.source === k; }); });
   if (srcs.length > 1) h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">' + [""].concat(srcs).map(function (k) { return '<button class="pill-btn" data-bf="' + k + '"' + (f === k ? ' style="background:var(--deep);color:#fff;border-color:var(--deep)"' : '') + '>' + (k ? BSRC[k] : "همه") + '</button>'; }).join("") + '</div>';
-  h += '<p class="hint" style="margin:0 0 8px">کارت را از دستگیرهٔ ⠿ بگیرید و به ستون دیگر ببرید (یا کارت را کمی نگه دارید). روی گوشی ستون‌ها کنار هم‌اند؛ با کشیدن کارت به لبهٔ صفحه، ستون بعدی می‌آید.</p><div class="bboard" id="bboard">' + BCOL.map(function (c) { var C = show.filter(function (t) { return t.status === c[0]; });
+  var anyOpen = A.bOpenSet && Object.keys(A.bOpenSet).some(function (k) { return A.bOpenSet[k]; });
+  h += '<div style="display:flex;justify-content:flex-end;margin:0 0 6px"><button class="pill-btn" id="bAll">' + (anyOpen ? "بستن همهٔ کارت‌ها" : "باز کردن همهٔ کارت‌ها") + '</button></div>';
+  h += '<p class="hint" style="margin:0 0 8px">روی هر کارت بزنید تا باز یا بسته شود. کارت را از دستگیرهٔ ⠿ بگیرید و به ستون دیگر ببرید (یا کارت را کمی نگه دارید). روی گوشی ستون‌ها کنار هم‌اند؛ با کشیدن کارت به لبهٔ صفحه، ستون بعدی می‌آید.</p><div class="bboard" id="bboard">' + BCOL.map(function (c) { var C = show.filter(function (t) { return t.status === c[0]; });
     if (c[0] === "done") C = C.sort(function (a, b) { return (a.sort || 0) - (b.sort || 0) || String(b.done_at || "").localeCompare(String(a.done_at || "")); }).slice(0, 20);
     else C = C.sort(function (a, b) { return (a.sort || 0) - (b.sort || 0) || bPri(a) - bPri(b) || String(a.due_date || "9").localeCompare(String(b.due_date || "9")); });
     return '<div class="bcol c-' + c[0] + '" data-col="' + c[0] + '"><div class="bch"><i></i>' + c[1] + '<span class="bcnt">' + toFa(C.length) + '</span></div><div class="blist">' + C.map(bCard).join("") + '</div></div>'; }).join("") + '</div>';
@@ -61,6 +66,8 @@ bindPlan = function () {
   Array.prototype.forEach.call(document.querySelectorAll("[data-send]"), function (b) { b.onclick = function () { try { sendToBoard(JSON.parse(b.dataset.send)); } catch (e) { toast("خطا در ارسال"); } }; });
   Array.prototype.forEach.call(document.querySelectorAll("[data-bf]"), function (b) { b.onclick = function () { A.bFilter = b.dataset.bf; render(); }; });
   Array.prototype.forEach.call(document.querySelectorAll("[data-bedit]"), function (b) { b.onclick = function () { A.bEdit = +b.dataset.bedit; render(); }; });
+  if ($("bAll")) $("bAll").onclick = function () { var anyOpen = A.bOpenSet && Object.keys(A.bOpenSet).some(function (k) { return A.bOpenSet[k]; }); A.bOpenSet = {};
+    if (!anyOpen) (A.rtasks || []).forEach(function (t) { A.bOpenSet[t.id] = 1; }); render(); };
   if ($("be_x")) $("be_x").onclick = function () { A.bEdit = null; render(); };
   if ($("be_s")) $("be_s").onclick = async function () { var d = $("be_due").value.trim(), iso = d ? parseJ(d) : null; if (d && !iso) { toast("تاریخ درست نیست (مثل ۱۴۰۵/۰۹/۱۰)"); return; }
     var t = $("be_t").value.trim(); if (!t) { toast("عنوان خالی است."); return; }
@@ -129,7 +136,9 @@ EXTRA_PAGES.board = pBoard;
     e.preventDefault(); D.lx = e.clientX; D.ly = e.clientY; move(e.clientX, e.clientY);
   });
   document.addEventListener("touchmove", function (e) { if (D && D.on) e.preventDefault(); }, { passive: false });
-  document.addEventListener("pointerup", function () { var d = end(); if (d && d.on) { D = d; drop(); D = null; } });
+  document.addEventListener("pointerup", function (e) { var d = end(); if (d && d.on) { D = d; drop(); D = null; return; }
+    if (d && !e.target.closest(".bgrip,select,button,input,textarea,a") && Math.abs(e.clientX - d.x0) + Math.abs(e.clientY - d.y0) < 10) {
+      var id = +d.card.dataset.bid; A.bOpenSet = A.bOpenSet || {}; A.bOpenSet[id] = A.bOpenSet[id] ? 0 : 1; render(); } });
   document.addEventListener("pointercancel", function () { var d = end(); if (d && d.on) { D = d; drop(); D = null; } });
   document.addEventListener("contextmenu", function (e) { if (D && D.on) e.preventDefault(); });
 })();
