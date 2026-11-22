@@ -220,12 +220,12 @@ function srcBars() {
 var FORMS = {
   prod: { t: "bf_production", title: "تولید", list: "prod", f: [["d", "تاریخ", "date"], ["source", "منبع خوراک", "src"], ["feed_t", "خوراک فراوری‌شده (تن)", "n"], ["product_t", "پودر تولیدشده (تن)", "n"], ["waste_t", "باطله (تن)", "n"], ["sg", "عیار محصول (وزن مخصوص)", "n"], ["planned_h", "ساعت کار برنامه‌ریزی‌شده", "n"], ["downtime_h", "توقف خط (ساعت)", "n"], ["offspec_t", "خارج از مشخصه (تن)", "n"], ["note", "توضیح", "t"]],
     cols: [["d", "تاریخ", "date"], ["source", "منبع"], ["feed_t", "خوراک", "t"], ["product_t", "پودر", "t"], ["_rec", "بازیافت", "p"], ["sg", "عیار"], ["planned_h", "ساعت برنامه", "t"], ["downtime_h", "توقف", "t"], ["offspec_t", "خارج از مشخصه", "t"], ["note", "توضیح"]] },
-  sales: { t: "bf_sales", title: "فروش", list: "sales", f: [["d", "تاریخ", "date"], ["kind", "نوع", "sel", ["پودر", "باطله"]], ["customer", "خریدار", "t"], ["tons", "مقدار (تن)", "n"], ["price_t", "قیمت هر تن", "m"], ["amount", "مبلغ کل (خالی = مقدار × قیمت)", "m"], ["received", "وصول‌شده تا کنون", "m"], ["returned_t", "مرجوعی (تن)", "n"], ["note", "توضیح", "t"]],
+  sales: { t: "bf_sales", title: "فروش", list: "sales", f: [["d", "تاریخ", "date"], ["kind", "نوع", "sel", ["پودر", "باطله"]], ["customer", "خریدار", "pty:customer"], ["tons", "مقدار (تن)", "n"], ["price_t", "قیمت هر تن", "m"], ["amount", "مبلغ کل (خالی = مقدار × قیمت)", "m"], ["received", "وصول‌شده تا کنون", "m"], ["returned_t", "مرجوعی (تن)", "n"], ["note", "توضیح", "t"]],
     cols: [["d", "تاریخ", "date"], ["kind", "نوع"], ["customer", "خریدار"], ["tons", "تن", "t"], ["price_t", "قیمت هر تن", "m"], ["amount", "مبلغ", "m"], ["received", "وصولی", "m"], ["_ar", "مانده", "m"], ["returned_t", "مرجوعی", "t"]] },
   purch: { t: "bf_purchases", title: "خرید خوراک", list: "purch", f: [["d", "تاریخ", "date"], ["source", "منبع", "src"], ["tons", "مقدار (تن)", "n"], ["amount", "مبلغ خرید با کارمزد", "m"], ["freight", "کرایه حمل کل", "m"], ["paid", "پرداخت‌شده تا کنون", "m"], ["grade", "عیار BaSO₄ (٪)", "n"], ["sg", "وزن مخصوص خوراک", "n"], ["moisture", "رطوبت (٪)", "n"], ["lot", "شمارهٔ محموله/بارنامه", "t"], ["note", "توضیح", "t"]],
     cols: [["d", "تاریخ", "date"], ["source", "منبع"], ["tons", "تن", "t"], ["amount", "مبلغ", "m"], ["freight", "حمل", "m"], ["_pt", "هر تن تحویلی", "m"], ["grade", "عیار"], ["sg", "و.م"], ["paid", "پرداختی", "m"], ["note", "توضیح"]] },
-  exp: { t: "bf_expenses", title: "هزینه", list: "exp", f: [["d", "تاریخ", "date"], ["category", "دسته", "sel", ["حقوق و دستمزد", "برق و انرژی", "بسته‌بندی", "تعمیر و نگهداری", "حمل فروش", "اجاره", "مالیات و عوارض", "اداری و سربار", "سایر"]], ["amount", "مبلغ", "m"], ["note", "توضیح", "t"]],
-    cols: [["d", "تاریخ", "date"], ["category", "دسته"], ["amount", "مبلغ", "m"], ["note", "توضیح"]] }
+  exp: { t: "bf_expenses", title: "هزینه", list: "exp", f: [["d", "تاریخ", "date"], ["category", "دسته", "sel", ["حقوق و دستمزد", "برق و انرژی", "بسته‌بندی", "تعمیر و نگهداری", "حمل فروش", "اجاره", "مالیات و عوارض", "اداری و سربار", "سایر"]], ["amount", "مبلغ", "m"], ["party_id", "طرف حساب (اختیاری)", "pty:supplier"], ["note", "توضیح", "t"]],
+    cols: [["d", "تاریخ", "date"], ["category", "دسته"], ["amount", "مبلغ", "m"], ["_party", "طرف حساب"], ["note", "توضیح"]] }
 };
 function pDaily() {
   var F = FORMS[A.sub], rows = A[F.list];
@@ -244,6 +244,7 @@ function pDaily() {
       return '<tr>' + F.cols.map(function (c) { var v = r[c[0]];
         if (c[0] === "_rec") v = +r.feed_t > 0 ? r.product_t / r.feed_t : null;
         if (c[0] === "_ar") v = r.amount - r.received;
+        if (c[0] === "_party") v = typeof partyById === "function" && partyById(r.party_id) ? partyById(r.party_id).name : "";
         if (c[0] === "_pt") v = +r.tons > 0 ? (+r.amount + (+r.freight)) / r.tons : null;
         if (c[2] === "date") return '<td>' + jd(v) + '</td>';
         if (c[2] === "m") return '<td class="num">' + fmt(v) + '</td>';
@@ -258,6 +259,7 @@ function inputFor(f) {
   var id = "f_" + f[0];
   if (f[2] === "date") return '<input id="' + id + '" value="' + todayJ() + '" inputmode="numeric">';
   if (f[2] === "sel") return '<select id="' + id + '">' + f[3].map(function (o) { return '<option>' + o + '</option>'; }).join("") + '</select>';
+  if ((f[2] === "src" || String(f[2]).indexOf("pty") === 0) && typeof partySel === "function") return partySel(id, f[2] === "src" ? "feed" : f[2].split(":")[1], f[0] === "party_id");
   if (f[2] === "src") { var names = []; TYPES.forEach(function (t) { S[t].forEach(function (s) { names.push(s.name); }); });
     return '<select id="' + id + '">' + names.map(function (o) { return '<option>' + esc(o) + '</option>'; }).join("") + '<option>سایر</option></select>'; }
   if (f[2] === "m") return '<input id="' + id + '" class="money" inputmode="decimal" placeholder="۰">';
@@ -282,9 +284,11 @@ async function addRow() {
     if (f[2] === "date") { o[f[0]] = parseJ(v); if (!o[f[0]]) bad = "تاریخ درست نیست (مثل ۱۴۰۵/۰۸/۲۹)"; }
     else if (f[2] === "m") o[f[0]] = v.trim() === "" ? null : num(v) / um();
     else if (f[2] === "n") o[f[0]] = v.trim() === "" ? null : num(v);
+    else if (f[2] === "src" || String(f[2]).indexOf("pty") === 0) { var pp = typeof partyById === "function" ? partyById(v) : null; if (f[0] === "party_id") o.party_id = pp ? pp.id : null; else { o.party_id = pp ? pp.id : null; o[f[0]] = pp ? pp.name : (v && v !== "__new" ? v : null); } }
     else o[f[0]] = v.trim() || null; });
   if (A.sub === "sales") { if (o.amount === null) o.amount = (o.tons || 0) * (o.price_t || 0); if (o.received === null) o.received = 0; if (o.returned_t === null) o.returned_t = 0; if (o.price_t === null) o.price_t = o.tons ? o.amount / o.tons : 0; }
   if (A.sub === "prod" && !o.feed_t && !o.product_t) bad = "مقدار خوراک یا پودر را وارد کنید.";
+  if (A.sub === "purch" && !o.source) bad = "منبع را انتخاب کنید.";
   if (A.sub === "purch") { o.amount = o.amount || 0; o.freight = o.freight || 0; o.paid = o.paid || 0; }
   if (A.sub === "exp" && !o.amount) bad = "مبلغ را وارد کنید.";
   Object.keys(o).forEach(function (k) { if (o[k] === null) delete o[k]; });
@@ -293,6 +297,7 @@ async function addRow() {
   var r = await db.from(F.t).insert(o);
   $("addRow").disabled = false;
   if (r.error) { $("fnote").className = "note err"; $("fnote").textContent = "ثبت نشد: " + r.error.message; return; }
+  if (typeof partyEnsureRole === "function") await partyEnsureRole(o.party_id, A.sub === "purch" ? "feed" : A.sub === "sales" ? "customer" : null);
   await loadTable(A.sub); render(); toast("ثبت شد.");
 }
 async function delRow(id) {

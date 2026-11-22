@@ -7,6 +7,7 @@ window.SayaApps = (function () {
     barite: '<path d="M3 21V10l6 4V10l6 4V6l6 3v12z"/>',
     finance: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
     hr: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.3"/><path d="M15.5 14.2c2.9.3 5.5 2.5 5.5 5.8"/>',
+    parties: '<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="2.6"/><path d="M8 17c.6-2 2.1-3 4-3s3.4 1 4 3"/>',
     ims: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
     other: '<rect x="4" y="4" width="16" height="16" rx="3"/>'
   };

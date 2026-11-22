@@ -19,6 +19,26 @@ loadPlan = async function () { await _loadPlanC(); await loadCost(); };
 async function loadCost() {
   var r = await Promise.all([db.from("bf_prod_feed").select("*").limit(20000), db.from("bf_prod_mat").select("*").limit(20000), db.from("bf_cost_items").select("*").order("sort").order("id"), db.from("bf_cost_cfg").select("*")]);
   A.cfeed = r[0].data || []; A.cmat = r[1].data || []; A.citems = r[2].data || []; A.ccfg = {}; (r[3].data || []).forEach(function (x) { A.ccfg[x.key] = x.value; });
+  var pr = await db.from("counterparties").select("id,name,roles,aliases,is_active").order("name"); A.parties = pr.data || [];
+}
+/* ---------- فهرست واحد اشخاص (پنل «اشخاص و شرکت‌ها») ---------- */
+var P_ROLE = { feed: "منبع خوراک", customer: "خریدار", supplier: "تأمین‌کننده" };
+function partyById(id) { return (A.parties || []).filter(function (p) { return p.id === id; })[0] || null; }
+function partySel(id, role, optional, sel) {
+  var L = (A.parties || []).filter(function (p) { return p.is_active !== false; }), mine = L.filter(function (p) { return (p.roles || []).indexOf(role) >= 0; }), rest = L.filter(function (p) { return (p.roles || []).indexOf(role) < 0; });
+  function opt(p) { return '<option value="' + p.id + '"' + (sel === p.id ? " selected" : "") + '>' + esc(p.name) + '</option>'; }
+  return '<select id="' + id + '" class="party-sel" data-role="' + role + '">' + '<option value="">' + (optional ? "— بدون طرف حساب" : "— انتخاب " + (P_ROLE[role] || "") + " —") + '</option>' +
+    (mine.length ? '<optgroup label="' + (P_ROLE[role] || "") + '">' + mine.map(opt).join("") + '</optgroup>' : '') + (rest.length ? '<optgroup label="سایر اشخاص و شرکت‌ها">' + rest.map(opt).join("") + '</optgroup>' : '') +
+    '<option value="__new">+ افزودن تازه…</option></select>';
+}
+async function partyEnsureRole(pid, role) { var p = partyById(pid); if (!p || !role || (p.roles || []).indexOf(role) >= 0) return; await db.rpc("party_upsert", { p_name: p.name, p_roles: [role] }); var pr = await db.from("counterparties").select("id,name,roles,aliases,is_active").order("name"); A.parties = pr.data || A.parties; }
+function wirePartySel() {
+  Array.prototype.forEach.call(document.querySelectorAll("select.party-sel"), function (el) { if (el._w) return; el._w = 1; el.addEventListener("change", async function () {
+    if (el.value !== "__new") return; var role = el.dataset.role, n = prompt("نام " + (P_ROLE[role] || "شخص یا شرکت") + " تازه (اگر مشابهش در فهرست باشد، همان انتخاب می‌شود):"); if (!n || !n.trim()) { el.value = ""; return; }
+    var r = await db.rpc("party_upsert", { p_name: n.trim(), p_roles: [role] }); if (r.error) { toast(r.error.message); el.value = ""; return; }
+    var pr = await db.from("counterparties").select("id,name,roles,aliases,is_active").order("name"); A.parties = pr.data || A.parties;
+    var cls = el.className, tmp = document.createElement("div"); tmp.innerHTML = partySel(el.id, role, el.options[0].textContent.indexOf("بدون") >= 0, r.data); var nw = tmp.firstChild; nw.className = cls; el.parentNode.replaceChild(nw, el); wirePartySel();
+    nw.dispatchEvent(new Event("change")); toast("«" + (partyById(r.data) || {}).name + "» در فهرست اشخاص و شرکت‌ها ثبت شد."); }); });
 }
 function catMap() { return A.ccfg.categories || {}; }
 function depM() { return +A.ccfg.depreciation_month || 0; }
@@ -143,7 +163,7 @@ function costSettings() {
 
 /* ---------- فرم تولید با BOM ---------- */
 function srcNames() { var n = {}; TYPES.forEach(function (t) { (S[t] || []).forEach(function (s) { n[s.name] = 1; }); }); A.purch.forEach(function (p) { if (p.source) n[p.source] = 1; }); n["سایر"] = 1; return Object.keys(n); }
-function feedRow(i) { return '<div class="addrow" style="margin-bottom:6px" data-fl="' + i + '"><select class="flS">' + srcNames().map(function (s) { return '<option>' + esc(s) + '</option>'; }).join("") + '</select><input class="flT money" inputmode="decimal" placeholder="تن" style="flex:0 0 120px;min-width:120px"><span class="flC hint" style="flex:0 0 170px;min-width:170px"></span></div>'; }
+function feedRow(i) { return '<div class="addrow" style="margin-bottom:6px" data-fl="' + i + '">' + partySel("fl_" + i, "feed").replace('class="party-sel"', 'class="party-sel flS"') + '<input class="flT money" inputmode="decimal" placeholder="تن" style="flex:0 0 120px;min-width:120px"><span class="flC hint" style="flex:0 0 170px;min-width:170px"></span></div>'; }
 function prodForm() {
   var items = A.citems.filter(function (i) { return i.active; });
   return '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>ثبت تولید</h3><p class="hint">خوراک می‌تواند از چند منبع باشد؛ بهای هر منبع با میانگین قیمت تحویل خریدهای ثبت‌شده حساب و ثبت می‌شود.</p></div></div>' +
@@ -155,10 +175,10 @@ function prodForm() {
     '<div class="gap" id="flSum" style="margin-top:10px">مقدار خوراک و پودر را وارد کنید تا برآورد بها نمایش داده شود.</div>' +
     '<button class="btn sm" id="addRow">ثبت</button><div class="note" id="fnote"></div></div>';
 }
-function readFeed() { var out = []; Array.prototype.forEach.call(document.querySelectorAll("#flBox [data-fl]"), function (r) { var t = num(r.querySelector(".flT").value); if (t > 0) out.push({ source: r.querySelector(".flS").value, tons: t }); }); return out; }
+function readFeed() { var out = []; Array.prototype.forEach.call(document.querySelectorAll("#flBox [data-fl]"), function (r) { var t = num(r.querySelector(".flT").value), p = partyById(r.querySelector(".flS").value); if (t > 0) out.push({ source: p ? p.name : "نامشخص", party_id: p ? p.id : null, tons: t }); }); return out; }
 function prodPreview() {
   var d = parseJ($("f_d").value) || todayIso(), L = readFeed(), tot = 0, c = 0, unk = false;
-  Array.prototype.forEach.call(document.querySelectorAll("#flBox [data-fl]"), function (r) { var ac = avgCost(r.querySelector(".flS").value, d); r.querySelector(".flC").textContent = ac.cost !== null ? fmt(ac.cost) + " " + uN() + "/تن · " + ac.from : "قیمت نامشخص"; });
+  Array.prototype.forEach.call(document.querySelectorAll("#flBox [data-fl]"), function (r) { var pp = partyById(r.querySelector(".flS").value); if (!pp) { r.querySelector(".flC").textContent = ""; return; } var ac = avgCost(pp.name, d); r.querySelector(".flC").textContent = ac.cost !== null ? fmt(ac.cost) + " " + uN() + "/تن · " + ac.from : "قیمت نامشخص"; });
   L.forEach(function (l) { tot += l.tons; var ac = avgCost(l.source, d).cost; if (ac === null) unk = true; else c += ac * l.tons; });
   var p = num($("f_product_t").value), off = num($("f_offspec_t").value), g = p - off;
   $("flSum").innerHTML = tot ? 'خوراک کل <b>' + tn(tot) + '</b> تن · بهای خوراک <b>' + fmtB(c) + ' ' + uN() + '</b>' + (unk ? " (بخشی بدون قیمت)" : "") + (p ? ' · بازیابی <b>' + p1(p / tot) + '</b>' : '') + (g > 0 ? ' · خوراک در هر تن پودر سالم <b>' + fmt(c / g) + '</b>' : '') : "مقدار خوراک را وارد کنید.";
@@ -168,7 +188,8 @@ async function addProd() {
   function bad(t) { note.className = "note err"; note.textContent = t; }
   if (!d) return bad("تاریخ درست نیست (مثل ۱۴۰۵/۰۸/۲۹)");
   var p = num($("f_product_t").value); if (!L.length && !p) return bad("خوراک یا پودر را وارد کنید.");
-  var tot = 0, by = {}; L.forEach(function (l) { tot += l.tons; by[l.source] = (by[l.source] || 0) + l.tons; });
+  var tot = 0, by = {}, pidOf = {}; L.forEach(function (l) { tot += l.tons; by[l.source] = (by[l.source] || 0) + l.tons; pidOf[l.source] = l.party_id; });
+  if (L.some(function (l) { return !l.party_id; })) return bad("برای هر ردیف خوراک منبع را انتخاب کنید.");
   var names = Object.keys(by).sort(function (a, b) { return by[b] - by[a]; });
   var o = { d: d, source: names.join(" + ") || null, feed_t: tot, product_t: p, offspec_t: num($("f_offspec_t").value), waste_t: num($("f_waste_t").value), sg: $("f_sg").value.trim() ? num($("f_sg").value) : null,
     planned_h: $("f_planned_h").value.trim() ? num($("f_planned_h").value) : null, downtime_h: num($("f_downtime_h").value), note: $("f_note").value.trim() || null };
@@ -179,11 +200,12 @@ async function addProd() {
   var r = await db.from("bf_production").insert(o).select("id").single();
   if (r.error) { $("addRow").disabled = false; return bad("ثبت نشد: " + r.error.message); }
   var id = r.data.id;
-  var fl = names.map(function (s) { var ac = avgCost(s, d).cost; return { production_id: id, source: s, tons: by[s], unit_cost: ac }; });
+  var fl = names.map(function (s) { var ac = avgCost(s, d).cost; return { production_id: id, source: s, party_id: pidOf[s] || null, tons: by[s], unit_cost: ac }; });
   var ml = []; Array.prototype.forEach.call(document.querySelectorAll("[data-mat]"), function (i) { var q = num(i.value); if (q > 0) ml.push({ production_id: id, item_id: +i.dataset.mat, qty: q }); });
   var e1 = fl.length ? await db.from("bf_prod_feed").insert(fl) : {}, e2 = ml.length ? await db.from("bf_prod_mat").insert(ml) : {};
   $("addRow").disabled = false;
   if (e1.error || e2.error) { await db.from("bf_production").delete().eq("id", id); return bad("ثبت BOM نشد، ثبت تولید برگشت خورد: " + (e1.error || e2.error).message); }
+  for (var pi in pidOf) await partyEnsureRole(pidOf[pi], "feed");
   await loadTable("prod"); await loadCost(); render(); toast("تولید و BOM ثبت شد.");
 }
 
@@ -191,10 +213,11 @@ async function addProd() {
 var _bindPlanC = bindPlan;
 bindPlan = function () {
   _bindPlanC();
+  wirePartySel();
   if ($("flBox")) {
     var n = 1;
     var wire = function () { Array.prototype.forEach.call(document.querySelectorAll("#flBox select, #flBox input, #f_product_t, #f_offspec_t, #f_d"), function (el) { el.oninput = prodPreview; el.onchange = prodPreview; }); prodPreview(); };
-    $("flAdd").onclick = function () { $("flBox").insertAdjacentHTML("beforeend", feedRow(n++)); wire(); };
+    $("flAdd").onclick = function () { $("flBox").insertAdjacentHTML("beforeend", feedRow(n++)); wirePartySel(); wire(); };
     wire();
   }
   if ($("cM")) $("cM").onchange = function () { A.costM = +$("cM").value; render(); };
