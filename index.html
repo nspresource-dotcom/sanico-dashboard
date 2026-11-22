@@ -207,13 +207,19 @@ body.rial td.num{font-size:.78rem}
 .mbx.sh{border-color:var(--rose)}
 .mbx .mnt{font-size:.67rem;color:var(--muted);line-height:1.5}
 /* دکمه‌های سطر قرارداد */
-td.acts{white-space:nowrap}
+td.acts{white-space:normal;min-width:210px}
+td.acts .awrap{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;
+  align-items:center}
 td.acts .coefsel{font:inherit;font-size:.72rem;padding:4px 7px;border-radius:9px;
-  border:1px solid var(--line);background:var(--card);color:var(--ink2);margin-left:6px}
+  border:1px solid var(--line);background:var(--card);color:var(--ink2)}
 td.acts .mini{font:inherit;font-size:.72rem;font-weight:700;padding:5px 11px;
   border-radius:999px;background:var(--mint-s);color:var(--deep);border:1px solid transparent}
 td.acts .mini:hover{background:var(--mint)}
 td.acts .mini.on{background:var(--grey-s);color:var(--muted)}
+td.acts .mini.ghost{background:transparent;border:1px dashed var(--line);color:var(--muted)}
+td.acts .mini.ghost:hover{background:var(--grey-s)}
+td.acts [data-ret].on{background:var(--blue-s);color:var(--blue)}
+td.acts [data-ret]:not(.on){background:var(--rose-s);color:var(--rose)}
 tr.cleared td:not(.acts){opacity:.55;text-decoration:line-through}
 .mbx.ph{background:transparent;border:1px dashed var(--line)}
 .mbx.ph:hover{background:var(--grey-s)}
@@ -1033,6 +1039,14 @@ document.addEventListener("click", function(ev){
   if(mf){ ev.preventDefault(); ev.stopPropagation();
     setMofasa(mf.getAttribute("data-mofasa"), mf.getAttribute("data-done")!=="1");
     return; }
+  var rt = ev.target.closest && ev.target.closest("[data-ret]");
+  if(rt){ ev.preventDefault(); ev.stopPropagation();
+    setRetained(rt.getAttribute("data-ret"), rt.getAttribute("data-done")!=="1");
+    return; }
+  var hd = ev.target.closest && ev.target.closest("[data-hide]");
+  if(hd){ ev.preventDefault(); ev.stopPropagation();
+    setHidden(hd.getAttribute("data-hide"), hd.getAttribute("data-done")!=="1");
+    return; }
   var mb = ev.target.closest && ev.target.closest("[data-mbox]");
   if(mb){ ev.preventDefault(); ev.stopPropagation();
     toggleMonth(mb); return; }
@@ -1595,15 +1609,38 @@ function monthRows(cols,items,search,actions,idkey){
    تغییر مستقیم در پایگاه داده می‌نشیند و صفحه دوباره خوانده می‌شود،
    پس همهٔ باکس‌های بالا بلافاصله عدد تازه می‌گیرند. */
 function contractActions(r,idkey){
-  var id=r[idkey], done=!!r.mofasa_done, kinds=[
-    ["labour","دستمزدی ۱۶٫۶۷٪"],["mechanical","مکانیکی ۷٫۷۸٪"],["exempt","معاف"]];
+  var id=r[idkey], done=!!r.mofasa_done, held=!!r.retained_5, hid=!!r.hidden;
+  var kinds=[["labour","دستمزدی ۱۶٫۶۷٪"],["mechanical","مکانیکی ۷٫۷۸٪"],["exempt","معاف"]];
   var sel='<select class="coefsel" data-cid="'+esc(id)+'">';
   kinds.forEach(function(k){
     sel+='<option value="'+k[0]+'"'+(r.coef_kind===k[0]?" selected":"")+'>'+k[1]+'</option>'; });
   sel+='</select>';
-  return '<td class="mid acts">'+sel+
+  return '<td class="mid acts"><div class="awrap">'+sel+
+    /* کسر ۵٪ ریسک را کم می‌کند، بدهی را نه — پس جدا از مفاصا نگه داشته می‌شود */
+    '<button class="mini'+(held?" on":"")+'" data-ret="'+esc(id)+'" '+
+      'data-done="'+(held?1:0)+'" title="کسر ۵٪ ماده ۳۸">'+
+      (held?"۵٪ کسر شد":"۵٪ کسر نشده")+'</button>'+
     '<button class="mini'+(done?" on":"")+'" data-mofasa="'+esc(id)+'" '+
-    'data-done="'+(done?1:0)+'">'+(done?"لغو مفاصا":"ثبت مفاصا")+'</button></td>';
+      'data-done="'+(done?1:0)+'">'+(done?"لغو مفاصا":"ثبت مفاصا")+'</button>'+
+    '<button class="mini ghost" data-hide="'+esc(id)+'" data-done="'+(hid?1:0)+'" '+
+      'title="قرارداد نیست — از محاسبات بیرون برود">'+(hid?"برگردان":"کنار بگذار")+'</button>'+
+    '</div></td>';
+}
+
+async function setRetained(id,done){
+  try{
+    var r=await db.rpc("contract_set_retained",{p_id:id,p_done:done,p_amount:null});
+    if(r.error) throw r.error;
+    await sub(S.page);
+  }catch(e){ alertLine("ثبت کسر ۵٪ انجام نشد: "+(e.message||e)); }
+}
+
+async function setHidden(id,hid){
+  try{
+    var r=await db.rpc("contract_set_hidden",{p_id:id,p_hidden:hid});
+    if(r.error) throw r.error;
+    await sub(S.page);
+  }catch(e){ alertLine("کنار گذاشتن انجام نشد: "+(e.message||e)); }
 }
 
 async function setCoef(id,kind){
