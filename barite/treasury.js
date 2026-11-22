@@ -35,7 +35,8 @@ function simTreasury(pol, mode) {
   if (!A._trR || A._trR.key !== ck) { var R0 = simulate(null, HN); A._trR = { key: ck, R: R0, E: equity(R0) }; }
   var R = A._trR.R, E = A._trR.E, H = R.rows.length, g = S.g, tax = (+g.tax || 0) / 100;
   var avgOut = 0; R.rows.forEach(function (r) { avgOut += (+r.cost || 0) + (+r.oh || 0) + (+r.tax || 0); }); avgOut /= Math.max(1, H);
-  var buffer = pol.bufferM * avgOut, fe = fillEcon();
+  /* ذخایر تصویب‌شدهٔ ریسک (صفحهٔ «ریسک‌ها و ذخایر») هم از نقد آزاد کنار گذاشته می‌شود */
+  var prov = typeof provTotal === "function" ? provTotal() : 0, buffer = pol.bufferM * avgOut + prov, fe = fillEcon();
   var fillMargin = pol.fill.margin !== null && pol.fill.margin !== undefined && pol.fill.margin !== "" ? +pol.fill.margin : fe ? fe.m : 0, fillCash = fe ? fe.cash : 0;
   var rF = Math.pow(1 + (+pol.fund.yield || 0) / 100, 1 / 12) - 1, tF = (+pol.fund.tax || 0) / 100;
   var rT = (+pol.trade.margin || 0) / 100 / Math.max(0.25, +pol.trade.cycle || 1), tT = pol.trade.tax === null || pol.trade.tax === "" || pol.trade.tax === undefined ? tax : +pol.trade.tax / 100;
@@ -90,7 +91,7 @@ function pTreasury() {
   var gain = mine.end && base.end ? mine.end.wealth - base.end.wealth : null;
   h += '<div class="grid g3" style="margin-bottom:14px">' + kpi("نقد اضافه در " + toFa(H) + " ماه", fmtB(gain), uN(), "سیاست انتخابی در برابر نگه‌داری نقد", gain > 0 ? "pos" : "", "+") +
     kpi("دورهٔ بازگشت با بازسرمایه‌گذاری", mine.pb === null ? "—" : NF1.format(mine.pb), "ماه", "بدون آن: " + (base.pb === null ? "—" : NF1.format(base.pb) + " ماه"), "", "↺") +
-    kpi("ذخیرهٔ احتیاطی", fmtB(mine.buffer), uN(), toFa(pol.bufferM) + " ماه هزینهٔ نقدی", "", "▣") + '</div>';
+    kpi("ذخیرهٔ احتیاطی", fmtB(mine.buffer), uN(), toFa(pol.bufferM) + " ماه هزینهٔ نقدی" + (typeof provTotal === "function" && provTotal() ? " + ذخایر ریسک " + fmtB(provTotal()) : ""), "", "▣") + '</div>';
   h += '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>مقایسهٔ سناریوها در ' + toFa(H) + ' ماه</h3><p class="hint">نقد انباشته = نقد آزاد + صندوق + سرمایهٔ در گردش بازرگانی و ظرفیت + سود تقسیم‌شده (بدون سرمایه‌گذاری اولیه). افق دست‌کم ۶۰ ماه است تا اثر روی بازگشت سرمایه دیده شود.</p></div></div><div class="scroll"><table><thead><tr><th>سناریو</th><th class="num">نقد انباشتهٔ پایان دوره</th><th class="num">سود پر کردن ظرفیت</th><th class="num">سود بازرگانی</th><th class="num">درآمد صندوق</th><th class="num">سود تقسیم‌شده</th><th class="num">بازگشت سرمایه</th></tr></thead><tbody>' +
     sc("نگه‌داری نقد (مدل فعلی)", base) + sc("همهٔ مازاد در صندوق", all) + sc("سیاست انتخابی", mine, 1) + '</tbody></table></div>' +
     lineChart([{ n: "نگه‌داری نقد", c: "var(--muted)", v: base.rows.map(function (r) { return r.wealth; }) }, { n: "همه در صندوق", c: "var(--amber)", v: all.rows.map(function (r) { return r.wealth; }) }, { n: "سیاست انتخابی", c: "var(--deep)", v: mine.rows.map(function (r) { return r.wealth; }) }], { x0: 1 }) + '</div>';

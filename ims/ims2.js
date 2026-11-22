@@ -14,6 +14,8 @@
     { k: "audit", g: "eval", t: "ممیزی داخلی", ic: "receipt", h: "برنامه، چک‌لیست بند به بند و یافته‌ها (بند ۹.۲)", print: true },
     { k: "review", g: "eval", t: "بازنگری مدیریت", ic: "compare", h: "ورودی‌های خودکار، مصوبات و صورت‌جلسهٔ نهایی (بند ۹.۳)", print: true }
   ];
+  var AREA = { operational: "عملیاتی", legal: "حقوقی و قراردادی", tax_insurance: "مالیات و تأمین اجتماعی", financial: "مالی", market: "بازار", strategic: "راهبردی" };
+  function money(v) { return v === null || v === undefined || v === "" ? "—" : toFa(Math.round(+v).toLocaleString("en-US")); }
   var RK = { risk: "ریسک", opportunity: "فرصت", aspect: "جنبهٔ زیست‌محیطی", hazard: "خطر ایمنی" };
   var RS = { open: "باز", treating: "در حال اقدام", controlled: "کنترل‌شده", closed: "بسته" };
   var COND = { normal: "عادی", abnormal: "غیرعادی", emergency: "اضطراری" };
@@ -50,6 +52,8 @@
       else if (f.t === "sel") inp = '<select id="' + id + '"' + dis + '>' + (f.empty ? '<option value="">' + f.empty + '</option>' : '') + Object.keys(f.o).map(function (k) { return '<option value="' + k + '"' + (String(v) === k ? " selected" : "") + '>' + f.o[k] + '</option>'; }).join("") + '</select>';
       else if (f.t === "proc") inp = '<select id="' + id + '"' + dis + '>' + procOpts(v) + '</select>';
       else if (f.t === "acc") inp = '<select id="' + id + '"' + dis + '>' + accOpts(v, f.empty || "—") + '</select>';
+      else if (f.t === "party") inp = '<select id="' + id + '"' + dis + '><option value="">—</option>' + (I.parties || []).filter(function (p) { return p.is_active !== false || p.id === v; }).map(function (p) { return '<option value="' + p.id + '"' + (p.id === v ? " selected" : "") + '>' + esc(p.name) + '</option>'; }).join("") + '</select>';
+      else if (f.t === "money") inp = '<input id="' + id + '" inputmode="decimal" value="' + (v === null || v === undefined ? "" : money(v)) + '"' + dis + (f.ph ? ' placeholder="' + esc(f.ph) + '"' : '') + '>';
       else if (f.t === "std") return '<div' + full + '><label>' + f.l + '</label>' + stdBoxes(id, v) + '</div>';
       else if (f.t === "date") inp = '<input id="' + id + '" value="' + (v ? jd(v) : "") + '" placeholder="۱۴۰۵/۰۹/۱۵"' + dis + '>';
       else if (f.t === "lv") inp = '<select id="' + id + '"' + dis + '>' + (f.empty ? '<option value="">' + f.empty + '</option>' : '') + [1, 2, 3, 4, 5].map(function (n) { return '<option value="' + n + '"' + (Number(v) === n ? " selected" : "") + '>' + toFa(n) + " — " + f.o[n - 1] + '</option>'; }).join("") + '</select>';
@@ -64,7 +68,8 @@
       if (f.t === "chk") o[f.k] = el.checked;
       else if (f.t === "std") o[f.k] = stdRead("x_" + f.k);
       else if (f.t === "proc" || f.t === "lv") o[f.k] = +el.value || null;
-      else if (f.t === "num") { var t = toEn(el.value).replace(/,/g, "").trim(); o[f.k] = t === "" ? null : Number(t); if (t !== "" && isNaN(o[f.k])) bad = f.l; }
+      else if (f.t === "party") o[f.k] = el.value || null;
+      else if (f.t === "num" || f.t === "money") { var t = toEn(el.value).replace(/,/g, "").trim(); o[f.k] = t === "" ? null : Number(t); if (t !== "" && isNaN(o[f.k])) bad = f.l; }
       else if (f.t === "date") { var dv = el.value.trim(); o[f.k] = dv ? parseJ(dv) : null; if (dv && !o[f.k]) bad = f.l; }
       else o[f.k] = el.value.trim() || null;
       if (f.req && (o[f.k] === null || o[f.k] === "")) bad = bad || f.l;
@@ -87,6 +92,7 @@
     I.docs = r[7].data || []; I.drevs = r[8].data || []; I.audits = r[9].data || []; I.aitems = r[10].data || []; I.reviews = r[11].data || [];
     var h1 = await db.from("hr_position_reqs").select("position_id", { count: "exact", head: true }), h2 = await db.from("hr_trainings").select("id", { count: "exact", head: true });
     I.hrReqs = h1.count || 0; I.hrTr = h2.count || 0;
+    var pp = await db.from("counterparties").select("id,name,is_active").order("name"); I.parties = pp.data || [];
   };
   X.badge = function (k) {
     if (k === "risk") return I.risks ? I.risks.filter(function (x) { return x.score >= 15 && (x.status === "open"); }).length : 0;
@@ -169,17 +175,17 @@
     ["opportunity", "صادرات به بازارهای منطقه", "فروش", null, "درآمد ارزی", 2, 4, "Q"]
   ];
   X.pages.risk = function () {
-    var L = I.risks.filter(function (x) { return !tab.risk || x.kind === tab.risk; });
+    var L = I.risks.filter(function (x) { return !tab.risk || (tab.risk === "_fin" ? (+x.exposure > 0 || ["legal", "tax_insurance", "financial"].indexOf(x.area) >= 0) : x.kind === tab.risk); });
     var grid = {}; L.forEach(function (x) { if (x.status !== "closed") { var k = x.likelihood + "_" + x.severity; grid[k] = (grid[k] || 0) + 1; } });
     var mx = '<div class="mx5"><div class="ax"></div>' + [1, 2, 3, 4, 5].map(function (s) { return '<div class="ax">ش' + toFa(s) + '</div>'; }).join("");
     for (var l = 5; l >= 1; l--) { mx += '<div class="ax">ا' + toFa(l) + '</div>'; for (var s = 1; s <= 5; s++) mx += '<div class="lv' + lvl(l * s) + '">' + (grid[l + "_" + s] ? toFa(grid[l + "_" + s]) : "") + '</div>'; }
     mx += '</div>';
-    var h = '<div class="tabs noprint"><button data-rtab=""' + (!tab.risk ? ' class="on"' : '') + '>همه (' + toFa(I.risks.length) + ')</button>' + Object.keys(RK).map(function (k) { return '<button data-rtab="' + k + '"' + (tab.risk === k ? ' class="on"' : '') + '>' + RK[k] + " (" + toFa(I.risks.filter(function (x) { return x.kind === k; }).length) + ')</button>'; }).join("") + '</div>';
+    var h = '<div class="tabs noprint"><button data-rtab=""' + (!tab.risk ? ' class="on"' : '') + '>همه (' + toFa(I.risks.length) + ')</button>' + Object.keys(RK).map(function (k) { return '<button data-rtab="' + k + '"' + (tab.risk === k ? ' class="on"' : '') + '>' + RK[k] + " (" + toFa(I.risks.filter(function (x) { return x.kind === k; }).length) + ')</button>'; }).join("") + '<button data-rtab="_fin"' + (tab.risk === "_fin" ? ' class="on"' : '') + '>مالی، حقوقی و مالیاتی</button></div>';
     h += '<div class="flt noprint"><button class="more" id="rNew">+ ثبت</button>' + (I.ed && !I.risks.length ? '<button class="more" id="rSug">+ فهرست پیشنهادی برای کارخانهٔ باریت</button>' : '') + '</div>';
     h += '<div class="grid g2" style="margin-bottom:14px"><div class="card"><div class="chead"><div><h3>نقشهٔ حرارتی</h3><p class="hint">احتمال (ا) × شدت (ش) — موارد باز</p></div></div>' + mx + '</div><div class="card"><div class="chead"><div><h3>معیار سطح</h3></div></div><p>' + pill(1, "۱ تا ۴: کم") + ' قابل‌قبول با کنترل جاری</p><p>' + pill(2, "۵ تا ۱۲: متوسط") + ' اقدام کنترلی برنامه‌ریزی‌شده</p><p>' + pill(3, "۱۵ تا ۲۵: زیاد") + ' اقدام فوری؛ کار بدون کنترل مجاز نیست</p><p class="hint">برای خطرات ایمنی، کنترل‌ها به ترتیب سلسله‌مراتب: حذف، جایگزینی، کنترل مهندسی، کنترل مدیریتی، تجهیزات حفاظت فردی.</p></div></div>';
-    h += '<div class="card"><div class="scroll"><table><thead><tr><th>نوع</th><th>عنوان</th><th>فرایند</th><th>شرایط</th><th class="num">سطح</th><th class="num">باقیمانده</th><th>مسئول</th><th>وضعیت</th><th>بازنگری</th></tr></thead><tbody>' +
+    h += '<div class="card"><div class="scroll"><table><thead><tr><th>نوع</th><th>عنوان</th><th>فرایند</th><th>شرایط</th><th class="num">سطح</th><th class="num">باقیمانده</th><th class="num">در معرض خطر / ذخیره</th><th>مسئول</th><th>وضعیت</th><th>بازنگری</th></tr></thead><tbody>' +
       (L.length ? L.slice().sort(function (a, b) { return b.score - a.score; }).map(function (x) { var p = procOf(x.process_id), od = x.review_date && x.review_date < today();
-        return '<tr data-risk="' + x.id + '" style="cursor:pointer"><td>' + RK[x.kind] + '</td><td><b>' + esc(x.title) + '</b>' + (x.climate ? ' ' + pill(2, "اقلیم") : '') + '</td><td>' + (p ? esc(p.code) : "—") + '</td><td>' + (x.condition ? COND[x.condition] : "—") + '</td><td class="num">' + scB(x.likelihood, x.severity) + '</td><td class="num">' + scB(x.residual_l, x.residual_s) + '</td><td>' + esc(nameOf(x.owner_email)) + '</td><td>' + RS[x.status] + '</td><td' + (od ? ' style="color:var(--rose)"' : '') + '>' + jd(x.review_date) + '</td></tr>'; }).join("") : '<tr><td colspan="9" class="mid" style="color:var(--muted)">موردی ثبت نشده.</td></tr>') + '</tbody></table></div></div>';
+        return '<tr data-risk="' + x.id + '" style="cursor:pointer"><td>' + RK[x.kind] + '</td><td><b>' + esc(x.title) + '</b>' + (x.climate ? ' ' + pill(2, "اقلیم") : '') + '</td><td>' + (p ? esc(p.code) : "—") + '</td><td>' + (x.condition ? COND[x.condition] : "—") + '</td><td class="num">' + scB(x.likelihood, x.severity) + '</td><td class="num">' + scB(x.residual_l, x.residual_s) + '</td><td class="num">' + (x.exposure ? money(x.exposure) + '<br><span class="hint">ذخیره: ' + money(x.provision) + '</span>' : (x.area ? '<span class="hint">' + AREA[x.area] + '</span>' : '—')) + '</td><td>' + esc(nameOf(x.owner_email)) + '</td><td>' + RS[x.status] + '</td><td' + (od ? ' style="color:var(--rose)"' : '') + '>' + jd(x.review_date) + '</td></tr>'; }).join("") : '<tr><td colspan="10" class="mid" style="color:var(--muted)">موردی ثبت نشده.</td></tr>') + '</tbody></table></div></div>';
     return h;
   };
   var RISK_F = [{ k: "kind", l: "نوع", t: "sel", o: RK }, { k: "title", l: "عنوان", req: 1 }, { k: "process_id", l: "فرایند", t: "proc" }, { k: "activity", l: "فعالیت / محل" },
@@ -187,9 +193,12 @@
     { k: "likelihood", l: "احتمال", t: "lv", o: LIK }, { k: "severity", l: "شدت", t: "lv", o: SEVL }, { k: "controls", l: "کنترل‌های موجود و برنامه‌ریزی‌شده", t: "area", full: 1 },
     { k: "residual_l", l: "احتمال پس از کنترل", t: "lv", o: LIK, empty: "—" }, { k: "residual_s", l: "شدت پس از کنترل", t: "lv", o: SEVL, empty: "—" },
     { k: "owner_email", l: "مسئول", t: "acc" }, { k: "review_date", l: "تاریخ بازنگری", t: "date" }, { k: "status", l: "وضعیت", t: "sel", o: RS },
-    { k: "legal_related", l: "الزام قانونی مرتبط دارد", t: "chk" }, { k: "climate", l: "مرتبط با تغییر اقلیم", t: "chk" }, { k: "standards", l: "استاندارد", t: "std", full: 1 }];
+    { k: "legal_related", l: "الزام قانونی مرتبط دارد", t: "chk" }, { k: "climate", l: "مرتبط با تغییر اقلیم", t: "chk" }, { k: "standards", l: "استاندارد", t: "std", full: 1 },
+    { k: "area", l: "حوزه", t: "sel", o: AREA, empty: "—" }, { k: "party_id", l: "طرف حساب (از فهرست اشخاص و شرکت‌ها)", t: "party" }, { k: "contract_ref", l: "شماره یا عنوان قرارداد" },
+    { k: "exposure", l: "مبلغ در معرض خطر (تومان)", t: "money" }, { k: "probability", l: "احتمال تحقق (٪)", t: "num" }, { k: "provision", l: "ذخیرهٔ تصویب‌شده (تومان)", t: "money" },
+    { k: "claim_month", l: "ماه احتمالی مطالبه (از امروز)", t: "num" }, { k: "provision_note", l: "مبنای محاسبهٔ ذخیره", t: "area", full: 1 }];
   function openRisk(id) {
-    var x = id ? I.risks.filter(function (r) { return r.id === id; })[0] : { kind: tab.risk || "hazard", likelihood: 3, severity: 3, status: "open", standards: tab.risk === "aspect" ? ["E"] : tab.risk === "hazard" || !tab.risk ? ["S"] : ["Q"], review_date: addMonths(today(), 12) };
+    var x = id ? I.risks.filter(function (r) { return r.id === id; })[0] : { kind: tab.risk === "_fin" ? "risk" : (tab.risk || "hazard"), area: tab.risk === "_fin" ? "tax_insurance" : null, likelihood: 3, severity: 3, status: "open", standards: tab.risk === "aspect" ? ["E"] : tab.risk === "hazard" || !tab.risk ? ["S"] : ["Q"], review_date: addMonths(today(), 12) };
     var can = !id || I.ed || x.owner_email === I.me || x.created_by === I.me;
     modal('<div class="card"><div class="chead"><div><h3>' + (id ? RK[x.kind] + " — سطح " + scB(x.likelihood, x.severity) : "ثبت ریسک، فرصت، جنبه یا خطر") + '</h3><p class="hint">' + (id ? "ثبت: " + esc(nameOf(x.created_by)) + " · " + jd(x.created_at) : "هر کسی می‌تواند خطر یا جنبه‌ای را که می‌بیند ثبت کند.") + '</p></div><button class="more" id="mX">بستن</button></div>' +
       F(RISK_F, x, !can) + (id ? linkedTasks("risk", id) : '') +
