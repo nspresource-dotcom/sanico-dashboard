@@ -14,7 +14,7 @@
 
 /* نسخه کش با هر انتشار عوض می‌شود — وگرنه مرورگر اصلاً نمی‌فهمد
    نسخه تازه‌ای هست و کاربر روی نسخه قدیمی گیر می‌کند. */
-const BUILD = '65';
+const BUILD = '66';
 const CACHE = 'sayanik-' + BUILD;
 const SHELL = ['./', './index.html', './manifest.json'];
 
@@ -83,7 +83,9 @@ self.addEventListener('fetch', e => {
   if (isShell(url)) {
     e.respondWith((async () => {
       const cached = await caches.match(e.request);
-      const net = fetch(e.request).then(res => {
+      /* cache:'no-cache' یعنی از حافظهٔ HTTP مرورگر (۱۰ دقیقهٔ گیت‌هاب پیجز) هم نسخهٔ کهنه نگیر؛
+         با ETag فقط بررسی می‌شود و اگر فایل عوض نشده باشد دوباره دانلود نمی‌شود. */
+      const net = fetch(new Request(url.href, { cache: 'no-cache', credentials: 'same-origin' })).then(res => {
         if (res && res.status === 200) {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});

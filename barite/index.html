@@ -388,7 +388,11 @@ table.asm td{padding:7px 8px;vertical-align:middle}table.asm .vcell input{min-wi
 .bph{border:2px dashed var(--cc,var(--line));border-radius:12px;margin-bottom:8px;background:color-mix(in srgb,var(--card) 50%,transparent)}
 .bcol .bph{border-color:var(--cc)}
 body.bdragging{cursor:grabbing;user-select:none;-webkit-user-select:none}
-@media(max-width:760px){.bboard{grid-template-columns:1fr}}
+.bgrip{cursor:grab;color:var(--muted);font-size:1.05rem;line-height:1;padding:2px 4px;margin:-2px -4px 0 2px;touch-action:none;border-radius:6px}
+.bgrip:hover{background:var(--grey-s);color:var(--ink)}
+@media(max-width:760px){.bboard{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;padding-bottom:8px;margin:0 -14px;padding-inline:14px;-webkit-overflow-scrolling:touch}
+ .bcol{flex:0 0 84%;scroll-snap-align:center}.bgrip{font-size:1.4rem;padding:4px 8px}
+ body.bdragging .bboard{scroll-snap-type:none}}
 .wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .wcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 15px;box-shadow:var(--sh);border-top:4px solid var(--line)}
 .wcard.ok{border-top-color:var(--mint)}.wcard.warn{border-top-color:var(--amber)}.wcard.bad{border-top-color:var(--rose)}
