@@ -14,7 +14,7 @@
 
 /* نسخه کش با هر انتشار عوض می‌شود — وگرنه مرورگر اصلاً نمی‌فهمد
    نسخه تازه‌ای هست و کاربر روی نسخه قدیمی گیر می‌کند. */
-const BUILD = '64';
+const BUILD = '65';
 const CACHE = 'sayanik-' + BUILD;
 const SHELL = ['./', './index.html', './manifest.json'];
 
