@@ -372,6 +372,13 @@ tr.tot td{border-top:2px solid var(--line);background:var(--canvas)}tr.grp td{ba
 #app .side .promo .n{font-size:1rem}
 
 table.asm td{padding:7px 8px;vertical-align:middle}table.asm .vcell input{min-width:150px;padding:8px 10px;direction:ltr;text-align:right}table.asm .vcell .chk{margin:0;padding:0}table.asm .vcell select{min-width:150px;padding:8px}table.asm .conf{width:auto;padding:7px}table.asm .note-in{min-width:240px;padding:8px 10px;font-size:.78rem}
+.bboard{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
+.bcol{background:var(--bg2,rgba(0,0,0,.03));border-radius:14px;padding:10px;min-height:120px}
+.bch{font-weight:800;margin:2px 4px 10px}
+.bcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;box-shadow:var(--sh);display:flex;flex-direction:column;gap:6px;font-size:.85rem}
+.bcard.late{border-color:var(--rose)}
+.bcard input,.bcard textarea,.bcard select{width:100%;box-sizing:border-box}
+@media(max-width:760px){.bboard{grid-template-columns:1fr}}
 .wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .wcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 15px;box-shadow:var(--sh);border-top:4px solid var(--line)}
 .wcard.ok{border-top-color:var(--mint)}.wcard.warn{border-top-color:var(--amber)}.wcard.bad{border-top-color:var(--rose)}
@@ -439,6 +446,7 @@ table.asm td{padding:7px 8px;vertical-align:middle}table.asm .vcell input{min-wi
 <script src="cost.js"></script>
 <script src="treasury.js"></script>
 <script src="risks.js"></script>
+<script src="board.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

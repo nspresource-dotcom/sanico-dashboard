@@ -109,7 +109,7 @@ function pWatch() {
       '<p class="wi">شاخص: ' + d.ind + '</p>' + (s.v ? '<p class="wv">' + s.v + '</p>' : '') + '<p class="wt">اگر/آنگاه: ' + d.it + '</p>' +
       (s.m && s.m.note ? '<p class="wnote">' + esc(s.m.note) + ' <span>· ' + jd(String(s.m.updated_at).slice(0, 10)) + '</span></p>' : '') +
       (A.admin ? '<div class="wedit"><select data-wst="' + d.k + '">' + ["na", "ok", "warn", "bad"].map(function (o) { return '<option value="' + o + '"' + (s.m && s.m.status === o ? " selected" : "") + '>' + (o === "na" ? (d.auto ? "خودکار" : "بدون ارزیابی") : ST[o][1]) + '</option>'; }).join("") + '</select>' +
-        '<input data-wnote="' + d.k + '" placeholder="یادداشت یا عدد این ماه" value="' + esc(s.m && s.m.note || "") + '"><button class="more" data-wsave="' + d.k + '">ثبت</button></div>' : '') + '</div>'; }).join("") + '</div>';
+        '<input data-wnote="' + d.k + '" placeholder="یادداشت یا عدد این ماه" value="' + esc(s.m && s.m.note || "") + '"><button class="more" data-wsave="' + d.k + '">ثبت</button>' + (typeof sendToBoard === "function" ? '<button class="more" title="فرستادن به تختهٔ کارهای من" data-send="' + esc(JSON.stringify({ source: "watch", ref_label: d.n, title: d.it })) + '">→ تخته</button>' : '') + '</div>' : '') + '</div>'; }).join("") + '</div>';
   return h;
 }
 async function saveWatch(k) {

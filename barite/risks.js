@@ -67,9 +67,9 @@ function pRisks() {
   if (A.basisEdit) h = basisEditor() + h;
   /* پیگیری: فهرست کار مدیرعامل برای همین ریسک‌ها (جدا از تختهٔ کارهای IMS) */
   var openT = (A.rtasks || []).filter(function (t) { return t.status === "todo" || t.status === "doing"; }), lateT = openT.filter(function (t) { return t.due_date && t.due_date < todayIso(); });
-  h += '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>پیگیری ریسک‌ها</h3><p class="hint">' + toFa(openT.length) + ' کار باز' + (lateT.length ? ' · <b style="color:var(--rose)">' + toFa(lateT.length) + ' عقب‌افتاده</b>' : '') + '. اگر اقدامی اصلاح یک فرایند است (مثلاً بند بیمه در قالب قرارداد خرید)، همان اصلاح را در <a href="../ims/">IMS</a> ثبت کنید.</p></div></div>' +
+  h += '<div class="card" style="margin-bottom:14px"><div class="chead"><div><h3>پیگیری ریسک‌ها</h3><p class="hint">کارها در <a href="#board" onclick="go(\'board\');return false">تختهٔ کارهای من</a> هم دیده می‌شوند. ' + toFa(openT.length) + ' کار باز' + (lateT.length ? ' · <b style="color:var(--rose)">' + toFa(lateT.length) + ' عقب‌افتاده</b>' : '') + '. اگر اقدامی اصلاح یک فرایند است (مثلاً بند بیمه در قالب قرارداد خرید)، همان اصلاح را در <a href="../ims/">IMS</a> ثبت کنید.</p></div></div>' +
     (F.length ? F.map(function (x) { var T = (A.rtasks || []).filter(function (t) { return t.risk_id === x.id; });
-      return '<div style="padding:10px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + esc(x.title) + '</b>' + (A.admin ? '<button class="more" data-rtask="' + x.id + '">+ کار</button>' : '') + '</div>' +
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>' + esc(x.title) + '</b>' + (A.admin ? '<button class="more" data-rtask="' + x.id + '">→ تخته کارها</button>' : '') + '</div>' +
         (T.length ? T.map(function (t) { var late = t.due_date && (t.status === "todo" || t.status === "doing") && t.due_date < todayIso();
           return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:.82rem;padding:5px 0;border-top:1px dashed var(--line)"><span style="flex:1;' + (t.status === "done" || t.status === "cancelled" ? 'color:var(--muted);text-decoration:line-through' : '') + '">' + esc(t.title) + (t.description ? '<br><span class="hint">' + esc(t.description) + '</span>' : '') + '</span>' +
             '<span style="white-space:nowrap;display:flex;gap:6px;align-items:center"><span' + (late ? ' style="color:var(--rose);font-weight:700"' : '') + '>' + jd(t.due_date) + '</span>' +
@@ -89,8 +89,8 @@ function pRisks() {
     '<div style="grid-column:1/-1"><label>شرح</label><textarea id="rk_d" style="width:100%;min-height:64px;box-sizing:border-box" placeholder="چه اتفاقی ممکن است بیفتد و چرا"></textarea></div><div><label>مبلغ در معرض خطر</label><input id="rk_e" class="money"></div><div><label>احتمال (٪)</label><input id="rk_pr" class="money"></div><div><label>ماه احتمالی مطالبه</label><input id="rk_m" class="money" placeholder="۱۲"></div></div><button class="btn sm" id="rkAdd">ثبت</button></div>';
   /* ریسک‌های عملیاتی بالا */
   var top = A.opRisks || [];
-  if (top.length) h += '<div class="card"><div class="chead"><div><h3>ریسک‌ها و خطرهای عملیاتی بالا</h3><p class="hint">فقط خواندن از ثبت‌نامهٔ IMS، سطح ۱۲ به بالا</p></div><a class="more" href="../ims/">IMS</a></div><table><thead><tr><th>عنوان</th><th class="num">سطح</th><th>وضعیت</th></tr></thead><tbody>' +
-    top.map(function (x) { return '<tr><td>' + esc(x.title) + '</td><td class="num"><b>' + toFa(x.score) + '</b></td><td>' + RST[x.status] + '</td></tr>'; }).join("") + '</tbody></table></div>';
+  if (top.length) h += '<div class="card"><div class="chead"><div><h3>ریسک‌ها و خطرهای عملیاتی بالا</h3><p class="hint">فقط خواندن از ثبت‌نامهٔ IMS، سطح ۱۲ به بالا</p></div><a class="more" href="../ims/">IMS</a></div><table><thead><tr><th>عنوان</th><th class="num">سطح</th><th>وضعیت</th><th></th></tr></thead><tbody>' +
+    top.map(function (x) { return '<tr><td>' + esc(x.title) + '</td><td class="num"><b>' + toFa(x.score) + '</b></td><td>' + RST[x.status] + '</td><td>' + (A.admin ? '<button class="more" data-send="' + esc(JSON.stringify({ source: "ims_risk", ref_label: x.title, title: "پیگیری: " + x.title })) + '">→ تخته</button>' : '') + '</td></tr>'; }).join("") + '</tbody></table></div>';
   return h;
 }
 function basisEditor() {
@@ -124,11 +124,8 @@ bindPlan = function () {
     var r = await db.from("exec_risks").update({ basis: b }).eq("id", x.id); if (r.error) { toast(r.error.message); return; }
     A.basisEdit = null; await loadRisks(); render(); toast(b.coef === null ? "مبنا ذخیره شد؛ برای محاسبهٔ مبلغ، ضریب را وارد کنید." : "مبلغ در معرض خطر از تراکنش‌ها حساب شد.");
   };
-  Array.prototype.forEach.call(document.querySelectorAll("[data-rtask]"), function (b) { b.onclick = async function () {
-    var x = (A.risks || []).filter(function (r) { return r.id === +b.dataset.rtask; })[0], t = prompt("عنوان کار پیگیری برای «" + x.title + "»:"); if (!t || !t.trim()) return;
-    var dd = prompt("مهلت چند روز دیگر؟", "۱۴"); if (dd === null) return; var n = Math.max(0, Math.round(num(dd) || 14));
-    var r = await db.from("exec_tasks").insert({ risk_id: x.id, title: t.trim(), due_date: new Date(Date.now() + n * 864e5).toISOString().slice(0, 10), created_by: String(A.me.email).toLowerCase() });
-    if (r.error) { toast(r.error.message); return; } await loadRisks(); render(); toast("کار ثبت شد."); }; });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-rtask]"), function (b) { b.onclick = function () {
+    var x = (A.risks || []).filter(function (r) { return r.id === +b.dataset.rtask; })[0]; sendToBoard({ source: "risk", risk_id: x.id, ref_label: x.title }); }; });
   Array.prototype.forEach.call(document.querySelectorAll("[data-tst]"), function (el) { el.onchange = async function () {
     var o = { status: el.value }; if (el.value === "done") { var note = prompt("نتیجه یا شاهد انجام (اختیاری):", ""); if (note) o.result_note = note; }
     var r = await db.from("exec_tasks").update(o).eq("id", +el.dataset.tst); if (r.error) { toast(r.error.message); return; } await loadRisks(); render(); toast("ثبت شد."); }; });
